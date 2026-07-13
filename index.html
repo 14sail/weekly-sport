@@ -12,7 +12,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
- 
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   // Your web app's Firebase configuration
   const firebaseConfig = {
@@ -27,13 +27,21 @@
 
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
 
   window.db = getDatabase(app);
   window.dbRef = ref;
   window.dbGet = get;
   window.dbSet = set;
-  window.firebaseReady = true;
-  document.dispatchEvent(new Event('firebase-ready'));
+
+  // 匿名登入：讓 Realtime Database 規則可以要求 "auth != null"，
+  // 擋掉單純拿 apiKey 直接打 REST API 的存取，登入過程對使用者無感。
+  signInAnonymously(auth)
+    .catch((e)=>console.error('anonymous sign-in failed', e))
+    .finally(()=>{
+      window.firebaseReady = true;
+      document.dispatchEvent(new Event('firebase-ready'));
+    });
 </script>
 
 <style>
@@ -322,7 +330,15 @@
 (function(){
 
   // ---------- 基本設定 ----------
-  const ADMIN_PASSWORD = "sport2026"; // 管理密碼，可自行修改
+  // 管理密碼改存 SHA-256 雜湊值，原始碼裡看不到明碼。
+  // 更換密碼方式：在瀏覽器 devtools console 執行（把「新密碼」換成你要的密碼）：
+  //   crypto.subtle.digest('SHA-256', new TextEncoder().encode('新密碼')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+  // 再把印出的字串貼到下面 ADMIN_PASSWORD_HASH。
+  const ADMIN_PASSWORD_HASH = "0fa07daac01020bd5ce5e30681f3dda9c021866403f8c58230cb8d2870bc2447";
+  async function sha256Hex(text){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
   const STATUS_OPTS = [
     {v:'free', label:'有空'},
     {v:'maybe', label:'不確定'},
@@ -1046,9 +1062,10 @@
       </div>
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
     `;
-    document.getElementById('pwSubmit').addEventListener('click', ()=>{
+    document.getElementById('pwSubmit').addEventListener('click', async ()=>{
       const val = document.getElementById('pwInput').value;
-      if(val === ADMIN_PASSWORD){
+      const hash = await sha256Hex(val);
+      if(hash === ADMIN_PASSWORD_HASH){
         adminUnlocked = true;
         renderAdminPanel();
       } else {

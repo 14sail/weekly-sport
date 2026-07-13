@@ -36,11 +36,37 @@
 
 ## 安全性注意事項
 
-這是為熟人小群組（LINE 群組）設計的輕量工具，**不適合存放敏感資料**：
+這是為熟人小群組（LINE 群組）設計的輕量工具，**不適合存放敏感資料**。在「單一 HTML 檔案、無後端、免付費方案」的限制下，目前採用以下防護，並誠實列出其極限：
 
-- 成員密碼以明碼存放於資料庫，僅用於避免誤觸修改他人回覆，並非正式帳號系統。
-- 管理密碼（`ADMIN_PASSWORD`）寫死在 `index.html` 原始碼中，任何人檢視原始碼即可看到，僅作為簡單門檻。
-- Firebase 設定（`firebaseConfig`）皆為前端可見的公開金鑰，安全性需仰賴 Realtime Database 的規則設定。
+- **資料庫存取**：頁面載入時會自動用 Firebase 匿名登入（`signInAnonymously`），搭配 Realtime Database 規則要求 `auth != null`（見下方「啟用資料庫保護」），可以擋掉「只靠 `apiKey` 直接打 REST API」的隨意存取／掃描。但無法擋住願意讀懂前端程式碼、模仿相同登入流程的針對性攻擊者——要做到每人只能改自己的資料，需要更完整的身份綁定與規則設計，目前沒有做。
+- **管理密碼**：原始碼中只存 SHA-256 雜湊值（`ADMIN_PASSWORD_HASH`），不是明碼，一般檢視原始碼看不到密碼本身；但因為沒有後端，比對邏輯仍在瀏覽器端執行，理論上仍可能被離線暴力破解，且**舊密碼 `sport2026` 已經存在 git 歷史中，等同永久外流**，請務必更換成新密碼（見下方「更換管理密碼」）。
+- **成員密碼**：以明碼存在資料庫內（不在原始碼、不在 git 歷史），僅用於避免誤觸修改他人回覆，並非正式帳號系統。
+- **Firebase 設定（`firebaseConfig`）**：`apiKey` 等值本來就是前端可見的公開識別資訊，無法被「藏起來」，真正的防護仰賴上面的資料庫規則設定。
+
+### 啟用資料庫保護（一次性設定）
+
+1. Firebase Console → Authentication → Sign-in method → 啟用「匿名」登入（免費，不需信用卡）。
+2. 確認網站部署新版程式碼後仍正常運作（能選人、儲存回覆）。
+3. Firebase Console → Realtime Database → Rules，貼上並發布：
+   ```json
+   {
+     "rules": {
+       "data": {
+         ".read": "auth != null",
+         ".write": "auth != null"
+       }
+     }
+   }
+   ```
+
+### 更換管理密碼
+
+1. 開啟瀏覽器 devtools console，執行（把 `新密碼` 換成你要設定的密碼）：
+   ```js
+   crypto.subtle.digest('SHA-256', new TextEncoder().encode('新密碼')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+   ```
+2. 把印出的 64 碼十六進位字串，貼到 `index.html` 中的 `ADMIN_PASSWORD_HASH` 常數，取代原本的值。
+3. Commit、push 部署即可生效；密碼明碼全程不需要寫進任何檔案。
 
 ## 使用方式
 
