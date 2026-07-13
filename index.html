@@ -88,7 +88,7 @@
     letter-spacing:2px;
     color:var(--accent-deep);
   }
-  header.top .brand .seed{ color:var(--green); }
+  header.top .brand .seed{ color:var(--green); font-size:10px; vertical-align:middle; }
   header.top .sub{
     font-size:12px;
     color:var(--ink-soft);
@@ -125,14 +125,17 @@
   p.desc{ color:var(--ink-soft); font-size:13px; margin:0 0 16px; line-height:1.6; }
 
   /* ---- 選擇使用者畫面 ---- */
-  .people-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .people-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
   .person-btn{
-    flex:1 1 calc(33.333% - 8px);
-    min-width:88px;
+    height:64px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
     background:var(--accent-soft);
     border:1px solid var(--line);
     border-radius:var(--radius-sm);
-    padding:14px 8px;
+    padding:8px;
     text-align:center;
     font-size:14px;
     font-weight:500;
@@ -259,15 +262,19 @@
   }
 
   .announce-box{
+    width:100%;
     background:#FFFCF6;
     border:1px dashed var(--line);
     border-radius:var(--radius-sm);
     padding:16px;
+    font-family:inherit;
     font-size:14px;
     line-height:1.9;
     white-space:pre-wrap;
     color:var(--ink);
     margin-top:14px;
+    min-height:150px;
+    resize:vertical;
   }
   .copy-btn{
     width:100%;
@@ -320,7 +327,7 @@
 
 <div class="wrap" id="app">
   <header class="top">
-    <div class="brand"><span class="seed">●</span> 本週運動</div>
+    <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
     <div class="sub">WEEKLY MOVEMENT</div>
   </header>
   <div class="loading">載入中…</div>
@@ -475,7 +482,7 @@
     if(!window.db){
       app.innerHTML = `
         <header class="top">
-          <div class="brand"><span class="seed">●</span> 本週運動</div>
+          <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         </header>
         <div class="card">
           <h1>資料庫尚未設定</h1>
@@ -522,16 +529,16 @@
     const students = people.filter(p=>!p.isTeacher);
     let html = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">WEEKLY MOVEMENT</div>
       </header>
       <div class="card">
-        <h1>你是哪一位？</h1>
-        <p class="desc">請選擇你的名字，填寫這幾週不方便運動的時間。</p>
+        <h1>你是哪位同學？</h1>
+        <p class="desc">請選擇你的名字，就可以填寫接下來不方便運動的時間囉！</p>
         <div class="people-grid">
     `;
     if(teacher){
-      html += `<div class="person-btn teacher" data-id="${teacher.id}">${escapeHtml(teacher.name)}<br><span style="font-size:10px;">（老師）</span></div>`;
+      html += `<div class="person-btn teacher" data-id="${teacher.id}">${escapeHtml(teacher.name)}<br><span style="font-size:10px;">（我是老師）</span></div>`;
     }
     students.forEach(s=>{
       html += `<div class="person-btn" data-id="${s.id}">${escapeHtml(s.name)}</div>`;
@@ -569,7 +576,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">第一次使用，請設定密碼</div>
       </header>
       <div class="card admin-lock">
@@ -627,7 +634,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">請輸入密碼</div>
       </header>
       <div class="card admin-lock">
@@ -674,7 +681,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">修改我的資料</div>
       </header>
       <div class="card">
@@ -745,7 +752,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">${escapeHtml(person.name)} 的時間回報</div>
       </header>
       <div class="card"><div class="empty">載入中…</div></div>
@@ -777,7 +784,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">${escapeHtml(person.name)} 的時間回報</div>
       </header>
       <div class="card">
@@ -843,7 +850,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">老師管理視角</div>
       </header>
       <div class="card"><div class="empty">載入統計中…</div></div>
@@ -896,6 +903,7 @@
     let subTabsHtml = `
       <div class="nav-tabs">
         <button data-tab="summary" class="${teacherTab==='summary'?'active':''}">統計總覽</button>
+        <button data-tab="fill" class="${teacherTab==='fill'?'active':''}">填寫我的時間</button>
         <button data-tab="announce" class="${teacherTab==='announce'?'active':''}">公告產生</button>
       </div>
     `;
@@ -904,7 +912,7 @@
     if(teacherTab==='summary'){
       bodyHtml += `<h2>${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)} 統計</h2>`;
       if(!teacherResp.statuses || Object.keys(teacherResp.statuses).length===0){
-        bodyHtml += `<p class="desc" style="color:var(--red);">你（老師）尚未填寫這週的可用時間，請先切換身份填寫。</p>`;
+        bodyHtml += `<p class="desc" style="color:var(--red);">你（老師）尚未填寫這週有空的時間，請切換到「填寫我的時間」分頁填寫。</p>`;
       }
       dayStats.forEach(ds=>{
         const isBest = ds.day.key === bestKey;
@@ -941,6 +949,25 @@
           bodyHtml += `<div class="note-line">${escapeHtml(n.name)}：${escapeHtml(n.note)}</div>`;
         });
       }
+    } else if(teacherTab==='fill'){
+      // 老師填寫自己這週的可用時間（跟成員畫面邏輯相同，寫回同一份 resp 資料）
+      bodyHtml += `<h2>${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)}</h2>`;
+      bodyHtml += `<p class="desc">請針對每天勾選「有空 / 不確定 / 沒空」，這會作為排定運動的必要條件。</p>`;
+      week.days.forEach(d=>{
+        const cur = teacherResp.statuses[d.key] || '';
+        bodyHtml += `
+          <div class="day-row">
+            <div class="day-label">星期${d.weekdayName}<span class="date">${fmtShort(d.date)}</span></div>
+            <div class="status-options" data-day="${d.key}">
+              ${STATUS_OPTS.map(o=>`<div class="status-btn" data-v="${o.v}" data-day="${d.key}">${o.label}</div>`).join('')}
+            </div>
+          </div>
+        `;
+      });
+      bodyHtml += `<div class="note-label">備註（選填）</div>`;
+      bodyHtml += `<textarea class="note" id="teacherNoteInput" placeholder="例如：這週想打羽球、或身體微恙先觀望…">${escapeHtml(teacherResp.note||'')}</textarea>`;
+      bodyHtml += `<button class="save-btn" id="teacherSaveBtn">儲存這週的回覆</button>`;
+      bodyHtml += `<div class="save-flash" id="teacherSaveFlash"></div>`;
     } else {
       // 公告產生
       bodyHtml += `<h2>產生公告</h2>`;
@@ -955,14 +982,15 @@
       bodyHtml += `<div class="field"><label>運動項目</label><input type="text" id="announceSport" placeholder="例如 羽毛球" value="${escapeHtml(savedAnnounce ? savedAnnounce.sport||'' : '')}"></div>`;
       bodyHtml += `<div class="field"><label>附加提醒（選填）</label><input type="text" id="announceExtra" placeholder="例如 請自備球拍" value="${escapeHtml(savedAnnounce ? savedAnnounce.extra||'' : '')}"></div>`;
       bodyHtml += `<button class="save-btn" id="genBtn">產生 / 更新公告文字</button>`;
-      bodyHtml += `<div class="announce-box" id="announceBox">${savedAnnounce ? buildAnnounceText(savedAnnounce, dayStats) : '尚未產生公告，請選擇日期與運動後按上方按鈕。'}</div>`;
+      bodyHtml += `<div class="note-label">公告文字（可自行編輯後再複製）</div>`;
+      bodyHtml += `<textarea class="announce-box" id="announceBox">${savedAnnounce ? buildAnnounceText(savedAnnounce, dayStats) : '尚未產生公告，請選擇日期與運動後按上方按鈕。'}</textarea>`;
       bodyHtml += `<button class="copy-btn" id="copyBtn">複製公告文字</button>`;
       bodyHtml += `<div class="save-flash" id="copyFlash"></div>`;
     }
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">老師管理視角</div>
       </header>
       <div class="card">
@@ -986,6 +1014,31 @@
       });
     });
 
+    if(teacherTab==='fill'){
+      const state = Object.assign({}, teacherResp.statuses);
+      function refreshActive(){
+        app.querySelectorAll('.status-btn').forEach(btn=>{
+          const day = btn.dataset.day;
+          btn.classList.toggle('active', state[day]===btn.dataset.v);
+        });
+      }
+      refreshActive();
+      app.querySelectorAll('.status-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const day = btn.dataset.day;
+          state[day] = btn.dataset.v;
+          refreshActive();
+        });
+      });
+      document.getElementById('teacherSaveBtn').addEventListener('click', async ()=>{
+        const note = document.getElementById('teacherNoteInput').value.trim();
+        await sSet('resp:'+week.weekKey+':'+person.id, {statuses: state, note: note}, true);
+        const flash = document.getElementById('teacherSaveFlash');
+        flash.textContent = '已儲存';
+        setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
+      });
+    }
+
     if(teacherTab==='announce'){
       document.getElementById('genBtn').addEventListener('click', async ()=>{
         const dayKey = document.getElementById('announceDay').value;
@@ -994,10 +1047,10 @@
         const extra = document.getElementById('announceExtra').value.trim();
         const data = {dayKey, time, sport, extra, savedAt: new Date().toISOString()};
         await sSet('announce:'+week.weekKey, data, true);
-        document.getElementById('announceBox').textContent = buildAnnounceText(data, dayStats);
+        document.getElementById('announceBox').value = buildAnnounceText(data, dayStats);
       });
       document.getElementById('copyBtn').addEventListener('click', ()=>{
-        const text = document.getElementById('announceBox').textContent;
+        const text = document.getElementById('announceBox').value;
         copyToClipboard(text);
         const flash = document.getElementById('copyFlash');
         flash.textContent = '已複製，貼到 LINE 群組吧';
@@ -1049,7 +1102,7 @@
     if(adminUnlocked) return renderAdminPanel();
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">管理入口</div>
       </header>
       <div class="card admin-lock">
@@ -1094,7 +1147,7 @@
 
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">管理人員名單</div>
       </header>
       <div class="card">
