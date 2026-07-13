@@ -334,7 +334,7 @@
   // 更換密碼方式：在瀏覽器 devtools console 執行（把「新密碼」換成你要的密碼）：
   //   crypto.subtle.digest('SHA-256', new TextEncoder().encode('新密碼')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
   // 再把印出的字串貼到下面 ADMIN_PASSWORD_HASH。
-  const ADMIN_PASSWORD_HASH = "0fa07daac01020bd5ce5e30681f3dda9c021866403f8c58230cb8d2870bc2447";
+  const ADMIN_PASSWORD_HASH = "2a0affece715fcb62b31c2e8f37027b53a9ef886d104959493cc4a061c5ea30e";
   async function sha256Hex(text){
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
