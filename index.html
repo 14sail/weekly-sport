@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>本週運動</title>
+
+<!-- ============================================================
+     Firebase 設定：請將下面的 firebaseConfig 換成你自己 Firebase
+     專案的設定值（在 Firebase Console > 專案設定 > 一般 可以找到）
+     ============================================================ -->
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "firebase/app";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyCgUDmlcV3PpiGdB989ba9FgFR637_ZKnA",
+    authDomain: "weekly-sport.firebaseapp.com",
+    databaseURL: "https://weekly-sport-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "weekly-sport",
+    storageBucket: "weekly-sport.firebasestorage.app",
+    messagingSenderId: "877154842539",
+    appId: "1:877154842539:web:83b4500eaa33ca46fb44ee"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+
+  window.db = getDatabase(app);
+  window.dbRef = ref;
+  window.dbGet = get;
+  window.dbSet = set;
+  window.firebaseReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+  :root{
+    --bg: #F6F1E7;
+    --bg-card: #FFFDF8;
+    --ink: #3A2E22;
+    --ink-soft: #8A7A64;
+    --line: #E4D9C4;
+    --accent: #A9744F;
+    --accent-deep: #7C5236;
+    --accent-soft: #EFE0CB;
+    --green: #6C7A52;
+    --green-soft: #E7EBDD;
+    --red: #B15C4A;
+    --red-soft: #F3E2DC;
+    --amber: #C08A34;
+    --amber-soft: #F5EAD3;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Noto Sans TC', sans-serif;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  .wrap{ max-width:520px; margin:0 auto; padding:0 18px; }
+
+  header.top{
+    padding:28px 18px 20px;
+    text-align:center;
+    position:relative;
+  }
+  header.top .brand{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:2px;
+    color:var(--accent-deep);
+  }
+  header.top .brand .seed{ color:var(--green); }
+  header.top .sub{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:4px;
+    letter-spacing:3px;
+  }
+
+  .switch-user{
+    position:fixed;
+    top:16px;
+    right:16px;
+    font-size:12px;
+    color:var(--ink-soft);
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    border-radius:20px;
+    cursor:pointer;
+    z-index:20;
+  }
+  .switch-user.edit-profile{ right:104px; }
+
+  .card{
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:16px;
+    box-shadow:0 2px 8px rgba(122,90,54,0.06);
+  }
+
+  h1{ font-family:'Noto Serif TC', serif; font-size:20px; font-weight:700; margin:0 0 4px; color:var(--ink); }
+  h2{ font-family:'Noto Serif TC', serif; font-size:17px; font-weight:700; margin:0 0 12px; color:var(--ink); }
+  p.desc{ color:var(--ink-soft); font-size:13px; margin:0 0 16px; line-height:1.6; }
+
+  /* ---- 選擇使用者畫面 ---- */
+  .people-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .person-btn{
+    flex:1 1 calc(33.333% - 8px);
+    min-width:88px;
+    background:var(--accent-soft);
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:14px 8px;
+    text-align:center;
+    font-size:14px;
+    font-weight:500;
+    color:var(--accent-deep);
+    cursor:pointer;
+  }
+  .person-btn.teacher{ background:var(--green-soft); color:var(--green); border-color:#D3DCC3; }
+  .person-btn:active{ transform:scale(0.97); }
+
+  /* ---- 週卡片 ---- */
+  .week-card{ }
+  .week-title{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:14px;
+  }
+  .week-title .label{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:16px; }
+  .week-title .range{ font-size:12px; color:var(--ink-soft); }
+
+  .day-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 4px;
+    border-top:1px solid var(--line);
+  }
+  .day-row:first-of-type{ border-top:none; }
+  .day-label{ font-size:14px; font-weight:500; min-width:74px; }
+  .day-label .date{ color:var(--ink-soft); font-weight:400; font-size:12px; display:block; }
+
+  .status-options{ display:flex; gap:6px; }
+  .status-btn{
+    border:1px solid var(--line);
+    background:var(--bg-card);
+    border-radius:20px;
+    padding:7px 12px;
+    font-size:12px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .status-btn[data-v="free"].active{ background:var(--green-soft); color:var(--green); border-color:#B9C79E; font-weight:700;}
+  .status-btn[data-v="busy"].active{ background:var(--red-soft); color:var(--red); border-color:#DDB2A4; font-weight:700;}
+  .status-btn[data-v="maybe"].active{ background:var(--amber-soft); color:var(--amber); border-color:#E7C989; font-weight:700;}
+
+  textarea.note{
+    width:100%;
+    margin-top:14px;
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:10px 12px;
+    font-family:inherit;
+    font-size:13px;
+    resize:vertical;
+    min-height:54px;
+    background:#FFFCF6;
+    color:var(--ink);
+  }
+  textarea.note::placeholder{ color:#B6A88E; }
+  .note-label{ font-size:12px; color:var(--ink-soft); margin:14px 0 6px; }
+
+  .save-btn{
+    width:100%;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:var(--radius-sm);
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    margin-top:16px;
+    cursor:pointer;
+    letter-spacing:1px;
+  }
+  .save-btn:active{ background:var(--accent-deep); }
+  .save-flash{
+    text-align:center; font-size:12px; color:var(--green); margin-top:8px; height:14px;
+  }
+
+  .nav-tabs{
+    display:flex; gap:8px; margin-bottom:16px;
+  }
+  .nav-tabs button{
+    flex:1;
+    padding:10px;
+    border-radius:var(--radius-sm);
+    border:1px solid var(--line);
+    background:var(--bg-card);
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .nav-tabs button.active{ background:var(--accent-deep); color:#fff; border-color:var(--accent-deep); }
+
+  /* ---- 老師統計畫面 ---- */
+  .summary-day{
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:14px;
+    margin-bottom:10px;
+    cursor:pointer;
+  }
+  .summary-day.picked{ border-color:var(--accent); background:var(--accent-soft); }
+  .summary-day.teacher-no{ opacity:0.45; }
+  .summary-head{ display:flex; justify-content:space-between; align-items:center; }
+  .summary-head .d{ font-weight:700; font-size:14px; }
+  .summary-head .badge{
+    font-size:11px; padding:3px 9px; border-radius:12px; font-weight:700;
+  }
+  .badge.best{ background:var(--green-soft); color:var(--green); }
+  .badge.normal{ background:var(--line); color:var(--ink-soft); }
+  .badge.noteacher{ background:var(--red-soft); color:var(--red); }
+  .summary-names{ font-size:12px; color:var(--ink-soft); margin-top:8px; line-height:1.6; }
+  .summary-names b{ color:var(--ink); }
+  .name-tag{ display:inline-block; margin:2px 4px 2px 0; padding:2px 7px; border-radius:10px; font-size:11px; }
+  .name-tag.free{ background:var(--green-soft); color:var(--green); }
+  .name-tag.busy{ background:var(--red-soft); color:var(--red); }
+  .name-tag.maybe{ background:var(--amber-soft); color:var(--amber); }
+  .note-line{ font-size:11px; color:var(--ink-soft); margin-top:4px; font-style:italic; }
+
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:6px; }
+  .field input, .field select{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    font-family:inherit; font-size:14px; background:#FFFCF6; color:var(--ink);
+  }
+
+  .announce-box{
+    background:#FFFCF6;
+    border:1px dashed var(--line);
+    border-radius:var(--radius-sm);
+    padding:16px;
+    font-size:14px;
+    line-height:1.9;
+    white-space:pre-wrap;
+    color:var(--ink);
+    margin-top:14px;
+  }
+  .copy-btn{
+    width:100%;
+    background:var(--green);
+    color:#fff;
+    border:none;
+    border-radius:var(--radius-sm);
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    margin-top:10px;
+    cursor:pointer;
+  }
+  .copy-btn:active{ background:#586445; }
+
+  .empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:20px 0; }
+
+  /* ---- admin ---- */
+  .admin-lock{ text-align:center; padding:40px 0; }
+  .admin-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 0; border-top:1px solid var(--line);
+  }
+  .admin-row:first-of-type{ border-top:none; }
+  .pill{ font-size:11px; padding:3px 9px; border-radius:10px; background:var(--green-soft); color:var(--green); font-weight:700; }
+  .del-btn{ background:none; border:none; color:var(--red); font-size:12px; cursor:pointer; }
+  .add-row{ display:flex; gap:8px; margin-top:14px; }
+  .add-row input{ flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-sm); font-family:inherit; }
+  .add-row button{ background:var(--accent); color:#fff; border:none; border-radius:var(--radius-sm); padding:0 16px; font-weight:700; cursor:pointer; }
+
+  .footer-link{ text-align:center; margin-top:24px; }
+  .footer-link a{ font-size:11px; color:var(--ink-soft); text-decoration:none; }
+
+  .loading{ text-align:center; padding:60px 0; color:var(--ink-soft); font-size:13px; }
+
+  .lock-icon{
+    font-size:11px;
+    letter-spacing:2px;
+    color:var(--ink-soft);
+    margin-bottom:10px;
+    text-transform:uppercase;
+  }
+  .hint-text{ font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="switch-user edit-profile" id="editProfileBtn" style="display:none;">修改資料</div>
+<div class="switch-user" id="switchUserBtn" style="display:none;">切換身份</div>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="brand"><span class="seed">●</span> 本週運動</div>
+    <div class="sub">WEEKLY MOVEMENT</div>
+  </header>
+  <div class="loading">載入中…</div>
+</div>
+
+<script>
+(function(){
+
+  // ---------- 基本設定 ----------
+  const ADMIN_PASSWORD = "sport2026"; // 管理密碼，可自行修改
+  const STATUS_OPTS = [
+    {v:'free', label:'有空'},
+    {v:'maybe', label:'不確定'},
+    {v:'busy', label:'沒空'}
+  ];
+  const WEEKDAY_NAMES = ['日','一','二','三','四','五','六'];
+
+  let people = [];       // [{id, name, isTeacher, password}]
+  let currentPersonId = null;
+  let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | admin
+  let teacherTab = 'summary'; // summary | announce (老師視角內部切換用)
+  let pendingPersonId = null; // 選了名字但還沒通過密碼驗證時暫存
+
+  const app = document.getElementById('app');
+  const switchBtn = document.getElementById('switchUserBtn');
+  const editProfileBtn = document.getElementById('editProfileBtn');
+
+  // ---------- 工具：日期 ----------
+  function pad(n){ return n<10 ? '0'+n : ''+n; }
+  function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function fmtShort(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
+  function startOfWeek(d){
+    // 週一為一週開始
+    const day = d.getDay(); // 0=日
+    const diff = (day===0 ? -6 : 1-day);
+    const monday = new Date(d);
+    monday.setDate(d.getDate()+diff);
+    monday.setHours(0,0,0,0);
+    return monday;
+  }
+  function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+
+  // 產生未來4週(含本週)，每週週一到週五
+  function getWeeks(){
+    const today = new Date();
+    const thisMonday = startOfWeek(today);
+    const weeks = [];
+    for(let w=0; w<4; w++){
+      const monday = addDays(thisMonday, w*7);
+      const days = [];
+      for(let i=0;i<5;i++){
+        const d = addDays(monday, i);
+        days.push({ key: toKey(d), date: d, weekdayName: WEEKDAY_NAMES[d.getDay()] });
+      }
+      weeks.push({ weekKey: toKey(monday), monday, days, isCurrent: w===0 });
+    }
+    return weeks;
+  }
+  const WEEKS = getWeeks();
+  const CURRENT_WEEK = WEEKS[0];
+
+  // ---------- Storage helpers (Firebase Realtime Database) ----------
+  // key 中的 '.' '#' '$' '[' ']' 對 Firebase path 是保留字元，做安全轉換
+  function safeKey(key){
+    return key.replace(/[.#$\[\]]/g, '_');
+  }
+  async function sGet(key, shared){
+    try{
+      const snap = await window.dbGet(window.dbRef(window.db, 'data/' + safeKey(key)));
+      if(!snap.exists()) return null;
+      return JSON.parse(snap.val());
+    }catch(e){ console.error('sGet error', e); return null; }
+  }
+  async function sSet(key, val, shared){
+    try{
+      await window.dbSet(window.dbRef(window.db, 'data/' + safeKey(key)), JSON.stringify(val));
+    }catch(e){ console.error('sSet error', e); }
+  }
+  async function sDelete(key, shared){
+    try{
+      await window.dbSet(window.dbRef(window.db, 'data/' + safeKey(key)), null);
+    }catch(e){ console.error('sDelete error', e); }
+  }
+  async function sList(prefix, shared){
+    try{
+      const snap = await window.dbGet(window.dbRef(window.db, 'data'));
+      if(!snap.exists()) return [];
+      const all = snap.val();
+      const safePrefix = safeKey(prefix);
+      return Object.keys(all).filter(k => k.startsWith(safePrefix));
+    }catch(e){ console.error('sList error', e); return []; }
+  }
+
+  // ---------- 資料模型 ----------
+  // people (shared): key "people-list" -> [{id,name,isTeacher}]
+  // responses (shared): key "resp:<weekKey>:<personId>" -> {statuses:{dayKey:'free'|'busy'|'maybe'}, note:''}
+  // announcement (shared): key "announce:<weekKey>" -> {dayKey, sport, note, savedAt}
+
+  async function loadPeople(){
+    const p = await sGet('people-list', true);
+    if(p && Array.isArray(p) && p.length){ people = p; }
+    else{
+      // 預設種子資料
+      people = [
+        {id:'p1', name:'老師', isTeacher:true, password:''},
+        {id:'p2', name:'同學A', isTeacher:false, password:''},
+        {id:'p3', name:'同學B', isTeacher:false, password:''}
+      ];
+      await sSet('people-list', people, true);
+    }
+  }
+
+  async function savePeople(){
+    await sSet('people-list', people, true);
+  }
+
+  async function cleanupOldWeeks(){
+    // 刪除比本週還早的回覆資料
+    const keys = await sList('resp:', true);
+    const validPrefixes = WEEKS.map(w => 'resp:'+w.weekKey+':');
+    for(const k of keys){
+      const isValid = validPrefixes.some(p => k.startsWith(p));
+      if(!isValid){ await sDelete(k, true); }
+    }
+    const akeys = await sList('announce:', true);
+    const validA = WEEKS.map(w => 'announce:'+w.weekKey);
+    for(const k of akeys){
+      if(!validA.includes(k)){ await sDelete(k, true); }
+    }
+  }
+
+  // ---------- Render 進入點 ----------
+  function waitForFirebase(){
+    return new Promise((resolve)=>{
+      if(window.firebaseReady){ resolve(); return; }
+      document.addEventListener('firebase-ready', ()=>resolve(), {once:true});
+      // 保險：3秒後即使沒收到事件也嘗試繼續（避免卡死在載入畫面）
+      setTimeout(()=>resolve(), 3000);
+    });
+  }
+
+  async function init(){
+    await waitForFirebase();
+    if(!window.db){
+      app.innerHTML = `
+        <header class="top">
+          <div class="brand"><span class="seed">●</span> 本週運動</div>
+        </header>
+        <div class="card">
+          <h1>資料庫尚未設定</h1>
+          <p class="desc">請先在 index.html 檔案開頭填入你的 Firebase 設定值（firebaseConfig），才能開始使用。</p>
+        </div>
+      `;
+      return;
+    }
+    await loadPeople();
+    await cleanupOldWeeks();
+    view = 'pickPerson';
+    render();
+  }
+
+  function render(){
+    const loggedIn = (view==='member' || view==='teacher');
+    switchBtn.style.display = loggedIn ? 'block' : 'none';
+    editProfileBtn.style.display = loggedIn ? 'block' : 'none';
+    if(view==='pickPerson') return renderPickPerson();
+    if(view==='setPassword') return renderSetPassword();
+    if(view==='enterPassword') return renderEnterPassword();
+    if(view==='editProfile') return renderEditProfile();
+    if(view==='member') return renderMember();
+    if(view==='teacher') return renderTeacher();
+    if(view==='admin') return renderAdminLock();
+  }
+
+  let returnViewAfterEdit = 'pickPerson';
+  editProfileBtn.addEventListener('click', ()=>{
+    returnViewAfterEdit = view;
+    view = 'editProfile';
+    render();
+  });
+
+  switchBtn.addEventListener('click', ()=>{
+    currentPersonId = null;
+    view = 'pickPerson';
+    render();
+  });
+
+  // ---------- 畫面：選擇使用者 ----------
+  function renderPickPerson(){
+    const teacher = people.find(p=>p.isTeacher);
+    const students = people.filter(p=>!p.isTeacher);
+    let html = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">WEEKLY MOVEMENT</div>
+      </header>
+      <div class="card">
+        <h1>你是哪一位？</h1>
+        <p class="desc">請選擇你的名字，填寫這幾週不方便運動的時間。</p>
+        <div class="people-grid">
+    `;
+    if(teacher){
+      html += `<div class="person-btn teacher" data-id="${teacher.id}">${escapeHtml(teacher.name)}<br><span style="font-size:10px;">（老師）</span></div>`;
+    }
+    students.forEach(s=>{
+      html += `<div class="person-btn" data-id="${s.id}">${escapeHtml(s.name)}</div>`;
+    });
+    html += `
+        </div>
+      </div>
+      <div class="footer-link"><a href="#" id="adminEntry">管理入口</a></div>
+    `;
+    app.innerHTML = html;
+
+    app.querySelectorAll('.person-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        pendingPersonId = btn.dataset.id;
+        const person = people.find(p=>p.id===pendingPersonId);
+        view = person.password ? 'enterPassword' : 'setPassword';
+        render();
+      });
+    });
+    document.getElementById('adminEntry').addEventListener('click', (e)=>{
+      e.preventDefault();
+      view = 'admin';
+      render();
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- 畫面：第一次使用，設定名字與密碼 ----------
+  function renderSetPassword(){
+    const person = people.find(p=>p.id===pendingPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">第一次使用，請設定密碼</div>
+      </header>
+      <div class="card admin-lock">
+        <div class="lock-icon">設定</div>
+        <h1>嗨，${escapeHtml(person.name)}</h1>
+        <p class="desc">這是你第一次登入，請設定一組密碼保護你的回覆。也可以順便修改顯示的名字。</p>
+        <div class="field" style="text-align:left;">
+          <label>顯示名字</label>
+          <input type="text" id="nameInput" value="${escapeHtml(person.name)}">
+        </div>
+        <div class="field" style="text-align:left;">
+          <label>設定密碼</label>
+          <input type="password" id="pw1" placeholder="至少4個字元">
+        </div>
+        <div class="field" style="text-align:left;">
+          <label>再輸入一次</label>
+          <input type="password" id="pw2" placeholder="確認密碼">
+        </div>
+        <button class="save-btn" id="setPwBtn">完成設定並進入</button>
+        <div class="save-flash" id="setPwFlash"></div>
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+    `;
+
+    document.getElementById('setPwBtn').addEventListener('click', async ()=>{
+      const name = document.getElementById('nameInput').value.trim();
+      const pw1 = document.getElementById('pw1').value;
+      const pw2 = document.getElementById('pw2').value;
+      const flash = document.getElementById('setPwFlash');
+      if(!name){ flash.textContent = '請輸入名字'; return; }
+      if(pw1.length < 4){ flash.textContent = '密碼至少需要4個字元'; return; }
+      if(pw1 !== pw2){ flash.textContent = '兩次密碼輸入不一致'; return; }
+
+      person.name = name;
+      person.password = pw1;
+      await savePeople();
+
+      currentPersonId = person.id;
+      pendingPersonId = null;
+      view = person.isTeacher ? 'teacher' : 'member';
+      render();
+    });
+
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      pendingPersonId = null;
+      view='pickPerson'; render();
+    });
+  }
+
+  // ---------- 畫面：輸入密碼登入 ----------
+  function renderEnterPassword(){
+    const person = people.find(p=>p.id===pendingPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">請輸入密碼</div>
+      </header>
+      <div class="card admin-lock">
+        <div class="lock-icon">登入</div>
+        <h1>${escapeHtml(person.name)}</h1>
+        <div class="field" style="text-align:left; margin-top:16px;">
+          <input type="password" id="pwInput" placeholder="輸入你的密碼">
+        </div>
+        <button class="save-btn" id="pwSubmit">進入</button>
+        <div class="save-flash" id="pwFlash"></div>
+        <div class="hint-text">忘記密碼請請管理員協助重設</div>
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+    `;
+
+    function trySubmit(){
+      const val = document.getElementById('pwInput').value;
+      if(val === person.password){
+        currentPersonId = person.id;
+        pendingPersonId = null;
+        view = person.isTeacher ? 'teacher' : 'member';
+        render();
+      } else {
+        document.getElementById('pwFlash').textContent = '密碼錯誤，請再試一次';
+      }
+    }
+
+    document.getElementById('pwSubmit').addEventListener('click', trySubmit);
+    document.getElementById('pwInput').addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') trySubmit();
+    });
+
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      pendingPersonId = null;
+      view='pickPerson'; render();
+    });
+  }
+
+  // ---------- 畫面：修改名字/密碼 ----------
+  function renderEditProfile(){
+    const person = people.find(p=>p.id===currentPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">修改我的資料</div>
+      </header>
+      <div class="card">
+        <h1>修改名字或密碼</h1>
+        <p class="desc">需要先輸入目前的密碼才能修改。名字或密碼欄位空著不填就代表不更動。</p>
+        <div class="field">
+          <label>目前密碼（必填）</label>
+          <input type="password" id="oldPw" placeholder="請輸入目前密碼">
+        </div>
+        <div class="field">
+          <label>新的顯示名字（選填）</label>
+          <input type="text" id="newName" placeholder="${escapeHtml(person.name)}">
+        </div>
+        <div class="field">
+          <label>新密碼（選填，至少4個字元）</label>
+          <input type="password" id="newPw1" placeholder="不改密碼請留空">
+        </div>
+        <div class="field">
+          <label>再輸入一次新密碼</label>
+          <input type="password" id="newPw2" placeholder="不改密碼請留空">
+        </div>
+        <button class="save-btn" id="editSubmit">儲存修改</button>
+        <div class="save-flash" id="editFlash"></div>
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">返回</a></div>
+    `;
+
+    document.getElementById('editSubmit').addEventListener('click', async ()=>{
+      const flash = document.getElementById('editFlash');
+      const oldPw = document.getElementById('oldPw').value;
+      const newName = document.getElementById('newName').value.trim();
+      const newPw1 = document.getElementById('newPw1').value;
+      const newPw2 = document.getElementById('newPw2').value;
+
+      if(oldPw !== person.password){
+        flash.textContent = '目前密碼不正確';
+        return;
+      }
+      if(newPw1 || newPw2){
+        if(newPw1.length < 4){ flash.textContent = '新密碼至少需要4個字元'; return; }
+        if(newPw1 !== newPw2){ flash.textContent = '兩次新密碼輸入不一致'; return; }
+        person.password = newPw1;
+      }
+      if(newName){ person.name = newName; }
+
+      await savePeople();
+      flash.style.color = 'var(--green)';
+      flash.textContent = '已更新資料';
+      setTimeout(()=>{
+        view = returnViewAfterEdit;
+        render();
+      }, 900);
+    });
+
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      view = returnViewAfterEdit;
+      render();
+    });
+  }
+
+  // ---------- 畫面：成員填寫 ----------
+  let memberSelectedWeekIdx = 0;
+
+  async function renderMember(){
+    const person = people.find(p=>p.id===currentPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">${escapeHtml(person.name)} 的時間回報</div>
+      </header>
+      <div class="card"><div class="empty">載入中…</div></div>
+    `;
+
+    const week = WEEKS[memberSelectedWeekIdx];
+    const respKey = 'resp:'+week.weekKey+':'+person.id;
+    const existing = (await sGet(respKey, true)) || {statuses:{}, note:''};
+
+    let tabsHtml = '<div class="nav-tabs">';
+    WEEKS.forEach((w,i)=>{
+      const label = i===0 ? '本週' : (fmtShort(w.monday)+'週');
+      tabsHtml += `<button data-idx="${i}" class="${i===memberSelectedWeekIdx?'active':''}">${label}</button>`;
+    });
+    tabsHtml += '</div>';
+
+    let daysHtml = '';
+    week.days.forEach(d=>{
+      const cur = existing.statuses[d.key] || '';
+      daysHtml += `
+        <div class="day-row">
+          <div class="day-label">星期${d.weekdayName}<span class="date">${fmtShort(d.date)}</span></div>
+          <div class="status-options" data-day="${d.key}">
+            ${STATUS_OPTS.map(o=>`<div class="status-btn" data-v="${o.v}" data-day="${d.key}" style="${cur===o.v?'':''}">${o.label}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    });
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">${escapeHtml(person.name)} 的時間回報</div>
+      </header>
+      <div class="card">
+        ${tabsHtml}
+        <h2>${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)}</h2>
+        <p class="desc">請針對每天勾選「有空 / 不確定 / 沒空」。</p>
+        ${daysHtml}
+        <div class="note-label">給老師的備註（選填）</div>
+        <textarea class="note" id="noteInput" placeholder="例如：這週想打羽球、或身體微恙先觀望…">${escapeHtml(existing.note||'')}</textarea>
+        <button class="save-btn" id="saveBtn">儲存這週的回覆</button>
+        <div class="save-flash" id="saveFlash"></div>
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+    `;
+
+    // 套用目前狀態的 active 樣式
+    const state = Object.assign({}, existing.statuses);
+    function refreshActive(){
+      app.querySelectorAll('.status-btn').forEach(btn=>{
+        const day = btn.dataset.day;
+        btn.classList.toggle('active', state[day]===btn.dataset.v);
+      });
+    }
+    refreshActive();
+
+    app.querySelectorAll('.status-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const day = btn.dataset.day;
+        state[day] = btn.dataset.v;
+        refreshActive();
+      });
+    });
+
+    app.querySelectorAll('.nav-tabs button').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        memberSelectedWeekIdx = parseInt(btn.dataset.idx,10);
+        renderMember();
+      });
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', async ()=>{
+      const note = document.getElementById('noteInput').value.trim();
+      await sSet(respKey, {statuses: state, note: note}, true);
+      const flash = document.getElementById('saveFlash');
+      flash.textContent = '已儲存';
+      setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
+    });
+
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      currentPersonId = null;
+      view = 'pickPerson';
+      render();
+    });
+  }
+
+  // ---------- 畫面：老師檢視 ----------
+  let teacherSelectedWeekIdx = 0;
+
+  async function renderTeacher(){
+    const person = people.find(p=>p.id===currentPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">老師管理視角</div>
+      </header>
+      <div class="card"><div class="empty">載入統計中…</div></div>
+    `;
+
+    const week = WEEKS[teacherSelectedWeekIdx];
+
+    // 撈這週所有人的回覆
+    const allResp = {};
+    for(const p of people){
+      const key = 'resp:'+week.weekKey+':'+p.id;
+      const r = await sGet(key, true);
+      if(r) allResp[p.id] = r;
+    }
+    const teacherResp = allResp[person.id] || {statuses:{}, note:''};
+    const savedAnnounce = await sGet('announce:'+week.weekKey, true);
+
+    // 計算每天統計
+    const dayStats = week.days.map(d=>{
+      const freeList=[], busyList=[], maybeList=[], noAnswerList=[];
+      people.forEach(p=>{
+        if(p.isTeacher) return;
+        const st = allResp[p.id] ? allResp[p.id].statuses[d.key] : null;
+        if(st==='free') freeList.push(p);
+        else if(st==='busy') busyList.push(p);
+        else if(st==='maybe') maybeList.push(p);
+        else noAnswerList.push(p);
+      });
+      const teacherStatus = teacherResp.statuses[d.key] || null;
+      const teacherOk = teacherStatus === 'free' || teacherStatus === 'maybe';
+      return { day:d, freeList, busyList, maybeList, noAnswerList, teacherStatus, teacherOk };
+    });
+
+    // 找出建議日：老師可以(free) 且 free人數最多
+    let bestKey = null, bestScore = -1;
+    dayStats.forEach(ds=>{
+      if(ds.teacherStatus==='free'){
+        const score = ds.freeList.length;
+        if(score>bestScore){ bestScore=score; bestKey=ds.day.key; }
+      }
+    });
+
+    let tabsHtml = '<div class="nav-tabs">';
+    WEEKS.forEach((w,i)=>{
+      const label = i===0 ? '本週' : (fmtShort(w.monday)+'週');
+      tabsHtml += `<button data-idx="${i}" class="${i===teacherSelectedWeekIdx?'active':''}">${label}</button>`;
+    });
+    tabsHtml += '</div>';
+
+    let subTabsHtml = `
+      <div class="nav-tabs">
+        <button data-tab="summary" class="${teacherTab==='summary'?'active':''}">統計總覽</button>
+        <button data-tab="announce" class="${teacherTab==='announce'?'active':''}">公告產生</button>
+      </div>
+    `;
+
+    let bodyHtml = '';
+    if(teacherTab==='summary'){
+      bodyHtml += `<h2>${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)} 統計</h2>`;
+      if(!teacherResp.statuses || Object.keys(teacherResp.statuses).length===0){
+        bodyHtml += `<p class="desc" style="color:var(--red);">你（老師）尚未填寫這週的可用時間，請先切換身份填寫。</p>`;
+      }
+      dayStats.forEach(ds=>{
+        const isBest = ds.day.key === bestKey;
+        const teacherBadge = ds.teacherStatus==='free' ? '<span class="badge best">老師可以</span>'
+          : ds.teacherStatus==='maybe' ? '<span class="badge normal">老師不確定</span>'
+          : ds.teacherStatus==='busy' ? '<span class="badge noteacher">老師沒空</span>'
+          : '<span class="badge noteacher">老師未填</span>';
+        bodyHtml += `
+          <div class="summary-day ${isBest?'picked':''} ${!ds.teacherOk?'teacher-no':''}">
+            <div class="summary-head">
+              <div class="d">星期${ds.day.weekdayName} ${fmtShort(ds.day.date)} ${isBest?'（建議）':''}</div>
+              ${teacherBadge}
+            </div>
+            <div class="summary-names">
+              <b>有空 ${ds.freeList.length}</b>：
+              ${ds.freeList.map(p=>`<span class="name-tag free">${escapeHtml(p.name)}</span>`).join('') || '—'}
+              <br><b>不確定 ${ds.maybeList.length}</b>：
+              ${ds.maybeList.map(p=>`<span class="name-tag maybe">${escapeHtml(p.name)}</span>`).join('') || '—'}
+              <br><b>沒空 ${ds.busyList.length}</b>：
+              ${ds.busyList.map(p=>`<span class="name-tag busy">${escapeHtml(p.name)}</span>`).join('') || '—'}
+              ${ds.noAnswerList.length ? `<br><span style="color:#B6A88E;">尚未回覆：${ds.noAnswerList.map(p=>escapeHtml(p.name)).join('、')}</span>` : ''}
+            </div>
+          </div>
+        `;
+      });
+      // 備註彙整
+      const notes = people.filter(p=>!p.isTeacher).map(p=>{
+        const r = allResp[p.id];
+        return (r && r.note) ? {name:p.name, note:r.note} : null;
+      }).filter(Boolean);
+      if(notes.length){
+        bodyHtml += `<div class="note-label">學員備註</div>`;
+        notes.forEach(n=>{
+          bodyHtml += `<div class="note-line">${escapeHtml(n.name)}：${escapeHtml(n.note)}</div>`;
+        });
+      }
+    } else {
+      // 公告產生
+      bodyHtml += `<h2>產生公告</h2>`;
+      bodyHtml += `<div class="field"><label>選擇日期</label><select id="announceDay">`;
+      week.days.forEach(d=>{
+        const ds = dayStats.find(x=>x.day.key===d.key);
+        const sel = savedAnnounce && savedAnnounce.dayKey===d.key;
+        bodyHtml += `<option value="${d.key}" ${sel?'selected':''}>星期${d.weekdayName} ${fmtShort(d.date)}（有空${ds.freeList.length}人）</option>`;
+      });
+      bodyHtml += `</select></div>`;
+      bodyHtml += `<div class="field"><label>時間</label><input type="text" id="announceTime" placeholder="例如 19:00-20:00" value="${escapeHtml(savedAnnounce ? savedAnnounce.time||'' : '19:00-20:00')}"></div>`;
+      bodyHtml += `<div class="field"><label>運動項目</label><input type="text" id="announceSport" placeholder="例如 羽毛球" value="${escapeHtml(savedAnnounce ? savedAnnounce.sport||'' : '')}"></div>`;
+      bodyHtml += `<div class="field"><label>附加提醒（選填）</label><input type="text" id="announceExtra" placeholder="例如 請自備球拍" value="${escapeHtml(savedAnnounce ? savedAnnounce.extra||'' : '')}"></div>`;
+      bodyHtml += `<button class="save-btn" id="genBtn">產生 / 更新公告文字</button>`;
+      bodyHtml += `<div class="announce-box" id="announceBox">${savedAnnounce ? buildAnnounceText(savedAnnounce, dayStats) : '尚未產生公告，請選擇日期與運動後按上方按鈕。'}</div>`;
+      bodyHtml += `<button class="copy-btn" id="copyBtn">複製公告文字</button>`;
+      bodyHtml += `<div class="save-flash" id="copyFlash"></div>`;
+    }
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">老師管理視角</div>
+      </header>
+      <div class="card">
+        ${tabsHtml}
+        ${subTabsHtml}
+        ${bodyHtml}
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+    `;
+
+    app.querySelectorAll('.nav-tabs button[data-idx]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        teacherSelectedWeekIdx = parseInt(btn.dataset.idx,10);
+        renderTeacher();
+      });
+    });
+    app.querySelectorAll('.nav-tabs button[data-tab]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        teacherTab = btn.dataset.tab;
+        renderTeacher();
+      });
+    });
+
+    if(teacherTab==='announce'){
+      document.getElementById('genBtn').addEventListener('click', async ()=>{
+        const dayKey = document.getElementById('announceDay').value;
+        const time = document.getElementById('announceTime').value.trim();
+        const sport = document.getElementById('announceSport').value.trim();
+        const extra = document.getElementById('announceExtra').value.trim();
+        const data = {dayKey, time, sport, extra, savedAt: new Date().toISOString()};
+        await sSet('announce:'+week.weekKey, data, true);
+        document.getElementById('announceBox').textContent = buildAnnounceText(data, dayStats);
+      });
+      document.getElementById('copyBtn').addEventListener('click', ()=>{
+        const text = document.getElementById('announceBox').textContent;
+        copyToClipboard(text);
+        const flash = document.getElementById('copyFlash');
+        flash.textContent = '已複製，貼到 LINE 群組吧';
+        setTimeout(()=>{ if(flash) flash.textContent=''; }, 2500);
+      });
+    }
+
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      currentPersonId = null;
+      view = 'pickPerson';
+      render();
+    });
+  }
+
+  function buildAnnounceText(data, dayStats){
+    const ds = dayStats.find(x=>x.day.key===data.dayKey);
+    const dateLabel = ds ? `${fmtShort(ds.day.date)}（週${ds.day.weekdayName}）` : '';
+    let text = `本週運動公告\n`;
+    text += `日期：${dateLabel}\n`;
+    if(data.time) text += `時間：${data.time}\n`;
+    text += `運動：${data.sport || '（未填）'}\n`;
+    if(data.extra) text += `備註：${data.extra}\n`;
+    text += `請大家準時參加！`;
+    return text;
+  }
+
+  function copyToClipboard(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(()=>{ fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  // ---------- 畫面：管理入口 ----------
+  let adminUnlocked = false;
+
+  function renderAdminLock(){
+    if(adminUnlocked) return renderAdminPanel();
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">管理入口</div>
+      </header>
+      <div class="card admin-lock">
+        <h1>請輸入管理密碼</h1>
+        <div class="field" style="margin-top:16px;">
+          <input type="password" id="pwInput" placeholder="密碼">
+        </div>
+        <button class="save-btn" id="pwSubmit">進入管理</button>
+        <div class="save-flash" id="pwFlash"></div>
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+    `;
+    document.getElementById('pwSubmit').addEventListener('click', ()=>{
+      const val = document.getElementById('pwInput').value;
+      if(val === ADMIN_PASSWORD){
+        adminUnlocked = true;
+        renderAdminPanel();
+      } else {
+        document.getElementById('pwFlash').textContent = '密碼錯誤';
+      }
+    });
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      view='pickPerson'; render();
+    });
+  }
+
+  function renderAdminPanel(){
+    let rowsHtml = people.map(p=>`
+      <div class="admin-row">
+        <div>${escapeHtml(p.name)} ${p.isTeacher?'<span class="pill">老師</span>':''}
+          <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${p.password ? '已設定密碼' : '尚未設定密碼'}</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="del-btn" data-action="setTeacher" data-id="${p.id}">${p.isTeacher?'取消老師':'設為老師'}</button>
+          ${p.password ? `<button class="del-btn" data-action="resetPw" data-id="${p.id}">重設密碼</button>` : ''}
+          <button class="del-btn" data-action="delete" data-id="${p.id}">刪除</button>
+        </div>
+      </div>
+    `).join('');
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 本週運動</div>
+        <div class="sub">管理人員名單</div>
+      </header>
+      <div class="card">
+        <h1>人員管理</h1>
+        <p class="desc">新增成員、指定誰是老師。老師的可用時間會作為排定運動的必要條件。</p>
+        ${rowsHtml || '<div class="empty">尚無人員</div>'}
+        <div class="add-row">
+          <input type="text" id="newName" placeholder="輸入新成員姓名">
+          <button id="addBtn">新增</button>
+        </div>
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+    `;
+
+    app.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('確定要刪除這位成員嗎？')) return;
+        people = people.filter(p=>p.id!==btn.dataset.id);
+        await savePeople();
+        renderAdminPanel();
+      });
+    });
+    app.querySelectorAll('[data-action="setTeacher"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        people = people.map(p=>({...p, isTeacher: p.id===id ? !p.isTeacher : false}));
+        await savePeople();
+        renderAdminPanel();
+      });
+    });
+    app.querySelectorAll('[data-action="resetPw"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        const p = people.find(x=>x.id===id);
+        if(!confirm(`確定要重設 ${p.name} 的密碼嗎？對方下次登入時會需要重新設定新密碼。`)) return;
+        people = people.map(x=> x.id===id ? {...x, password:''} : x);
+        await savePeople();
+        renderAdminPanel();
+      });
+    });
+    document.getElementById('addBtn').addEventListener('click', async ()=>{
+      const input = document.getElementById('newName');
+      const name = input.value.trim();
+      if(!name) return;
+      const id = 'p' + Date.now();
+      people.push({id, name, isTeacher:false, password:''});
+      await savePeople();
+      renderAdminPanel();
+    });
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      adminUnlocked = false;
+      view='pickPerson'; render();
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
