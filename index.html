@@ -10,10 +10,9 @@
      專案的設定值（在 Firebase Console > 專案設定 > 一般 可以找到）
      ============================================================ -->
 <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "firebase/app";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+ 
 
   // Your web app's Firebase configuration
   const firebaseConfig = {
