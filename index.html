@@ -44,8 +44,11 @@
     });
 </script>
 
+<!-- 姊妹行事曆的折線圖用。鎖定版本、defer 載入，載不到也只是圖表區顯示提示，不影響其他畫面。 -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
 
   :root{
     --bg: #F6F1E7;
@@ -96,23 +99,39 @@
     letter-spacing:3px;
   }
 
-  .switch-user{
+  /* 右上角常駐的兩顆圓鈕：小房子＝回自己的首頁，齒輪＝修改資料。
+     改成純圖示後標題列騰出不少空間，手機上比原本的文字按鈕好排多了。 */
+  .corner-btn{
     position:fixed;
-    top:16px;
-    right:16px;
-    font-size:12px;
-    color:var(--ink-soft);
+    top:14px;
+    right:14px;
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    color:var(--accent);
     background:var(--bg-card);
     border:1px solid var(--line);
-    padding:6px 12px;
-    border-radius:20px;
+    border-radius:50%;
+    box-shadow:0 2px 6px rgba(122,90,54,0.10);
     cursor:pointer;
     z-index:20;
   }
-  .switch-user.edit-profile{ right:104px; }
+  .corner-btn.edit-profile{ right:60px; }
+  .corner-btn svg{
+    width:20px; height:20px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.9;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .corner-btn:active{ background:var(--accent-soft); transform:scale(0.94); }
+  .corner-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   @media (max-width:560px){
-    body.has-corner-buttons header.top{ padding-right:130px; }
+    body.has-corner-buttons header.top{ padding-right:104px; }
   }
 
   .card{
@@ -268,17 +287,52 @@
   }
 
   /* ---- 老師統計畫面 ---- */
+  /* 建議日摘要：老師最想知道的一件事，放在五天明細之前 */
+  .best-card{
+    border:1px solid var(--accent);
+    background:var(--accent-soft);
+    border-radius:var(--radius-sm);
+    padding:14px 16px;
+    margin-bottom:14px;
+  }
+  .best-card.none{ border-color:var(--line); background:var(--bg); }
+  .best-card .k{
+    font-size:11px; letter-spacing:2px; color:var(--accent-deep);
+    font-weight:700; margin-bottom:4px;
+  }
+  .best-card.none .k{ color:var(--ink-soft); }
+  .best-card .v{ font-family:'Noto Serif TC', serif; font-size:19px; font-weight:700; }
+  .best-card .m{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+
+  /* 五天明細改成可收合，預設只有一行；建議日預設展開 */
   .summary-day{
     border:1px solid var(--line);
     border-radius:var(--radius-sm);
-    padding:14px;
-    margin-bottom:10px;
-    cursor:pointer;
+    padding:0;
+    margin-bottom:8px;
+    overflow:hidden;
   }
   .summary-day.picked{ border-color:var(--accent); background:var(--accent-soft); }
-  .summary-day.teacher-no{ opacity:0.45; }
-  .summary-head{ display:flex; justify-content:space-between; align-items:center; }
-  .summary-head .d{ font-weight:700; font-size:14px; }
+  .summary-day.teacher-no{ opacity:0.55; }
+  .summary-head{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:12px 14px; cursor:pointer; list-style:none;
+  }
+  .summary-head::-webkit-details-marker{ display:none; }
+  .summary-head .d{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:6px; }
+  .summary-head .right{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .summary-head .free-n{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .summary-head .chev{
+    width:9px; height:9px; border-right:2px solid var(--ink-soft); border-bottom:2px solid var(--ink-soft);
+    transform:rotate(45deg); margin-top:-4px; transition:transform .15s ease; flex:none;
+  }
+  .summary-day[open] .summary-head .chev{ transform:rotate(-135deg); margin-top:2px; }
+  .summary-day .summary-names{ padding:0 14px 13px; margin-top:0; }
+  .day-tag{
+    font-size:10px; font-weight:700; letter-spacing:1px;
+    background:var(--accent-deep); color:#fff; padding:2px 7px; border-radius:9px;
+  }
+  @media (prefers-reduced-motion: reduce){ .summary-head .chev{ transition:none; } }
   .summary-head .badge{
     font-size:11px; padding:3px 9px; border-radius:12px; font-weight:700;
   }
@@ -378,12 +432,217 @@
     text-transform:uppercase;
   }
   .hint-text{ font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center; }
+
+  /* ============================================================
+     姊妹行事曆
+     RetroUI 的骨架（粗框、硬陰影、按壓位移）+ 現有站的暖色配色。
+     所有樣式都鎖在 .sis 底下，現有畫面不受任何影響。
+     ============================================================ */
+  .sis{
+    --sis-ink:#3A2E22;
+    --sis-card:#FFFDF8;
+    --sis-key:#A9744F;
+    --sis-shadow:3px 3px 0 rgba(58,46,34,.5);
+    --sis-radius:4px;
+    --sis-dash:rgba(58,46,34,.22);
+    /* 框線粗細集中在這兩個變數，要整體加粗或變細改這裡就好。
+       位移陰影維持不動——那才是 RetroUI 的個性所在，線收細反而更清爽。 */
+    --sis-bw:1.5px;        /* 卡片、按鈕、輸入框 */
+    --sis-bw-thin:1px;     /* 日曆格子、表格、分隔線 */
+  }
+  .sis-who{
+    display:flex; align-items:center; gap:7px;
+    background:var(--sis-ink); color:var(--bg);
+    font-size:11px; font-weight:700; letter-spacing:.5px;
+    padding:8px 13px; border-radius:var(--sis-radius); margin-bottom:12px;
+  }
+  .sis-who .dot{ width:7px; height:7px; border-radius:50%; background:var(--amber); flex:none; }
+
+  .sis-tabs{ display:grid; grid-template-columns:repeat(3,1fr); margin-bottom:14px; }
+  .sis-tabs button{
+    padding:10px 0; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+    background:var(--sis-card); color:var(--ink-soft);
+    border:var(--sis-bw) solid var(--sis-ink); border-right-width:0;
+  }
+  .sis-tabs button:first-child{ border-radius:var(--sis-radius) 0 0 var(--sis-radius); }
+  .sis-tabs button:last-child{ border-right-width:var(--sis-bw); border-radius:0 var(--sis-radius) var(--sis-radius) 0; }
+  .sis-tabs button.active{ background:var(--sis-key); color:#FFFDF8; font-weight:900; }
+
+  .sis-card{
+    background:var(--sis-card); border:var(--sis-bw) solid var(--sis-ink);
+    box-shadow:var(--sis-shadow); border-radius:var(--sis-radius);
+    padding:12px; margin-bottom:14px;
+  }
+  .sis-cardhead{
+    font-size:11px; font-weight:900; letter-spacing:1px;
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .sis-cardhead .cnt{ font-size:11px; font-weight:700; color:var(--ink-soft); }
+  .sis-hint{ font-size:11px; color:var(--ink-soft); margin:4px 0 9px; line-height:1.6; }
+
+  .sis-nav{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .sis-nav .lbl{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:17px; letter-spacing:1px; }
+  .sis-nav button{
+    width:32px; height:32px; display:grid; place-items:center; cursor:pointer;
+    font-family:inherit; font-size:15px; font-weight:900; color:var(--sis-ink);
+    border:var(--sis-bw) solid var(--sis-ink); background:var(--sis-card);
+    box-shadow:2px 2px 0 rgba(58,46,34,.5); border-radius:var(--sis-radius);
+    transition:transform .06s ease, box-shadow .06s ease;
+  }
+  .sis-nav button:active{ transform:translate(2px,2px); box-shadow:0 0 0 rgba(58,46,34,.5); }
+
+  .sis-wd{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin:12px 0 4px; }
+  .sis-wd span{ text-align:center; font-size:10px; font-weight:700; color:var(--ink-soft); }
+  .sis-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .sis-cell{
+    min-height:46px; padding:2px 2px 3px; cursor:pointer;
+    border:var(--sis-bw-thin) solid rgba(58,46,34,.35); background:var(--sis-card);
+    border-radius:3px; display:flex; flex-direction:column; gap:2px;
+  }
+  .sis-cell.out{ background:#F1EBDF; border-color:rgba(58,46,34,.18); cursor:default; }
+  .sis-cell:active{ background:var(--accent-soft); }
+  .sis-cell.out:active{ background:#F1EBDF; }
+  .sis-cell .d{ font-size:10px; font-weight:700; }
+  .sis-cell.out .d{ color:#B3A791; }
+  .sis-cell.today .d{
+    background:var(--sis-key); color:#FFFDF8; width:16px; height:16px;
+    border-radius:50%; display:grid; place-items:center;
+  }
+  .sis-chip{
+    font-size:9px; font-weight:900; text-align:center; padding:2px 0;
+    border-radius:2px; color:#FFFDF8; letter-spacing:.3px;
+  }
+
+  .sis-sum{ display:flex; gap:10px; margin-bottom:14px; }
+  .sis-sum > div{
+    flex:1; padding:8px 10px; background:var(--sis-card);
+    border:var(--sis-bw) solid var(--sis-ink); border-radius:var(--sis-radius);
+  }
+  .sis-sum .k{ font-size:10px; font-weight:700; color:var(--ink-soft); }
+  .sis-sum .v{ font-size:20px; font-weight:900; }
+
+  .sis-ev{
+    display:flex; align-items:center; gap:9px; padding:9px 0;
+    border-bottom:var(--sis-bw-thin) dashed var(--sis-dash); cursor:pointer;
+  }
+  .sis-ev:last-child{ border-bottom:0; padding-bottom:0; }
+  .sis-ev .dt{ font-size:12px; font-weight:700; min-width:42px; }
+  .sis-ev .sw{ width:13px; height:13px; border-radius:50%; flex:none; }
+  .sis-ev .txt{ flex:1; min-width:0; }
+  .sis-ev .lb{ font-size:12px; font-weight:700; }
+  .sis-ev .no{ font-size:10.5px; color:var(--ink-soft); word-break:break-all; }
+  .sis-ev .nth{
+    font-size:11px; font-weight:700; flex:none; background:var(--bg);
+    border:var(--sis-bw-thin) solid rgba(58,46,34,.4); border-radius:3px; padding:1px 5px;
+  }
+
+  .sis-btn{
+    display:block; width:100%; padding:13px; cursor:pointer;
+    font-family:inherit; font-size:14px; font-weight:900; letter-spacing:1px;
+    background:var(--sis-key); color:#FFFDF8;
+    border:var(--sis-bw) solid var(--sis-ink); border-radius:var(--sis-radius);
+    box-shadow:var(--sis-shadow);
+    transition:transform .06s ease, box-shadow .06s ease;
+  }
+  .sis-btn:active{ transform:translate(3px,3px); box-shadow:0 0 0 rgba(58,46,34,.5); }
+  .sis-btn.ghost{ background:var(--sis-card); color:var(--sis-ink); }
+  .sis-btn.danger{ background:var(--red); }
+  .sis-btnrow{ display:flex; gap:9px; margin-top:14px; }
+  .sis-btnrow .sis-btn{ flex:1; }
+
+  .sis-lab{ font-size:11px; font-weight:900; letter-spacing:1px; margin:14px 0 7px; }
+  .sis-lab:first-child{ margin-top:0; }
+  .sis-opts{ display:flex; flex-wrap:wrap; gap:7px; }
+  .sis-opt{
+    display:flex; align-items:center; gap:6px; cursor:pointer;
+    font-size:12px; font-weight:700; padding:6px 9px;
+    border:var(--sis-bw) solid var(--sis-ink); border-radius:var(--sis-radius); background:var(--sis-card);
+  }
+  .sis-opt .sw{ width:11px; height:11px; border-radius:50%; flex:none; }
+  .sis-opt.on{ background:var(--bg); box-shadow:var(--sis-shadow); }
+  .sis-opt.locked{ background:var(--accent-soft); border-style:dashed; color:var(--accent-deep); cursor:default; }
+  .sis-input, .sis-ta{
+    width:100%; padding:9px 10px; font-family:inherit; font-size:16px;
+    color:var(--ink); background:var(--sis-card);
+    border:var(--sis-bw) solid var(--sis-ink); border-radius:var(--sis-radius);
+  }
+  .sis-ta{ min-height:54px; resize:vertical; }
+  .sis-preview{
+    padding:9px 11px; font-size:12px; font-weight:700; line-height:1.7;
+    background:var(--bg); border:var(--sis-bw) dashed var(--sis-ink); border-radius:var(--sis-radius);
+  }
+  .sis-preview b{ font-size:15px; color:var(--accent-deep); }
+  .sis-swatches{ display:flex; gap:8px; flex-wrap:wrap; }
+  .sis-swatches i{
+    width:28px; height:28px; border-radius:50%; display:block; cursor:pointer;
+    border:var(--sis-bw) solid transparent;
+  }
+  .sis-swatches i.on{ border-color:var(--sis-ink); box-shadow:0 0 0 2px var(--sis-card), var(--sis-shadow); }
+
+  .sis-grp{
+    display:flex; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:var(--sis-bw-thin) dashed var(--sis-dash);
+  }
+  .sis-grp:last-child{ border-bottom:0; padding-bottom:0; }
+  .sis-grp .sw{ width:22px; height:22px; border-radius:50%; flex:none; }
+  .sis-grp .txt{ flex:1; min-width:0; }
+  .sis-grp .lb{ font-size:13px; font-weight:900; }
+  .sis-grp .mem{ font-size:10.5px; color:var(--ink-soft); }
+  .sis-grp .n{ font-size:11px; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+
+  .sis-tblwrap{ overflow-x:auto; }
+  table.sis-tbl{ border-collapse:collapse; font-size:11px; width:100%; min-width:430px; }
+  table.sis-tbl th, table.sis-tbl td{
+    border:var(--sis-bw-thin) solid rgba(58,46,34,.35); padding:5px 4px; text-align:center;
+  }
+  table.sis-tbl th{ background:var(--accent-soft); font-size:10px; font-weight:900; }
+  table.sis-tbl td.g{ text-align:left; font-size:10.5px; font-weight:700; white-space:nowrap; }
+  table.sis-tbl td.zero{ color:#C4B8A2; }
+  table.sis-tbl td.tot{ background:var(--bg); font-weight:900; }
+  table.sis-tbl .swdot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
+
+  .sis-chartbox{ height:200px; position:relative; }
+  .sis-chartfail{
+    height:100%; display:grid; place-items:center; text-align:center; padding:10px;
+    font-size:12px; font-weight:700; line-height:1.7;
+    border:var(--sis-bw) dashed var(--sis-ink); border-radius:var(--sis-radius);
+  }
+  .sis-pair{
+    display:flex; align-items:center; gap:9px; padding:8px 0;
+    border-bottom:var(--sis-bw-thin) dashed var(--sis-dash);
+  }
+  .sis-pair:last-child{ border-bottom:0; padding-bottom:0; }
+  .sis-pair .nm{ flex:1; font-size:12.5px; font-weight:700; }
+  .sis-pair .bar{ height:9px; border-radius:2px; background:var(--sis-key); flex:none; }
+  .sis-pair .n{ font-size:12px; font-weight:700; min-width:40px; text-align:right; }
+
+  /* 新增／編輯見面的底部面板 */
+  .sis-backdrop{
+    position:fixed; inset:0; background:rgba(58,46,34,.45); z-index:40;
+  }
+  .sis-sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    max-width:520px; margin:0 auto; max-height:88vh; overflow-y:auto;
+    background:var(--sis-card); border-top:var(--sis-bw) solid var(--sis-ink);
+    border-radius:12px 12px 0 0; padding:16px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+  .sis-sheet h3{
+    font-family:'Noto Serif TC', serif; font-size:17px; font-weight:700; margin:0;
+  }
+  .sis-sheet .sub{ font-size:11px; color:var(--ink-soft); margin:2px 0 14px; }
+  @media (prefers-reduced-motion: reduce){
+    .sis-btn, .sis-nav button{ transition:none; }
+  }
 </style>
 </head>
 <body>
 
-<div class="switch-user edit-profile" id="editProfileBtn" style="display:none;">修改資料</div>
-<div class="switch-user" id="switchUserBtn" style="display:none;">回首頁</div>
+<button class="corner-btn edit-profile" id="editProfileBtn" type="button" title="修改資料" aria-label="修改資料" style="display:none;">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+<button class="corner-btn" id="switchUserBtn" type="button" title="回我的首頁" aria-label="回我的首頁" style="display:none;">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 11.4 12 4.2l8.2 7.2"/><path d="M6.4 10.6V19a1.2 1.2 0 0 0 1.2 1.2h8.8a1.2 1.2 0 0 0 1.2-1.2v-8.4"/><path d="M9.9 20.2v-4.1a2.1 2.1 0 0 1 4.2 0v4.1"/></svg>
+</button>
 
 <div class="wrap" id="app">
   <header class="top">
@@ -413,9 +672,14 @@
   ];
   const WEEKDAY_NAMES = ['日','一','二','三','四','五','六'];
 
+  // 「產生 LINE 公告文字」老師說用不到，先關掉。
+  // 相關程式碼（buildAnnounceText / copyToClipboard / announce:<週> 資料）都留著，
+  // 哪天要開回來把這裡改成 true 就好，不用重寫。
+  const SHOW_ANNOUNCE_GENERATOR = false;
+
   let people = [];       // [{id, name, isTeacher, password}]
   let currentPersonId = null;
-  let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | teacherPeek | admin
+  let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | teacherPeek | sisters | admin
   let teacherTab = 'summary'; // summary | fill | announce | sports (老師視角內部切換用)
   let pendingPersonId = null; // 選了名字但還沒通過密碼驗證時暫存
   let renderGen = 0; // 每次渲染都會遞增；用來偵測「這次非同步渲染是不是已經被更新的操作取代了」，避免舊的畫面在新的畫面之後才蓋回去
@@ -537,6 +801,8 @@
       if(!validN.includes(k)){ await sDelete(k, true); }
     }
     // 注意：lobby-announce、sports-list 不分週、永久保留，不可被這裡清掉。
+    // 姊妹行事曆的 sis-groups、sis-meet:<年份> 同樣永久保留——見面紀錄就是要拿來回顧的，
+    // 不要為了「清舊資料」把前綴加進上面任何一份清單。
   }
 
   // ---------- Render 進入點 ----------
@@ -571,7 +837,7 @@
 
   function render(){
     renderGen++; // 切換到任何畫面都算新的一輪，讓還在等待中的舊 renderMember()/renderTeacher() 知道自己已經過時
-    const loggedIn = (view==='member' || view==='teacher' || view==='teacherPeek');
+    const loggedIn = (view==='member' || view==='teacher' || view==='teacherPeek' || view==='sisters');
     switchBtn.style.display = loggedIn ? 'block' : 'none';
     editProfileBtn.style.display = loggedIn ? 'block' : 'none';
     document.body.classList.toggle('has-corner-buttons', loggedIn);
@@ -583,6 +849,7 @@
     if(view==='member') return renderMember();
     if(view==='teacher') return renderTeacher(false);
     if(view==='teacherPeek') return renderTeacher(true);
+    if(view==='sisters') return renderSisters();
     if(view==='admin') return renderAdminLock();
   }
 
@@ -593,9 +860,13 @@
     render();
   });
 
+  // 小房子＝回「自己的」首頁（老師回管理視角、成員回回報畫面），並回到該畫面的預設分頁。
+  // 要換人請走畫面最下面的「回到選擇身份」。
   switchBtn.addEventListener('click', ()=>{
-    currentPersonId = null;
-    view = 'pickPerson';
+    const person = people.find(p=>p.id===currentPersonId);
+    if(!person){ currentPersonId = null; view = 'pickPerson'; return render(); }
+    if(person.isTeacher){ teacherTab = 'summary'; view = 'teacher'; }
+    else { memberTab = 'schedule'; view = 'member'; }
     render();
   });
 
@@ -845,6 +1116,7 @@
         <div class="nav-tabs scroll">
           <button data-mtab="schedule" class="${memberTab==='schedule'?'active':''}">本週回報</button>
           <button data-mtab="sports" class="${memberTab==='sports'?'active':''}">運動興趣列表</button>
+          ${person.canSis ? `<button data-mtab="sis">姊妹行事曆</button>` : ''}
           <button data-mtab="peek">偷看老師視角</button>
         </div>
       </div>
@@ -902,7 +1174,7 @@
     app.innerHTML = `
       <header class="top">
         <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
-        <div class="sub">${escapeHtml(person.name)} 的時間回報</div>
+        <div class="sub">${escapeHtml(person.name)}</div>
       </header>
       <div class="card">
         ${mainTabsHtml}
@@ -927,6 +1199,9 @@
         if(!confirmLeaveSchedule()) return;
         if(btn.dataset.mtab === 'peek'){
           view = 'teacherPeek';
+          render();
+        } else if(btn.dataset.mtab === 'sis'){
+          view = 'sisters';
           render();
         } else {
           memberTab = btn.dataset.mtab;
@@ -991,7 +1266,9 @@
     if(!person){ view='pickPerson'; return render(); }
     // peek 模式下 currentPersonId 仍是「正在偷看的成員」，viewingPerson 才是真正的老師本人資料來源
     const viewingPerson = readOnly ? (people.find(p=>p.isTeacher) || person) : person;
-    const subtitle = readOnly ? '老師視角（唯讀預覽）' : '老師管理視角';
+    // 標題下方那行放使用者自己的名字；peek 例外——那裡要講清楚「你在看別人的畫面」，
+    // 放名字會分不清是誰的。
+    const subtitle = readOnly ? '老師視角（唯讀預覽）' : escapeHtml(person.name);
 
     const week = WEEKS[teacherSelectedWeekIdx];
     let sportsList;
@@ -1005,7 +1282,7 @@
       if(r) allResp[p.id] = r;
     }
     const teacherResp = allResp[viewingPerson.id] || {statuses:{}, note:''};
-    const savedAnnounce = await sGet('announce:'+week.weekKey, true);
+    const savedAnnounce = SHOW_ANNOUNCE_GENERATOR ? await sGet('announce:'+week.weekKey, true) : null;
     const lobbyAnnounce = await sGet('lobby-announce', true);
     const weekNotice = await sGet('notice:'+week.weekKey, true);
     const noticeHtml = (weekNotice && weekNotice.text && weekNotice.text.trim())
@@ -1043,30 +1320,46 @@
     });
     tabsHtml += '</div>';
 
-    let subTabsHtml = `
+    // 偷看老師視角只給「統計總覽」：填寫時間對成員沒意義（統計裡已經有老師的徽章），
+    // 運動興趣列表在成員自己的畫面就有，不需要在這裡再看一次。
+    const tab = readOnly ? 'summary' : teacherTab;
+
+    const subTabsHtml = readOnly ? '' : `
       <div class="tabs-scroll-wrap">
         <div class="nav-tabs scroll">
-          <button data-tab="summary" class="${teacherTab==='summary'?'active':''}">統計總覽</button>
-          <button data-tab="fill" class="${teacherTab==='fill'?'active':''}">填寫我的時間</button>
-          <button data-tab="announce" class="${teacherTab==='announce'?'active':''}">公告產生</button>
-          <button data-tab="sports" class="${teacherTab==='sports'?'active':''}">運動興趣列表</button>
+          <button data-tab="summary" class="${tab==='summary'?'active':''}">統計總覽</button>
+          <button data-tab="fill" class="${tab==='fill'?'active':''}">我的時間</button>
+          <button data-tab="announce" class="${tab==='announce'?'active':''}">公告</button>
+          <button data-tab="sports" class="${tab==='sports'?'active':''}">運動興趣列表</button>
+          ${person.canSis ? `<button data-tab="sis">姊妹行事曆</button>` : ''}
         </div>
       </div>
     `;
 
     let bodyHtml = '';
-    if(teacherTab==='summary'){
-      if(!readOnly){
-        bodyHtml += `<h2>大廳公告</h2>`;
-        bodyHtml += `<p class="desc">這則訊息會顯示在所有人「選擇身份」畫面的最上方。</p>`;
-        bodyHtml += `<textarea class="note" id="lobbyAnnounceInput" placeholder="例如：下次運動時間是6/30 18:00 打籃球">${escapeHtml(lobbyAnnounce ? lobbyAnnounce.text||'' : '')}</textarea>`;
-        bodyHtml += `<button class="save-btn" id="lobbySaveBtn">儲存大廳公告</button>`;
-        bodyHtml += `<div class="save-flash" id="lobbySaveFlash"></div>`;
+    if(tab==='summary'){
+      bodyHtml += `<h2>${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)} 統計</h2>`;
+
+      const teacherFilled = teacherResp.statuses && Object.keys(teacherResp.statuses).length > 0;
+      const bestDs = bestKey ? dayStats.find(d=>d.day.key===bestKey) : null;
+      if(bestDs){
+        bodyHtml += `
+          <div class="best-card">
+            <div class="k">建議這天</div>
+            <div class="v">星期${bestDs.day.weekdayName} ${fmtShort(bestDs.day.date)}</div>
+            <div class="m">${bestDs.freeList.length} 人有空・老師可以</div>
+          </div>`;
+      } else {
+        const why = !teacherFilled
+          ? (readOnly ? '老師還沒填這週的時間' : '你還沒填這週的時間，請切到「我的時間」分頁')
+          : (readOnly ? '老師這週沒有「有空」的日子' : '你這週沒有勾選任何「有空」的日子');
+        bodyHtml += `
+          <div class="best-card none">
+            <div class="k">沒有建議日</div>
+            <div class="m" style="margin-top:2px;">${why}</div>
+          </div>`;
       }
-      bodyHtml += `<h2 style="margin-top:24px;">${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)} 統計</h2>`;
-      if(!teacherResp.statuses || Object.keys(teacherResp.statuses).length===0){
-        bodyHtml += `<p class="desc" style="color:var(--red);">${readOnly?'老師':'你'}尚未填寫這週的時間${readOnly?'':'，請切到「填寫我的時間」分頁'}。</p>`;
-      }
+
       dayStats.forEach(ds=>{
         const isBest = ds.day.key === bestKey;
         const teacherBadge = ds.teacherStatus==='free' ? '<span class="badge best">老師可以</span>'
@@ -1074,11 +1367,15 @@
           : ds.teacherStatus==='busy' ? '<span class="badge noteacher">老師沒空</span>'
           : '<span class="badge noteacher">老師未填</span>';
         bodyHtml += `
-          <div class="summary-day ${isBest?'picked':''} ${!ds.teacherOk?'teacher-no':''}">
-            <div class="summary-head">
-              <div class="d">星期${ds.day.weekdayName} ${fmtShort(ds.day.date)} ${isBest?'（建議）':''}</div>
-              ${teacherBadge}
-            </div>
+          <details class="summary-day ${isBest?'picked':''} ${!ds.teacherOk?'teacher-no':''}" ${isBest?'open':''}>
+            <summary class="summary-head">
+              <div class="d">星期${ds.day.weekdayName} ${fmtShort(ds.day.date)} ${isBest?'<span class="day-tag">建議</span>':''}</div>
+              <div class="right">
+                <span class="free-n">有空 ${ds.freeList.length}</span>
+                ${teacherBadge}
+                <span class="chev"></span>
+              </div>
+            </summary>
             <div class="summary-names">
               <b>有空 ${ds.freeList.length}</b>：
               ${ds.freeList.map(p=>`<span class="name-tag free">${escapeHtml(p.name)}</span>`).join('') || '—'}
@@ -1088,7 +1385,7 @@
               ${ds.busyList.map(p=>`<span class="name-tag busy">${escapeHtml(p.name)}</span>`).join('') || '—'}
               ${ds.noAnswerList.length ? `<br><span style="color:#B6A88E;">尚未回覆：${ds.noAnswerList.map(p=>escapeHtml(p.name)).join('、')}</span>` : ''}
             </div>
-          </div>
+          </details>
         `;
       });
       // 備註彙整
@@ -1102,7 +1399,7 @@
           bodyHtml += `<div class="note-line">${escapeHtml(n.name)}：${escapeHtml(n.note)}</div>`;
         });
       }
-    } else if(teacherTab==='fill'){
+    } else if(tab==='fill'){
       // 老師填寫自己這週的可用時間（跟成員畫面邏輯相同，寫回同一份 resp 資料）
       bodyHtml += `<h2>${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)}</h2>`;
       bodyHtml += readOnly
@@ -1125,15 +1422,24 @@
         bodyHtml += `<button class="save-btn" id="teacherSaveBtn">儲存這週的回覆</button>`;
         bodyHtml += `<div class="save-flash" id="teacherSaveFlash"></div>`;
       }
-    } else if(teacherTab==='announce'){
+    } else if(tab==='announce'){
+      // 兩種公告收在同一個分頁，先「這一週的」再「常設的」——
+      // 上面就是週次切換鈕，週限定的東西緊接著它比較不會誤會。
       if(!readOnly){
         bodyHtml += `<h2>本週注意事項</h2>`;
-        bodyHtml += `<p class="desc">會顯示給所有人（含老師）在本週頁面最上方。</p>`;
+        bodyHtml += `<p class="desc">只屬於 ${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)} 這一週。所有人（含老師）打開本週頁面時，會顯示在最上方。</p>`;
         bodyHtml += `<textarea class="note" id="noticeInput" placeholder="例如：這週場地臨時更換，請留意 LINE 群組通知…">${escapeHtml(weekNotice ? weekNotice.text||'' : '')}</textarea>`;
         bodyHtml += `<button class="save-btn" id="noticeSaveBtn">儲存本週注意事項</button>`;
         bodyHtml += `<div class="save-flash" id="noticeSaveFlash"></div>`;
+
+        bodyHtml += `<h2 style="margin-top:28px;">大廳公告</h2>`;
+        bodyHtml += `<p class="desc">不分週的常設訊息，改一次就一直掛著。所有人在「選擇身份」畫面的最上方都看得到，不用登入。</p>`;
+        bodyHtml += `<textarea class="note" id="lobbyAnnounceInput" placeholder="例如：下次運動時間是6/30 18:00 打籃球">${escapeHtml(lobbyAnnounce ? lobbyAnnounce.text||'' : '')}</textarea>`;
+        bodyHtml += `<button class="save-btn" id="lobbySaveBtn">儲存大廳公告</button>`;
+        bodyHtml += `<div class="save-flash" id="lobbySaveFlash"></div>`;
       }
       // 公告產生
+      if(SHOW_ANNOUNCE_GENERATOR){
       bodyHtml += `<h2 style="margin-top:24px;">產生公告</h2>`;
       if(!readOnly){
         bodyHtml += `<div class="field"><label>選擇日期</label><select id="announceDay">`;
@@ -1156,12 +1462,13 @@
       } else {
         bodyHtml += `<div class="empty">老師尚未產生公告</div>`;
       }
-    } else if(teacherTab==='sports'){
+      }
+    } else if(tab==='sports'){
       sportsList = await loadSportsList();
       bodyHtml = buildSportsListHtml(sportsList, person.id, !readOnly);
     }
 
-    const showWeekPicker = teacherTab !== 'sports';
+    const showWeekPicker = tab !== 'sports';
 
     if(myRenderToken !== renderGen) return;
 
@@ -1181,7 +1488,7 @@
     markScrollableTabs();
 
     function hasUnsavedFillChanges(){
-      if(teacherTab !== 'fill' || readOnly || !fillState) return false;
+      if(tab !== 'fill' || readOnly || !fillState) return false;
       if(JSON.stringify(fillState) !== JSON.stringify(teacherResp.statuses||{})) return true;
       const noteEl = document.getElementById('teacherNoteInput');
       return !!noteEl && noteEl.value.trim() !== (teacherResp.note||'');
@@ -1200,12 +1507,13 @@
     app.querySelectorAll('.nav-tabs button[data-tab]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         if(!confirmLeaveFill()) return;
+        if(btn.dataset.tab === 'sis'){ view = 'sisters'; return render(); }
         teacherTab = btn.dataset.tab;
         renderTeacher(readOnly);
       });
     });
 
-    if(teacherTab==='summary' && !readOnly){
+    if(tab==='announce' && !readOnly){
       document.getElementById('lobbySaveBtn').addEventListener('click', async ()=>{
         const text = document.getElementById('lobbyAnnounceInput').value.trim();
         await sSet('lobby-announce', {text, updatedAt: new Date().toISOString()}, true);
@@ -1213,9 +1521,6 @@
         flash.textContent = '已儲存';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
       });
-    }
-
-    if(teacherTab==='announce' && !readOnly){
       document.getElementById('noticeSaveBtn').addEventListener('click', async ()=>{
         const text = document.getElementById('noticeInput').value.trim();
         await sSet('notice:'+week.weekKey, {text, updatedAt: new Date().toISOString()}, true);
@@ -1225,7 +1530,7 @@
       });
     }
 
-    if(teacherTab==='fill' && !readOnly){
+    if(tab==='fill' && !readOnly){
       fillState = Object.assign({}, teacherResp.statuses);
       function refreshActive(){
         app.querySelectorAll('.status-btn').forEach(btn=>{
@@ -1252,7 +1557,7 @@
       });
     }
 
-    if(teacherTab==='announce' && !readOnly){
+    if(SHOW_ANNOUNCE_GENERATOR && tab==='announce' && !readOnly){
       document.getElementById('genBtn').addEventListener('click', async ()=>{
         const dayKey = document.getElementById('announceDay').value;
         const time = document.getElementById('announceTime').value.trim();
@@ -1264,7 +1569,7 @@
       });
     }
 
-    if(teacherTab==='announce' && (!readOnly || savedAnnounce)){
+    if(SHOW_ANNOUNCE_GENERATOR && tab==='announce' && (!readOnly || savedAnnounce)){
       document.getElementById('copyBtn').addEventListener('click', ()=>{
         const text = document.getElementById('announceBox').value;
         copyToClipboard(text);
@@ -1274,7 +1579,7 @@
       });
     }
 
-    if(teacherTab==='sports'){
+    if(tab==='sports'){
       wireSportsListHandlers(sportsList, person.id, !readOnly, ()=>renderTeacher(readOnly));
     }
 
@@ -1472,6 +1777,747 @@
   }
 
   // ---------- 畫面：管理入口 ----------
+  // ============================================================
+  // 姊妹行事曆
+  // ------------------------------------------------------------
+  // 資料模型（都在 data/ 底下，永久保留，不受 cleanupOldWeeks 影響）：
+  //   sis-groups      -> [{id, label, labelAuto, memberIds:[], color}]
+  //   sis-meet:<年份> -> [{id, date:'YYYY-MM-DD', groupId, note, createdBy, savedAt}]
+  //
+  // 可見範圍：每個人只看得到「memberIds 含自己」的組合與其行程。
+  // 這是畫面層的過濾，不是資料庫層的權限——同一個 data/ 節點的資料本來就撈得到，
+  // 它擋掉的是「不小心看到」跟「無聊亂翻」，不是有心人。要真的擋住得每人綁 Firebase 帳號。
+  //
+  // 一年一包整包覆寫，跟 people-list、sports-list 一樣是後寫的蓋前寫的。
+  // 兩個人同一秒存同一年才會互相蓋掉，以這個使用量可以接受。
+  // ============================================================
+  const SIS_PALETTE = [
+    {name:'磚紅', hex:'#9E4F42'},
+    {name:'陶土', hex:'#A06A3C'},
+    {name:'芥黃', hex:'#8A7228'},
+    {name:'橄欖', hex:'#5F6B47'},
+    {name:'松綠', hex:'#3F6F62'},
+    {name:'靛藍', hex:'#46617D'},
+    {name:'藕紫', hex:'#6B5A88'},
+    {name:'玫瑰', hex:'#94547A'}
+  ];
+
+  let sisTab = 'calendar';              // calendar | groups | stats
+  let sisYear = new Date().getFullYear();
+  let sisMonth = new Date().getMonth(); // 0-11
+  let sisGroups = [];
+  const sisMeetCache = {};              // 年份 -> 見面紀錄陣列
+  let sisSheet = null;                  // 開著的底部面板：{kind:'meet'|'group', ...}
+  let sisNewSel = [];                   // 新增組合時勾選的成員 id
+  let sisNewColor = SIS_PALETTE[0].hex;
+  let sisNewLabel = '';                 // 新增組合時打到一半的標籤（勾人／換色會重繪，要留住）
+  let sisChart = null;
+  let sisLastPerson = null;             // 換人登入時用來重置畫面狀態
+
+  async function sisLoadGroups(){
+    const g = await sGet('sis-groups', true);
+    sisGroups = Array.isArray(g) ? g : [];
+  }
+  async function sisSaveGroups(){
+    await sSet('sis-groups', sisGroups, true);
+  }
+  // force=true 會重新跟資料庫拿一次。正在看的那一年每次渲染都重讀，
+  // 別人在別的裝置上新增的紀錄才看得到（跟這個站其他畫面的做法一致）。
+  async function sisLoadMeets(year, force){
+    if(force || !sisMeetCache[year]){
+      const m = await sGet('sis-meet:'+year, true);
+      sisMeetCache[year] = Array.isArray(m) ? m : [];
+    }
+    return sisMeetCache[year];
+  }
+  async function sisSaveMeets(year){
+    await sSet('sis-meet:'+year, sisMeetCache[year] || [], true);
+  }
+
+  function sisGroupById(id){ return sisGroups.find(g=>g.id===id) || null; }
+  function sisMyGroups(){
+    return sisGroups.filter(g => (g.memberIds||[]).indexOf(currentPersonId) >= 0);
+  }
+  function sisCanSee(meet){
+    const g = sisGroupById(meet.groupId);
+    return !!g && (g.memberIds||[]).indexOf(currentPersonId) >= 0;
+  }
+  function sisVisibleMeets(year){
+    return (sisMeetCache[year]||[]).filter(sisCanSee);
+  }
+
+  // 中文姓名取單字首：三個字以上取第二個字（跳過姓），兩個字取第一個字。
+  // 取不準也沒關係，標籤本來就可以自己改。
+  function sisInitial(name){
+    const n = (name||'').trim();
+    if(!n) return '?';
+    return n.length >= 3 ? n.charAt(1) : n.charAt(0);
+  }
+  function sisAutoLabel(ids){
+    return ids.map(id=>{
+      const p = people.find(x=>x.id===id);
+      return sisInitial(p ? p.name : '');
+    }).join('＋');
+  }
+  function sisGroupLabel(g){
+    if(!g) return '(已刪除的組合)';
+    if(g.labelAuto) return sisAutoLabel(g.memberIds||[]);
+    return g.label || sisAutoLabel(g.memberIds||[]);
+  }
+  function sisMemberNames(g){
+    return (g.memberIds||[]).map(id=>personName(id)).join('・');
+  }
+
+  // 某一年裡，每筆紀錄在自己組合中是第幾次（依日期排序，同日期用 id 穩定排序）
+  function sisNthMap(year){
+    const sorted = (sisMeetCache[year]||[]).slice().sort((a,b)=>
+      a.date === b.date ? String(a.id).localeCompare(String(b.id)) : a.date.localeCompare(b.date)
+    );
+    const running = {}, map = {};
+    sorted.forEach(m=>{
+      running[m.groupId] = (running[m.groupId]||0) + 1;
+      map[m.id] = running[m.groupId];
+    });
+    return map;
+  }
+  // 還沒存檔時，預告這筆會是第幾次
+  function sisNthPreview(year, groupId, date, excludeId){
+    let n = 1;
+    (sisMeetCache[year]||[]).forEach(m=>{
+      if(m.groupId !== groupId || m.id === excludeId) return;
+      if(m.date <= date) n++;
+    });
+    return n;
+  }
+
+  function sisMonthCells(year, month){
+    const startDow = new Date(year, month, 1).getDay();
+    const lastDay = new Date(year, month+1, 0).getDate();
+    const prevLast = new Date(year, month, 0).getDate();
+    const cells = [];
+    for(let i=startDow-1; i>=0; i--) cells.push({n: prevLast-i, out:true});
+    for(let d=1; d<=lastDay; d++) cells.push({n:d, out:false});
+    let next = 1;
+    while(cells.length % 7 !== 0) cells.push({n: next++, out:true});
+    return cells;
+  }
+  function sisDateKey(year, month, day){
+    return year + '-' + pad(month+1) + '-' + pad(day);
+  }
+  function sisFmtDate(dateStr){
+    const parts = dateStr.split('-');
+    return parseInt(parts[1],10) + '/' + parseInt(parts[2],10);
+  }
+  function sisWeekdayOf(dateStr){
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+    return WEEKDAY_NAMES[d.getDay()];
+  }
+
+  async function renderSisters(){
+    const myRenderToken = ++renderGen;
+    const person = people.find(p=>p.id===currentPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+    if(!person.canSis){ view = person.isTeacher ? 'teacher' : 'member'; return render(); }
+
+    // 換人登入就把分頁、年月、填到一半的表單全部重置，不要把上一個人的狀態帶過來
+    if(sisLastPerson !== currentPersonId){
+      sisLastPerson = currentPersonId;
+      const now = new Date();
+      sisTab = 'calendar';
+      sisYear = now.getFullYear();
+      sisMonth = now.getMonth();
+      sisSheet = null;
+      sisNewSel = [];
+      sisNewLabel = '';
+      sisNewColor = SIS_PALETTE[0].hex;
+    }
+
+    await sisLoadGroups();
+    await sisLoadMeets(sisYear, true);
+    if(myRenderToken !== renderGen) return;
+
+    const mine = sisMyGroups();
+    let bodyHtml = '';
+    if(sisTab === 'calendar')      bodyHtml = sisCalendarHtml(mine);
+    else if(sisTab === 'groups')   bodyHtml = sisGroupsHtml(mine, person);
+    else                           bodyHtml = sisStatsHtml(mine);
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 姊妹行事曆 <span class="seed">●</span></div>
+        <div class="sub">${escapeHtml(person.name)}</div>
+      </header>
+      <div class="sis">
+        <div class="sis-who"><span class="dot"></span>目前是 ${escapeHtml(person.name)} 的視角，只顯示有你的組合與行程</div>
+        <div class="sis-tabs">
+          <button data-stab="calendar" class="${sisTab==='calendar'?'active':''}">月曆</button>
+          <button data-stab="groups" class="${sisTab==='groups'?'active':''}">組合</button>
+          <button data-stab="stats" class="${sisTab==='stats'?'active':''}">統計</button>
+        </div>
+        ${bodyHtml}
+        ${sisSheetHtml(mine)}
+      </div>
+      <div class="footer-link"><a href="#" id="backLink">返回我的畫面</a></div>
+    `;
+
+    if(sisTab === 'stats') sisDrawChart(mine);
+    sisWire(mine, person);
+
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      sisSheet = null;
+      view = person.isTeacher ? 'teacher' : 'member';
+      render();
+    });
+  }
+
+  // ---------- 月曆 ----------
+  function sisCalendarHtml(mine){
+    if(!mine.length){
+      return `<div class="sis-card">
+        <div class="sis-cardhead"><span>還沒有任何組合</span></div>
+        <div class="sis-hint">先到「組合」分頁建立一個組合（例如你跟某位姊妹），之後才能在月曆上記錄見面。</div>
+        <button class="sis-btn" data-goto="groups">去建立第一個組合</button>
+      </div>`;
+    }
+
+    const nth = sisNthMap(sisYear);
+    const monthPrefix = sisYear + '-' + pad(sisMonth+1) + '-';
+    const monthMeets = sisVisibleMeets(sisYear)
+      .filter(m => m.date.indexOf(monthPrefix) === 0)
+      .sort((a,b)=> a.date.localeCompare(b.date));
+    const byDay = {};
+    monthMeets.forEach(m=>{ (byDay[parseInt(m.date.slice(8),10)] = byDay[parseInt(m.date.slice(8),10)] || []).push(m); });
+
+    const today = new Date();
+    const isThisMonth = (today.getFullYear()===sisYear && today.getMonth()===sisMonth);
+
+    let cellsHtml = '';
+    sisMonthCells(sisYear, sisMonth).forEach(c=>{
+      if(c.out){
+        cellsHtml += `<div class="sis-cell out"><span class="d">${c.n}</span></div>`;
+        return;
+      }
+      const list = byDay[c.n] || [];
+      const chips = list.map(m=>{
+        const g = sisGroupById(m.groupId);
+        return `<div class="sis-chip" style="background:${g ? g.color : '#8A7A64'}">#${nth[m.id]||'?'}</div>`;
+      }).join('');
+      const cls = 'sis-cell' + (isThisMonth && c.n===today.getDate() ? ' today' : '');
+      cellsHtml += `<div class="${cls}" data-day="${c.n}"><span class="d">${c.n}</span>${chips}</div>`;
+    });
+
+    let listHtml = '';
+    if(monthMeets.length){
+      listHtml = monthMeets.map(m=>{
+        const g = sisGroupById(m.groupId);
+        const noteLine = (m.note && m.note.trim())
+          ? `（${sisWeekdayOf(m.date)}）${escapeHtml(m.note)}`
+          : `星期${sisWeekdayOf(m.date)}`;
+        return `<div class="sis-ev" data-meet="${m.id}">
+          <span class="dt">${sisFmtDate(m.date)}</span>
+          <span class="sw" style="background:${g ? g.color : '#8A7A64'}"></span>
+          <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span>
+            <div class="no">${noteLine}</div></span>
+          <span class="nth">#${nth[m.id]||'?'}</span>
+        </div>`;
+      }).join('');
+    } else {
+      listHtml = '<div class="empty">這個月還沒有紀錄，點上面的日期就能新增。</div>';
+    }
+
+    const yearTotal = sisVisibleMeets(sisYear).length;
+
+    return `
+      <div class="sis-card">
+        <div class="sis-nav">
+          <button data-mnav="-1" aria-label="上個月">‹</button>
+          <div class="lbl">${sisYear} 年 ${sisMonth+1} 月</div>
+          <button data-mnav="1" aria-label="下個月">›</button>
+        </div>
+        <div class="sis-wd">${WEEKDAY_NAMES.map(w=>`<span>${w}</span>`).join('')}</div>
+        <div class="sis-grid">${cellsHtml}</div>
+      </div>
+      <div class="sis-sum">
+        <div><div class="k">本月見面</div><div class="v">${monthMeets.length} 次</div></div>
+        <div><div class="k">${sisYear} 年累計</div><div class="v">${yearTotal} 次</div></div>
+      </div>
+      <div class="sis-card">
+        <div class="sis-cardhead"><span>本月見面紀錄</span><span class="cnt">${monthMeets.length}</span></div>
+        <div class="sis-hint">點任一筆可以修改或刪除。</div>
+        ${listHtml}
+      </div>
+    `;
+  }
+
+  // ---------- 組合 ----------
+  function sisGroupsHtml(mine, person){
+    // 只數正在看的那一年——把所有年份都撈回來只為了顯示一個數字並不划算
+    const counts = {};
+    (sisMeetCache[sisYear]||[]).forEach(m=>{ counts[m.groupId] = (counts[m.groupId]||0)+1; });
+
+    const listHtml = mine.length ? mine.map(g=>`
+      <div class="sis-grp" data-group="${g.id}">
+        <span class="sw" style="background:${g.color}"></span>
+        <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span>
+          <div class="mem">${escapeHtml(sisMemberNames(g))}</div></span>
+        <span class="n">${sisYear} 年 ${counts[g.id]||0} 次</span>
+      </div>
+    `).join('') : '<div class="empty">還沒有組合。</div>';
+
+    const others = people.filter(p=>p.id !== currentPersonId);
+    const pickHtml = others.map(p=>`
+      <div class="sis-opt ${sisNewSel.indexOf(p.id)>=0?'on':''}" data-pick="${p.id}">${sisNewSel.indexOf(p.id)>=0?'✓ ':''}${escapeHtml(p.name)}</div>
+    `).join('');
+
+    const autoLabel = sisAutoLabel([currentPersonId].concat(sisNewSel));
+    const swatchHtml = SIS_PALETTE.map(c=>`
+      <i class="${sisNewColor===c.hex?'on':''}" data-color="${c.hex}" style="background:${c.hex}" title="${c.name}"></i>
+    `).join('');
+
+    return `
+      <div class="sis-card">
+        <div class="sis-cardhead"><span>我的組合</span><span class="cnt">${mine.length}</span></div>
+        <div class="sis-hint">只列出有你在裡面的組合。點任一筆可以改名、換色或刪除。</div>
+        ${listHtml}
+      </div>
+      <div class="sis-card">
+        <div class="sis-cardhead" style="margin-bottom:10px"><span>新增組合</span></div>
+        <div class="sis-lab">選成員</div>
+        <div class="sis-opts">
+          <div class="sis-opt locked">${escapeHtml(person.name)} · 你</div>
+          ${pickHtml}
+        </div>
+        <div class="sis-hint">你自己一定在裡面——不然建完你就看不到它了。</div>
+        <div class="sis-lab">標籤</div>
+        <input type="text" class="sis-input" id="sisNewLabel" value="${escapeHtml(sisNewLabel)}" placeholder="${escapeHtml(autoLabel)}">
+        <div class="sis-hint">留空就用自動取的單字首「${escapeHtml(autoLabel)}」，也可以自己取名，例如「爬山團」。</div>
+        <div class="sis-lab">顏色</div>
+        <div class="sis-swatches">${swatchHtml}</div>
+        <button class="sis-btn" id="sisCreateGroup" style="margin-top:16px">建立組合</button>
+        <div class="save-flash" id="sisGroupFlash"></div>
+      </div>
+    `;
+  }
+
+  // ---------- 統計 ----------
+  function sisStatsHtml(mine){
+    if(!mine.length){
+      return '<div class="sis-card"><div class="empty">還沒有組合，先去「組合」分頁建立一個。</div></div>';
+    }
+
+    const meets = sisVisibleMeets(sisYear);
+    const monthly = {};
+    mine.forEach(g=>{ monthly[g.id] = [0,0,0,0,0,0,0,0,0,0,0,0]; });
+    meets.forEach(m=>{
+      const mi = parseInt(m.date.slice(5,7),10) - 1;
+      if(monthly[m.groupId]) monthly[m.groupId][mi]++;
+    });
+
+    // 未來的月份留空（不補 0），免得折線看起來像「見面次數暴跌」
+    const today = new Date();
+    const lastMonth = (sisYear < today.getFullYear()) ? 11
+                    : (sisYear > today.getFullYear()) ? -1 : today.getMonth();
+
+    let rows = mine.map(g=>{
+      const arr = monthly[g.id];
+      const cells = arr.map((n,i)=>{
+        if(i > lastMonth) return '<td class="zero">–</td>';
+        return `<td${n===0?' class="zero"':''}>${n}</td>`;
+      }).join('');
+      const total = arr.reduce((a,b)=>a+b,0);
+      return `<tr><td class="g"><span class="swdot" style="background:${g.color}"></span>${escapeHtml(sisGroupLabel(g))}</td>${cells}<td class="tot">${total}</td></tr>`;
+    }).join('');
+
+    // 兩兩見面：只算有「我」在場的聚會，所以只列出我跟每個人的次數。
+    // 別人之間的完整次數包含我看不到的場合，算出來會是錯的，不顯示。
+    const pairCounts = {};
+    meets.forEach(m=>{
+      const g = sisGroupById(m.groupId);
+      if(!g) return;
+      (g.memberIds||[]).forEach(id=>{
+        if(id === currentPersonId) return;
+        pairCounts[id] = (pairCounts[id]||0) + 1;
+      });
+    });
+    const pairs = Object.keys(pairCounts).map(id=>({id, n:pairCounts[id]})).sort((a,b)=>b.n-a.n);
+    const maxPair = pairs.length ? pairs[0].n : 1;
+    const myName = personName(currentPersonId);
+    const pairHtml = pairs.length ? pairs.map(p=>`
+      <div class="sis-pair">
+        <span class="nm">${escapeHtml(myName)} × ${escapeHtml(personName(p.id))}</span>
+        <span class="bar" style="width:${Math.max(6, Math.round(p.n/maxPair*84))}px"></span>
+        <span class="n">${p.n} 次</span>
+      </div>
+    `).join('') : '<div class="empty">今年還沒有紀錄。</div>';
+
+    return `
+      <div class="sis-card">
+        <div class="sis-nav">
+          <button data-ynav="-1" aria-label="前一年">‹</button>
+          <div class="lbl">${sisYear} 年</div>
+          <button data-ynav="1" aria-label="後一年">›</button>
+        </div>
+        <div class="sis-tblwrap" style="margin-top:12px">
+          <table class="sis-tbl">
+            <thead><tr><th style="text-align:left">組合</th>${
+              [1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<th>${m}</th>`).join('')
+            }<th>總計</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sis-card">
+        <div class="sis-cardhead" style="margin-bottom:10px"><span>各組合月趨勢</span></div>
+        <div class="sis-chartbox"><canvas id="sisChartCanvas"></canvas></div>
+      </div>
+      <div class="sis-card">
+        <div class="sis-cardhead"><span>我跟每個人見了幾次</span></div>
+        <div class="sis-hint">任何有你們兩個都在場的聚會都算一次，所以會比單一組合的次數多。</div>
+        ${pairHtml}
+      </div>
+    `;
+  }
+
+  function sisDrawChart(mine){
+    const canvas = document.getElementById('sisChartCanvas');
+    if(!canvas) return;
+    if(sisChart){ sisChart.destroy(); sisChart = null; }
+
+    const box = canvas.parentNode;
+    if(typeof Chart === 'undefined'){
+      box.innerHTML = '<div class="sis-chartfail">圖表載入失敗<br><span style="font-weight:400">上方統計表仍可正常使用</span></div>';
+      return;
+    }
+
+    const meets = sisVisibleMeets(sisYear);
+    const today = new Date();
+    const lastMonth = (sisYear < today.getFullYear()) ? 11
+                    : (sisYear > today.getFullYear()) ? -1 : today.getMonth();
+
+    const datasets = mine.map(g=>{
+      const arr = [0,0,0,0,0,0,0,0,0,0,0,0];
+      meets.forEach(m=>{ if(m.groupId===g.id) arr[parseInt(m.date.slice(5,7),10)-1]++; });
+      return {
+        label: sisGroupLabel(g),
+        data: arr.map((n,i)=> i > lastMonth ? null : n),
+        borderColor: g.color,
+        backgroundColor: g.color,
+        borderWidth: 4,
+        tension: 0,
+        pointRadius: 5,
+        pointBorderColor: '#3A2E22',
+        pointBorderWidth: 2,
+        pointBackgroundColor: g.color,
+        spanGaps: false
+      };
+    });
+
+    Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+    Chart.defaults.font.weight = 700;
+    Chart.defaults.color = '#3A2E22';
+    sisChart = new Chart(canvas, {
+      type:'line',
+      data:{ labels:['1','2','3','4','5','6','7','8','9','10','11','12'], datasets },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        layout:{ padding:{ top:4 } },
+        plugins:{
+          legend:{ position:'bottom', labels:{ boxWidth:12, boxHeight:12, font:{size:10}, padding:10 } },
+          tooltip:{
+            backgroundColor:'#3A2E22', borderColor:'#3A2E22', borderWidth:2, cornerRadius:4,
+            titleFont:{size:11}, bodyFont:{size:11},
+            callbacks:{
+              title:(items)=> items[0].label + ' 月',
+              label:(c)=> c.dataset.label + '：' + c.parsed.y + ' 次'
+            }
+          }
+        },
+        scales:{
+          x:{ grid:{display:false}, border:{width:2, color:'#3A2E22'}, ticks:{font:{size:10}} },
+          y:{ beginAtZero:true, ticks:{ stepSize:1, precision:0, font:{size:10} },
+              grid:{ color:'rgba(58,46,34,.14)' }, border:{width:2, color:'#3A2E22'} }
+        }
+      }
+    });
+  }
+
+  // ---------- 底部面板：新增／編輯見面、編輯組合 ----------
+  function sisSheetHtml(mine){
+    if(!sisSheet) return '';
+
+    if(sisSheet.kind === 'group'){
+      const g = sisGroupById(sisSheet.groupId);
+      if(!g) return '';
+      const swatchHtml = SIS_PALETTE.map(c=>`
+        <i class="${g.color===c.hex?'on':''}" data-editcolor="${c.hex}" style="background:${c.hex}" title="${c.name}"></i>
+      `).join('');
+      return `
+        <div class="sis-backdrop" data-close="1"></div>
+        <div class="sis-sheet">
+          <h3>${escapeHtml(sisGroupLabel(g))}</h3>
+          <div class="sub">${escapeHtml(sisMemberNames(g))}</div>
+          <div class="sis-lab">標籤</div>
+          <input type="text" class="sis-input" id="sisEditLabel" value="${escapeHtml(typeof sisSheet.labelDraft === 'string' ? sisSheet.labelDraft : (g.labelAuto ? '' : (g.label||'')))}" placeholder="${escapeHtml(sisAutoLabel(g.memberIds||[]))}">
+          <div class="sis-hint">留空就跟著成員自動取單字首。</div>
+          <div class="sis-lab">顏色</div>
+          <div class="sis-swatches">${swatchHtml}</div>
+          <div class="sis-btnrow">
+            <button class="sis-btn ghost" data-close="1">取消</button>
+            <button class="sis-btn" id="sisSaveGroup">儲存</button>
+          </div>
+          <button class="sis-btn danger" id="sisDeleteGroup" style="margin-top:9px">刪除這個組合</button>
+          <div class="save-flash" id="sisSheetFlash"></div>
+        </div>
+      `;
+    }
+
+    const date = sisSheet.date;
+    const editing = sisSheet.meetId ? (sisMeetCache[sisYear]||[]).find(m=>m.id===sisSheet.meetId) : null;
+    const selected = sisSheet.groupId || (editing ? editing.groupId : (mine[0] ? mine[0].id : ''));
+    const optsHtml = mine.map(g=>`
+      <div class="sis-opt ${selected===g.id?'on':''}" data-selgroup="${g.id}">
+        <span class="sw" style="background:${g.color}"></span>${escapeHtml(sisGroupLabel(g))}
+      </div>
+    `).join('');
+    const nth = selected ? sisNthPreview(sisYear, selected, date, editing ? editing.id : null) : 0;
+    const selLabel = selected ? sisGroupLabel(sisGroupById(selected)) : '';
+
+    return `
+      <div class="sis-backdrop" data-close="1"></div>
+      <div class="sis-sheet">
+        <h3>${parseInt(date.slice(5,7),10)} 月 ${parseInt(date.slice(8),10)} 日</h3>
+        <div class="sub">星期${sisWeekdayOf(date)}${editing ? '・修改既有紀錄' : ''}</div>
+        <div class="sis-lab">選擇組合</div>
+        <div class="sis-opts">${optsHtml}</div>
+        <div class="sis-lab">備註（選填）</div>
+        <textarea class="sis-ta" id="sisNote" placeholder="例如：陽明山走走">${editing ? escapeHtml(editing.note||'') : ''}</textarea>
+        <div class="sis-lab">存檔後</div>
+        <div class="sis-preview">${selected
+          ? `這會是「${escapeHtml(selLabel)}」${sisYear} 年第 <b>${nth}</b> 次見面`
+          : '請先選一個組合'}</div>
+        <div class="sis-btnrow">
+          <button class="sis-btn ghost" data-close="1">取消</button>
+          <button class="sis-btn" id="sisSaveMeet">儲存</button>
+        </div>
+        ${editing ? '<button class="sis-btn danger" id="sisDeleteMeet" style="margin-top:9px">刪除這筆紀錄</button>' : ''}
+        <div class="save-flash" id="sisSheetFlash"></div>
+      </div>
+    `;
+  }
+
+  function sisWire(mine, person){
+    app.querySelectorAll('[data-stab]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ sisTab = btn.dataset.stab; sisSheet = null; renderSisters(); });
+    });
+    app.querySelectorAll('[data-goto]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ sisTab = btn.dataset.goto; renderSisters(); });
+    });
+    app.querySelectorAll('[data-mnav]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        sisMonth += parseInt(btn.dataset.mnav,10);
+        if(sisMonth < 0){ sisMonth = 11; sisYear--; }
+        else if(sisMonth > 11){ sisMonth = 0; sisYear++; }
+        renderSisters();
+      });
+    });
+    app.querySelectorAll('[data-ynav]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ sisYear += parseInt(btn.dataset.ynav,10); renderSisters(); });
+    });
+
+    app.querySelectorAll('.sis-cell[data-day]').forEach(cell=>{
+      cell.addEventListener('click', ()=>{
+        if(!mine.length) return;
+        sisSheet = {kind:'meet', date: sisDateKey(sisYear, sisMonth, parseInt(cell.dataset.day,10)), meetId:null, groupId:null};
+        renderSisters();
+      });
+    });
+    app.querySelectorAll('[data-meet]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const m = (sisMeetCache[sisYear]||[]).find(x=>x.id===row.dataset.meet);
+        if(!m) return;
+        sisSheet = {kind:'meet', date:m.date, meetId:m.id, groupId:m.groupId};
+        renderSisters();
+      });
+    });
+    app.querySelectorAll('[data-group]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        sisSheet = {kind:'group', groupId: row.dataset.group};
+        renderSisters();
+      });
+    });
+
+    // --- 新增組合 ---
+    // 勾人與換色都會重繪表單，先把使用者打到一半的標籤收起來
+    function sisKeepLabel(){
+      const el = document.getElementById('sisNewLabel');
+      if(el) sisNewLabel = el.value;
+    }
+    app.querySelectorAll('[data-pick]').forEach(opt=>{
+      opt.addEventListener('click', ()=>{
+        sisKeepLabel();
+        const id = opt.dataset.pick;
+        const i = sisNewSel.indexOf(id);
+        if(i >= 0) sisNewSel.splice(i,1); else sisNewSel.push(id);
+        renderSisters();
+      });
+    });
+    app.querySelectorAll('[data-color]').forEach(sw=>{
+      sw.addEventListener('click', ()=>{ sisKeepLabel(); sisNewColor = sw.dataset.color; renderSisters(); });
+    });
+    const createBtn = document.getElementById('sisCreateGroup');
+    if(createBtn){
+      createBtn.addEventListener('click', async ()=>{
+        const flash = document.getElementById('sisGroupFlash');
+        if(!sisNewSel.length){
+          flash.style.color = 'var(--red)';
+          flash.textContent = '至少要再選一個人';
+          return;
+        }
+        const ids = [currentPersonId].concat(sisNewSel);
+        const typed = (document.getElementById('sisNewLabel').value || '').trim();
+        const dup = sisGroups.find(g=>{
+          const a = (g.memberIds||[]).slice().sort().join(',');
+          return a === ids.slice().sort().join(',');
+        });
+        if(dup){
+          flash.style.color = 'var(--red)';
+          flash.textContent = '已經有一模一樣成員的組合了';
+          return;
+        }
+        sisGroups.push({
+          id: 'sg' + Date.now(),
+          label: typed,
+          labelAuto: !typed,
+          memberIds: ids,
+          color: sisNewColor
+        });
+        await sisSaveGroups();
+        sisNewSel = [];
+        sisNewColor = SIS_PALETTE[0].hex;
+        sisNewLabel = '';
+        renderSisters();
+      });
+    }
+
+    // --- 面板 ---
+    app.querySelectorAll('[data-close]').forEach(el=>{
+      el.addEventListener('click', ()=>{ sisSheet = null; renderSisters(); });
+    });
+    app.querySelectorAll('[data-selgroup]').forEach(opt=>{
+      opt.addEventListener('click', ()=>{
+        const noteEl = document.getElementById('sisNote');
+        sisSheet.note = noteEl ? noteEl.value : '';
+        sisSheet.groupId = opt.dataset.selgroup;
+        renderSisters();
+      });
+    });
+    // 切換組合會重繪面板，把使用者打到一半的備註帶回來
+    const noteEl = document.getElementById('sisNote');
+    if(noteEl && sisSheet && typeof sisSheet.note === 'string' && !noteEl.value){ noteEl.value = sisSheet.note; }
+
+    const saveMeetBtn = document.getElementById('sisSaveMeet');
+    if(saveMeetBtn){
+      saveMeetBtn.addEventListener('click', async ()=>{
+        const flash = document.getElementById('sisSheetFlash');
+        const editing = sisSheet.meetId ? (sisMeetCache[sisYear]||[]).find(m=>m.id===sisSheet.meetId) : null;
+        const groupId = sisSheet.groupId || (editing ? editing.groupId : (mine[0] ? mine[0].id : ''));
+        if(!groupId){
+          flash.style.color = 'var(--red)';
+          flash.textContent = '請先選一個組合';
+          return;
+        }
+        const note = (document.getElementById('sisNote').value || '').trim();
+        const list = await sisLoadMeets(sisYear);
+        if(editing){
+          editing.groupId = groupId;
+          editing.note = note;
+          editing.savedAt = new Date().toISOString();
+        } else {
+          list.push({
+            id: 'sm' + Date.now(),
+            date: sisSheet.date,
+            groupId,
+            note,
+            createdBy: currentPersonId,
+            savedAt: new Date().toISOString()
+          });
+        }
+        await sisSaveMeets(sisYear);
+        sisSheet = null;
+        renderSisters();
+      });
+    }
+    const delMeetBtn = document.getElementById('sisDeleteMeet');
+    if(delMeetBtn){
+      delMeetBtn.addEventListener('click', async ()=>{
+        if(!confirm('確定要刪除這筆見面紀錄嗎？')) return;
+        sisMeetCache[sisYear] = (sisMeetCache[sisYear]||[]).filter(m=>m.id!==sisSheet.meetId);
+        await sisSaveMeets(sisYear);
+        sisSheet = null;
+        renderSisters();
+      });
+    }
+
+    const saveGroupBtn = document.getElementById('sisSaveGroup');
+    if(saveGroupBtn){
+      saveGroupBtn.addEventListener('click', async ()=>{
+        const g = sisGroupById(sisSheet.groupId);
+        if(!g) return;
+        const typed = (document.getElementById('sisEditLabel').value || '').trim();
+        g.label = typed;
+        g.labelAuto = !typed;
+        await sisSaveGroups();
+        sisSheet = null;
+        renderSisters();
+      });
+    }
+    app.querySelectorAll('[data-editcolor]').forEach(sw=>{
+      sw.addEventListener('click', async ()=>{
+        const g = sisGroupById(sisSheet.groupId);
+        if(!g) return;
+        // 換色會重繪面板，先把改到一半的名字留住
+        const el = document.getElementById('sisEditLabel');
+        if(el) sisSheet.labelDraft = el.value;
+        g.color = sw.dataset.editcolor;
+        await sisSaveGroups();
+        renderSisters();
+      });
+    });
+    const delGroupBtn = document.getElementById('sisDeleteGroup');
+    if(delGroupBtn){
+      delGroupBtn.addEventListener('click', async ()=>{
+        const gid = sisSheet.groupId;
+        // 先確認沒有任何一年還有紀錄掛在這個組合上，避免刪掉組合讓歷史紀錄變成孤兒
+        const years = await sisAllMeetYears();
+        let used = 0;
+        for(const y of years){
+          const list = await sisLoadMeets(y);
+          used += list.filter(m=>m.groupId===gid).length;
+        }
+        if(used > 0){
+          const flash = document.getElementById('sisSheetFlash');
+          flash.style.color = 'var(--red)';
+          flash.textContent = `還有 ${used} 筆紀錄用到它，不能刪。可以改名字或換顏色。`;
+          return;
+        }
+        if(!confirm('確定要刪除這個組合嗎？')) return;
+        sisGroups = sisGroups.filter(g=>g.id!==gid);
+        await sisSaveGroups();
+        sisSheet = null;
+        renderSisters();
+      });
+    }
+  }
+
+  // 資料庫裡有紀錄的所有年份
+  async function sisAllMeetYears(){
+    const keys = await sList('sis-meet:', true);
+    return keys.map(k=>k.slice('sis-meet:'.length)).filter(y=>/^\d{4}$/.test(y));
+  }
+
   let adminUnlocked = false;
 
   function renderAdminLock(){
@@ -1510,11 +2556,12 @@
   function renderAdminPanel(){
     let rowsHtml = people.map(p=>`
       <div class="admin-row">
-        <div>${escapeHtml(p.name)} ${p.isTeacher?'<span class="pill">老師</span>':''}
+        <div>${escapeHtml(p.name)} ${p.isTeacher?'<span class="pill">老師</span>':''}${p.canSis?'<span class="pill" style="background:var(--accent-soft); color:var(--accent-deep); margin-left:4px;">行事曆</span>':''}
           <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${p.password ? '已設定密碼' : '尚未設定密碼'}</div>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
           <button class="del-btn" data-action="setTeacher" data-id="${p.id}">${p.isTeacher?'取消老師':'設為老師'}</button>
+          <button class="del-btn" data-action="setSis" data-id="${p.id}">${p.canSis?'關閉行事曆':'開放行事曆'}</button>
           ${p.password ? `<button class="del-btn" data-action="resetPw" data-id="${p.id}">重設密碼</button>` : ''}
           <button class="del-btn" data-action="delete" data-id="${p.id}">刪除</button>
         </div>
@@ -1528,7 +2575,7 @@
       </header>
       <div class="card">
         <h1>人員管理</h1>
-        <p class="desc">新增成員、指定老師。老師的空閒時間會作為排定運動的依據。</p>
+        <p class="desc">新增成員、指定老師。老師的空閒時間會作為排定運動的依據。<br>「開放行事曆」會讓該成員登入後多一個「姊妹行事曆」分頁，沒開放的人連入口都看不到。</p>
         ${rowsHtml || '<div class="empty">尚無人員</div>'}
         <div class="add-row">
           <input type="text" id="newName" placeholder="輸入新成員姓名">
@@ -1550,6 +2597,15 @@
       btn.addEventListener('click', async ()=>{
         const id = btn.dataset.id;
         people = people.map(p=>({...p, isTeacher: p.id===id ? !p.isTeacher : false}));
+        await savePeople();
+        renderAdminPanel();
+      });
+    });
+    // 姊妹行事曆：被開放的人登入後才會看到入口，其他人連按鈕都沒有
+    app.querySelectorAll('[data-action="setSis"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        people = people.map(p=> p.id===id ? {...p, canSis: !p.canSis} : p);
         await savePeople();
         renderAdminPanel();
       });
