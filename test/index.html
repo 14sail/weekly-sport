@@ -1175,7 +1175,7 @@
     app.innerHTML = `
       <header class="top">
         <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
-        <div class="sub">${escapeHtml(person.name)} 的時間回報</div>
+        <div class="sub">${escapeHtml(person.name)}</div>
       </header>
       <div class="card">
         ${mainTabsHtml}
@@ -1267,7 +1267,9 @@
     if(!person){ view='pickPerson'; return render(); }
     // peek 模式下 currentPersonId 仍是「正在偷看的成員」，viewingPerson 才是真正的老師本人資料來源
     const viewingPerson = readOnly ? (people.find(p=>p.isTeacher) || person) : person;
-    const subtitle = readOnly ? '老師視角（唯讀預覽）' : '老師管理視角';
+    // 標題下方那行放使用者自己的名字；peek 例外——那裡要講清楚「你在看別人的畫面」，
+    // 放名字會分不清是誰的。
+    const subtitle = readOnly ? '老師視角（唯讀預覽）' : escapeHtml(person.name);
 
     const week = WEEKS[teacherSelectedWeekIdx];
     let sportsList;
