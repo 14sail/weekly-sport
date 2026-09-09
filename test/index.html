@@ -2054,7 +2054,7 @@
     if(!mine.length){
       return `<div class="sis-card">
         <div class="sis-cardhead"><span>還沒有任何組合</span></div>
-        <div class="sis-hint">先到「組合」分頁建立一個組合（例如你跟某位姊妹），之後才能在月曆上記錄見面。</div>
+        <div class="sis-hint">先建立組合，才能在月曆上記錄見面。</div>
         <button class="sis-btn" data-goto="groups">去建立第一個組合</button>
       </div>`;
     }
@@ -2108,7 +2108,7 @@
           : `星期${sisWeekdayOf(m.date)}`;
         const noteLine = (m.note && m.note.trim()) ? `${wk}・${escapeHtml(m.note)}` : wk;
         const daysTag = days > 1
-          ? `<span class="sis-days">${days} 天・${m.countMode === 'each' ? '每天各算一次' : '整趟算一次'}</span>`
+          ? `<span class="sis-days">${days} 天・${m.countMode === 'each' ? '每天各 1 次' : '整趟 1 次'}</span>`
           : '';
         return `<div class="sis-ev" data-meet="${m.id}">
           <span class="dt">${sisRangeLabel(m)}</span>
@@ -2141,7 +2141,7 @@
       </div>
       <div class="sis-card">
         <div class="sis-cardhead"><span>本月見面紀錄</span><span class="cnt">${monthMeets.length}</span></div>
-        <div class="sis-hint">點任一筆可以修改或刪除。過夜、出國的行程可以在裡面設連續天數。</div>
+        <div class="sis-hint">點任一筆可以修改或刪除。</div>
         ${listHtml}
       </div>
     `;
@@ -2176,7 +2176,7 @@
     return `
       <div class="sis-card">
         <div class="sis-cardhead"><span>我的組合</span><span class="cnt">${mine.length}</span></div>
-        <div class="sis-hint">只列出有你在裡面的組合。點任一筆可以改名、換色或刪除。</div>
+        <div class="sis-hint">點任一筆可以改名、換色或刪除。</div>
         ${listHtml}
       </div>
       <div class="sis-card">
@@ -2186,10 +2186,9 @@
           <div class="sis-opt locked">${escapeHtml(person.name)} · 你</div>
           ${pickHtml}
         </div>
-        <div class="sis-hint">你自己一定在裡面——不然建完你就看不到它了。</div>
         <div class="sis-lab">標籤</div>
         <input type="text" class="sis-input" id="sisNewLabel" value="${escapeHtml(sisNewLabel)}" placeholder="${escapeHtml(autoLabel)}">
-        <div class="sis-hint">留空就用自動取的單字首「${escapeHtml(autoLabel)}」，也可以自己取名，例如「爬山團」。</div>
+        <div class="sis-hint">留空就用「${escapeHtml(autoLabel)}」。</div>
         <div class="sis-lab">顏色</div>
         <div class="sis-swatches">${swatchHtml}</div>
         <button class="sis-btn" id="sisCreateGroup" style="margin-top:16px">建立組合</button>
@@ -2275,7 +2274,7 @@
       </div>
       <div class="sis-card">
         <div class="sis-cardhead"><span>我跟每個人見了幾次</span></div>
-        <div class="sis-hint">任何有你們兩個都在場的聚會都算一次，所以會比單一組合的次數多。</div>
+        <div class="sis-hint">兩個人都在場就算一次。</div>
         ${pairHtml}
       </div>
     `;
@@ -2380,7 +2379,7 @@
           <div class="sub">${escapeHtml(sisMemberNames(g))}</div>
           <div class="sis-lab">標籤</div>
           <input type="text" class="sis-input" id="sisEditLabel" value="${escapeHtml(typeof sisSheet.labelDraft === 'string' ? sisSheet.labelDraft : (g.labelAuto ? '' : (g.label||'')))}" placeholder="${escapeHtml(sisAutoLabel(g.memberIds||[]))}">
-          <div class="sis-hint">留空就跟著成員自動取單字首。</div>
+          <div class="sis-hint">留空就跟著成員自動取。</div>
           <div class="sis-lab">顏色</div>
           <div class="sis-swatches">${swatchHtml}</div>
           <div class="sis-btnrow">
@@ -2422,7 +2421,7 @@
         <input type="number" class="sis-input" id="sisDaysInput" inputmode="numeric" min="1" max="${SIS_MAX_DAYS}" value="${days}" style="margin-top:7px">
         <div class="sis-hint" id="sisRange">${sisSheetRangeText(date, days)}</div>
         <label class="sis-check"><input type="checkbox" id="sisEachDay" ${countMode==='each'?'checked':''}><span>連續天數各算一次見面</span></label>
-        <div class="sis-hint">不勾＝整趟算 1 次見面（出國五天算一次）；勾了＝住幾天就算幾次。</div>
+        <div class="sis-hint">不勾＝整趟算 1 次；勾了＝住幾天算幾次。</div>
         <div class="sis-lab">備註（選填）</div>
         <textarea class="sis-ta" id="sisNote" placeholder="例如：陽明山走走">${editing ? escapeHtml(editing.note||'') : ''}</textarea>
         <div class="sis-lab">存檔後</div>
