@@ -304,7 +304,7 @@
   .best-card .v{ font-family:'Noto Serif TC', serif; font-size:19px; font-weight:700; }
   .best-card .m{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
 
-  /* 五天明細改成可收合，預設只有一行；建議日預設展開 */
+  /* 五天明細一律整塊展開，不收合 */
   .summary-day{
     border:1px solid var(--line);
     border-radius:var(--radius-sm);
@@ -313,26 +313,19 @@
     overflow:hidden;
   }
   .summary-day.picked{ border-color:var(--accent); background:var(--accent-soft); }
-  .summary-day.teacher-no{ opacity:0.55; }
+  .summary-day.teacher-no{ opacity:0.72; }
   .summary-head{
     display:flex; justify-content:space-between; align-items:center; gap:10px;
-    padding:12px 14px; cursor:pointer; list-style:none;
+    padding:12px 14px 6px;
   }
-  .summary-head::-webkit-details-marker{ display:none; }
   .summary-head .d{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:6px; }
   .summary-head .right{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
   .summary-head .free-n{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
-  .summary-head .chev{
-    width:9px; height:9px; border-right:2px solid var(--ink-soft); border-bottom:2px solid var(--ink-soft);
-    transform:rotate(45deg); margin-top:-4px; transition:transform .15s ease; flex:none;
-  }
-  .summary-day[open] .summary-head .chev{ transform:rotate(-135deg); margin-top:2px; }
   .summary-day .summary-names{ padding:0 14px 13px; margin-top:0; }
   .day-tag{
     font-size:10px; font-weight:700; letter-spacing:1px;
     background:var(--accent-deep); color:#fff; padding:2px 7px; border-radius:9px;
   }
-  @media (prefers-reduced-motion: reduce){ .summary-head .chev{ transition:none; } }
   .summary-head .badge{
     font-size:11px; padding:3px 9px; border-radius:12px; font-weight:700;
   }
@@ -343,15 +336,16 @@
   .summary-names b{ color:var(--ink); }
   .name-tag{ display:inline-block; margin:2px 4px 2px 0; padding:2px 7px; border-radius:10px; font-size:11px; }
 
-  .sport-item{ cursor:default; }
-  .sport-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .sport-item{ cursor:default; padding:12px 14px; }
+  .sport-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; }
   .sport-title-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .sport-name{ font-weight:700; font-size:15px; }
-  .sport-meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; display:flex; align-items:center; gap:8px; white-space:nowrap; }
-  .sport-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  .sport-meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; display:flex; align-items:center; gap:8px; white-space:nowrap; flex:none; margin-left:auto; }
+  .sport-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+  .sport-item .summary-names{ padding:0; margin-top:8px; }
   .sport-comments{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
   .sport-comments .note-line{ margin-top:0; margin-bottom:4px; }
-  .sport-comments .add-row{ margin-top:8px; }
+  .sport-comments .add-row{ margin-top:8px; margin-bottom:0; }
   .name-tag.free{ background:var(--green-soft); color:var(--green); }
   .name-tag.busy{ background:var(--red-soft); color:var(--red); }
   .name-tag.maybe{ background:var(--amber-soft); color:var(--amber); }
@@ -512,6 +506,7 @@
     font-size:9px; font-weight:900; text-align:center; padding:2px 0;
     border-radius:2px; color:#FFFDF8; letter-spacing:.3px;
   }
+  .sis-chip.cont{ opacity:.5; }
 
   .sis-sum{ display:flex; gap:10px; margin-bottom:14px; }
   .sis-sum > div{
@@ -526,7 +521,7 @@
     border-bottom:var(--sis-bw-thin) dashed var(--sis-dash); cursor:pointer;
   }
   .sis-ev:last-child{ border-bottom:0; padding-bottom:0; }
-  .sis-ev .dt{ font-size:12px; font-weight:700; min-width:42px; }
+  .sis-ev .dt{ font-size:12px; font-weight:700; min-width:42px; white-space:nowrap; }
   .sis-ev .sw{ width:13px; height:13px; border-radius:50%; flex:none; }
   .sis-ev .txt{ flex:1; min-width:0; }
   .sis-ev .lb{ font-size:12px; font-weight:700; }
@@ -535,6 +530,16 @@
     font-size:11px; font-weight:700; flex:none; background:var(--bg);
     border:var(--sis-bw-thin) solid rgba(58,46,34,.4); border-radius:3px; padding:1px 5px;
   }
+  .sis-days{
+    display:inline-block; margin-top:3px; font-size:10px; font-weight:700; color:var(--sis-key);
+    border:var(--sis-bw-thin) solid rgba(58,46,34,.3); border-radius:3px; padding:0 4px;
+  }
+  .sis-check{
+    display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:2px;
+    font-size:12px; font-weight:700; padding:9px 11px; background:var(--sis-card);
+    border:var(--sis-bw) solid var(--sis-ink); border-radius:var(--sis-radius);
+  }
+  .sis-check input{ width:16px; height:16px; flex:none; margin:0; accent-color:var(--sis-key); }
 
   .sis-btn{
     display:block; width:100%; padding:13px; cursor:pointer;
@@ -1367,15 +1372,14 @@
           : ds.teacherStatus==='busy' ? '<span class="badge noteacher">老師沒空</span>'
           : '<span class="badge noteacher">老師未填</span>';
         bodyHtml += `
-          <details class="summary-day ${isBest?'picked':''} ${!ds.teacherOk?'teacher-no':''}" ${isBest?'open':''}>
-            <summary class="summary-head">
+          <div class="summary-day ${isBest?'picked':''} ${!ds.teacherOk?'teacher-no':''}">
+            <div class="summary-head">
               <div class="d">星期${ds.day.weekdayName} ${fmtShort(ds.day.date)} ${isBest?'<span class="day-tag">建議</span>':''}</div>
               <div class="right">
                 <span class="free-n">有空 ${ds.freeList.length}</span>
                 ${teacherBadge}
-                <span class="chev"></span>
               </div>
-            </summary>
+            </div>
             <div class="summary-names">
               <b>有空 ${ds.freeList.length}</b>：
               ${ds.freeList.map(p=>`<span class="name-tag free">${escapeHtml(p.name)}</span>`).join('') || '—'}
@@ -1385,7 +1389,7 @@
               ${ds.busyList.map(p=>`<span class="name-tag busy">${escapeHtml(p.name)}</span>`).join('') || '—'}
               ${ds.noAnswerList.length ? `<br><span style="color:#B6A88E;">尚未回覆：${ds.noAnswerList.map(p=>escapeHtml(p.name)).join('、')}</span>` : ''}
             </div>
-          </details>
+          </div>
         `;
       });
       // 備註彙整
@@ -1801,6 +1805,7 @@
     {name:'藕紫', hex:'#6B5A88'},
     {name:'玫瑰', hex:'#94547A'}
   ];
+  const SIS_MAX_DAYS = 60;              // 一筆行程最多連續幾天
 
   let sisTab = 'calendar';              // calendar | groups | stats
   let sisYear = new Date().getFullYear();
@@ -1842,8 +1847,14 @@
     const g = sisGroupById(meet.groupId);
     return !!g && (g.memberIds||[]).indexOf(currentPersonId) >= 0;
   }
+  // 跨年行程（12/30 出發玩到 1/2）存在出發那年的檔案裡，
+  // 所以看某一年時要把前一年跨過來的那幾筆一起帶進來。
   function sisVisibleMeets(year){
-    return (sisMeetCache[year]||[]).filter(sisCanSee);
+    const list = (sisMeetCache[year]||[]).slice();
+    (sisMeetCache[year-1]||[]).forEach(m=>{
+      if(sisMeetEnd(m).slice(0,4) === String(year)) list.push(m);
+    });
+    return list.filter(sisCanSee);
   }
 
   // 中文姓名取單字首：三個字以上取第二個字（跳過姓），兩個字取第一個字。
@@ -1868,26 +1879,46 @@
     return (g.memberIds||[]).map(id=>personName(id)).join('・');
   }
 
-  // 某一年裡，每筆紀錄在自己組合中是第幾次（依日期排序，同日期用 id 穩定排序）
+  // 某一年裡，每筆紀錄在自己組合中是第幾次（依日期排序，同日期用 id 穩定排序）。
+  // 「每天各算一次」的多天行程會一口氣吃掉好幾個號碼，所以存的是 {from, to}；
+  // 另外用「id@日期」記下每一天各自的號碼，月曆格子要用。
   function sisNthMap(year){
-    const sorted = (sisMeetCache[year]||[]).slice().sort((a,b)=>
-      a.date === b.date ? String(a.id).localeCompare(String(b.id)) : a.date.localeCompare(b.date)
+    const occ = [];
+    sisVisibleMeets(year).forEach(m=>{
+      sisCountDates(m).forEach(d=>{
+        if(d.slice(0,4) === String(year)) occ.push({meet:m, date:d});
+      });
+    });
+    occ.sort((a,b)=>
+      a.date === b.date ? String(a.meet.id).localeCompare(String(b.meet.id)) : a.date.localeCompare(b.date)
     );
     const running = {}, map = {};
-    sorted.forEach(m=>{
-      running[m.groupId] = (running[m.groupId]||0) + 1;
-      map[m.id] = running[m.groupId];
+    occ.forEach(o=>{
+      running[o.meet.groupId] = (running[o.meet.groupId]||0) + 1;
+      const n = running[o.meet.groupId];
+      if(map[o.meet.id]) map[o.meet.id].to = n;
+      else map[o.meet.id] = {from:n, to:n};
+      map[o.meet.id + '@' + o.date] = n;
     });
     return map;
   }
-  // 還沒存檔時，預告這筆會是第幾次
-  function sisNthPreview(year, groupId, date, excludeId){
-    let n = 1;
-    (sisMeetCache[year]||[]).forEach(m=>{
+  function sisNthLabel(nth, m){
+    const r = nth[m.id];
+    if(!r) return '#?';
+    return r.from === r.to ? '#' + r.from : '#' + r.from + '－' + r.to;
+  }
+  // 還沒存檔時，預告這筆會是第幾次（含這趟總共記幾次）
+  function sisNthPreview(year, groupId, date, excludeId, days, countMode){
+    let before = 0;
+    sisVisibleMeets(year).forEach(m=>{
       if(m.groupId !== groupId || m.id === excludeId) return;
-      if(m.date <= date) n++;
+      sisCountDates(m).forEach(d=>{
+        if(d.slice(0,4) === String(year) && d <= date) before++;
+      });
     });
-    return n;
+    const draft = {date:date, days:days, countMode:countMode};
+    const own = sisCountDates(draft).filter(d=> d.slice(0,4) === String(year)).length || 1;
+    return {from: before + 1, to: before + own, count: own};
   }
 
   function sisMonthCells(year, month){
@@ -1914,6 +1945,50 @@
     return WEEKDAY_NAMES[d.getDay()];
   }
 
+  // ---------- 過夜／多天行程 ----------
+  // 一筆紀錄只存出發日 date，加上 days（連續幾天，沒填就是 1 天）。
+  // countMode：'once' 整趟算一次見面、'each' 住幾天就算幾次。
+  // 舊資料沒有這兩個欄位，一律當成「1 天、算一次」，所以資料庫裡既有的紀錄不用動。
+  function sisMeetDays(m){
+    const n = parseInt(m && m.days, 10);
+    if(!n || n < 1) return 1;
+    return Math.min(n, SIS_MAX_DAYS);
+  }
+  function sisShiftDate(dateStr, add){
+    const p = dateStr.split('-');
+    const d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10) + add);
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  }
+  function sisMeetDates(m){            // 這筆佔到的每一天
+    const out = [];
+    const n = sisMeetDays(m);
+    for(let i=0; i<n; i++) out.push(sisShiftDate(m.date, i));
+    return out;
+  }
+  function sisMeetEnd(m){ return sisShiftDate(m.date, sisMeetDays(m)-1); }
+  function sisMeetYear(m){ return parseInt(m.date.slice(0,4),10); }
+  // 這筆算成幾次見面、分別記在哪一天（統計、第幾次都以這個為準）
+  function sisCountDates(m){
+    return (m.countMode === 'each') ? sisMeetDates(m) : [m.date];
+  }
+  function sisCountIn(meets, from, to){
+    let n = 0;
+    meets.forEach(m=>{ sisCountDates(m).forEach(d=>{ if(d >= from && d <= to) n++; }); });
+    return n;
+  }
+  function sisRangeLabel(m){
+    return sisMeetDays(m) > 1 ? sisFmtDate(m.date) + '－' + sisFmtDate(sisMeetEnd(m)) : sisFmtDate(m.date);
+  }
+  // 要改的那筆可能是去年出發、跨年跑到今年的行程，兩年都找一下
+  function sisFindMeet(id){
+    const years = [sisYear, sisYear-1];
+    for(let i=0; i<years.length; i++){
+      const hit = (sisMeetCache[years[i]]||[]).find(m=>m.id===id);
+      if(hit) return hit;
+    }
+    return null;
+  }
+
   async function renderSisters(){
     const myRenderToken = ++renderGen;
     const person = people.find(p=>p.id===currentPersonId);
@@ -1935,6 +2010,7 @@
 
     await sisLoadGroups();
     await sisLoadMeets(sisYear, true);
+    await sisLoadMeets(sisYear-1, true);   // 跨年的多天行程要看得到
     if(myRenderToken !== renderGen) return;
 
     const mine = sisMyGroups();
@@ -1977,18 +2053,26 @@
     if(!mine.length){
       return `<div class="sis-card">
         <div class="sis-cardhead"><span>還沒有任何組合</span></div>
-        <div class="sis-hint">先到「組合」分頁建立一個組合（例如你跟某位姊妹），之後才能在月曆上記錄見面。</div>
+        <div class="sis-hint">先建立組合，才能在月曆上記錄見面。</div>
         <button class="sis-btn" data-goto="groups">去建立第一個組合</button>
       </div>`;
     }
 
     const nth = sisNthMap(sisYear);
-    const monthPrefix = sisYear + '-' + pad(sisMonth+1) + '-';
+    const monthStart = sisDateKey(sisYear, sisMonth, 1);
+    const monthEnd = sisDateKey(sisYear, sisMonth, new Date(sisYear, sisMonth+1, 0).getDate());
+    // 多天行程只要有一天落在這個月就要出現（例如 12/30 出發玩到 1/2）
     const monthMeets = sisVisibleMeets(sisYear)
-      .filter(m => m.date.indexOf(monthPrefix) === 0)
+      .filter(m => m.date <= monthEnd && sisMeetEnd(m) >= monthStart)
       .sort((a,b)=> a.date.localeCompare(b.date));
     const byDay = {};
-    monthMeets.forEach(m=>{ (byDay[parseInt(m.date.slice(8),10)] = byDay[parseInt(m.date.slice(8),10)] || []).push(m); });
+    monthMeets.forEach(m=>{
+      sisMeetDates(m).forEach(d=>{
+        if(d < monthStart || d > monthEnd) return;
+        const dayNum = parseInt(d.slice(8),10);
+        (byDay[dayNum] = byDay[dayNum] || []).push({meet:m, date:d});
+      });
+    });
 
     const today = new Date();
     const isThisMonth = (today.getFullYear()===sisYear && today.getMonth()===sisMonth);
@@ -2000,9 +2084,14 @@
         return;
       }
       const list = byDay[c.n] || [];
-      const chips = list.map(m=>{
-        const g = sisGroupById(m.groupId);
-        return `<div class="sis-chip" style="background:${g ? g.color : '#8A7A64'}">#${nth[m.id]||'?'}</div>`;
+      const chips = list.map(o=>{
+        const g = sisGroupById(o.meet.groupId);
+        const isStart = o.date === o.meet.date;
+        // 每天各算一次的行程，每一格顯示自己那天的號碼；整趟算一次的只有第一天有號碼
+        const label = (o.meet.countMode === 'each')
+          ? '#' + (nth[o.meet.id + '@' + o.date] || '?')
+          : (isStart ? sisNthLabel(nth, o.meet) : '·');
+        return `<div class="sis-chip${isStart ? '' : ' cont'}" style="background:${g ? g.color : '#8A7A64'}">${label}</div>`;
       }).join('');
       const cls = 'sis-cell' + (isThisMonth && c.n===today.getDate() ? ' today' : '');
       cellsHtml += `<div class="${cls}" data-day="${c.n}"><span class="d">${c.n}</span>${chips}</div>`;
@@ -2012,22 +2101,28 @@
     if(monthMeets.length){
       listHtml = monthMeets.map(m=>{
         const g = sisGroupById(m.groupId);
-        const noteLine = (m.note && m.note.trim())
-          ? `（${sisWeekdayOf(m.date)}）${escapeHtml(m.note)}`
+        const days = sisMeetDays(m);
+        const wk = days > 1
+          ? `星期${sisWeekdayOf(m.date)}－星期${sisWeekdayOf(sisMeetEnd(m))}`
           : `星期${sisWeekdayOf(m.date)}`;
+        const noteLine = (m.note && m.note.trim()) ? `${wk}・${escapeHtml(m.note)}` : wk;
+        const daysTag = days > 1
+          ? `<span class="sis-days">${days} 天・${m.countMode === 'each' ? '每天各 1 次' : '整趟 1 次'}</span>`
+          : '';
         return `<div class="sis-ev" data-meet="${m.id}">
-          <span class="dt">${sisFmtDate(m.date)}</span>
+          <span class="dt">${sisRangeLabel(m)}</span>
           <span class="sw" style="background:${g ? g.color : '#8A7A64'}"></span>
           <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span>
-            <div class="no">${noteLine}</div></span>
-          <span class="nth">#${nth[m.id]||'?'}</span>
+            <div class="no">${noteLine}</div>${daysTag}</span>
+          <span class="nth">${sisNthLabel(nth, m)}</span>
         </div>`;
       }).join('');
     } else {
       listHtml = '<div class="empty">這個月還沒有紀錄，點上面的日期就能新增。</div>';
     }
 
-    const yearTotal = sisVisibleMeets(sisYear).length;
+    const monthCount = sisCountIn(monthMeets, monthStart, monthEnd);
+    const yearTotal = sisCountIn(sisVisibleMeets(sisYear), sisYear + '-01-01', sisYear + '-12-31');
 
     return `
       <div class="sis-card">
@@ -2040,7 +2135,7 @@
         <div class="sis-grid">${cellsHtml}</div>
       </div>
       <div class="sis-sum">
-        <div><div class="k">本月見面</div><div class="v">${monthMeets.length} 次</div></div>
+        <div><div class="k">本月見面</div><div class="v">${monthCount} 次</div></div>
         <div><div class="k">${sisYear} 年累計</div><div class="v">${yearTotal} 次</div></div>
       </div>
       <div class="sis-card">
@@ -2055,7 +2150,8 @@
   function sisGroupsHtml(mine, person){
     // 只數正在看的那一年——把所有年份都撈回來只為了顯示一個數字並不划算
     const counts = {};
-    (sisMeetCache[sisYear]||[]).forEach(m=>{ counts[m.groupId] = (counts[m.groupId]||0)+1; });
+    const yFrom = sisYear + '-01-01', yTo = sisYear + '-12-31';
+    sisVisibleMeets(sisYear).forEach(m=>{ counts[m.groupId] = (counts[m.groupId]||0) + sisCountIn([m], yFrom, yTo); });
 
     const listHtml = mine.length ? mine.map(g=>`
       <div class="sis-grp" data-group="${g.id}">
@@ -2079,7 +2175,7 @@
     return `
       <div class="sis-card">
         <div class="sis-cardhead"><span>我的組合</span><span class="cnt">${mine.length}</span></div>
-        <div class="sis-hint">只列出有你在裡面的組合。點任一筆可以改名、換色或刪除。</div>
+        <div class="sis-hint">點任一筆可以改名、換色或刪除。</div>
         ${listHtml}
       </div>
       <div class="sis-card">
@@ -2089,10 +2185,9 @@
           <div class="sis-opt locked">${escapeHtml(person.name)} · 你</div>
           ${pickHtml}
         </div>
-        <div class="sis-hint">你自己一定在裡面——不然建完你就看不到它了。</div>
         <div class="sis-lab">標籤</div>
         <input type="text" class="sis-input" id="sisNewLabel" value="${escapeHtml(sisNewLabel)}" placeholder="${escapeHtml(autoLabel)}">
-        <div class="sis-hint">留空就用自動取的單字首「${escapeHtml(autoLabel)}」，也可以自己取名，例如「爬山團」。</div>
+        <div class="sis-hint">留空就用「${escapeHtml(autoLabel)}」。</div>
         <div class="sis-lab">顏色</div>
         <div class="sis-swatches">${swatchHtml}</div>
         <button class="sis-btn" id="sisCreateGroup" style="margin-top:16px">建立組合</button>
@@ -2111,8 +2206,11 @@
     const monthly = {};
     mine.forEach(g=>{ monthly[g.id] = [0,0,0,0,0,0,0,0,0,0,0,0]; });
     meets.forEach(m=>{
-      const mi = parseInt(m.date.slice(5,7),10) - 1;
-      if(monthly[m.groupId]) monthly[m.groupId][mi]++;
+      if(!monthly[m.groupId]) return;
+      sisCountDates(m).forEach(d=>{
+        if(d.slice(0,4) !== String(sisYear)) return;
+        monthly[m.groupId][parseInt(d.slice(5,7),10) - 1]++;
+      });
     });
 
     // 未來的月份留空（不補 0），免得折線看起來像「見面次數暴跌」
@@ -2136,9 +2234,10 @@
     meets.forEach(m=>{
       const g = sisGroupById(m.groupId);
       if(!g) return;
+      const n = sisCountIn([m], sisYear + '-01-01', sisYear + '-12-31');
       (g.memberIds||[]).forEach(id=>{
         if(id === currentPersonId) return;
-        pairCounts[id] = (pairCounts[id]||0) + 1;
+        pairCounts[id] = (pairCounts[id]||0) + n;
       });
     });
     const pairs = Object.keys(pairCounts).map(id=>({id, n:pairCounts[id]})).sort((a,b)=>b.n-a.n);
@@ -2174,7 +2273,7 @@
       </div>
       <div class="sis-card">
         <div class="sis-cardhead"><span>我跟每個人見了幾次</span></div>
-        <div class="sis-hint">任何有你們兩個都在場的聚會都算一次，所以會比單一組合的次數多。</div>
+        <div class="sis-hint">兩個人都在場就算一次。</div>
         ${pairHtml}
       </div>
     `;
@@ -2198,7 +2297,13 @@
 
     const datasets = mine.map(g=>{
       const arr = [0,0,0,0,0,0,0,0,0,0,0,0];
-      meets.forEach(m=>{ if(m.groupId===g.id) arr[parseInt(m.date.slice(5,7),10)-1]++; });
+      meets.forEach(m=>{
+        if(m.groupId !== g.id) return;
+        sisCountDates(m).forEach(d=>{
+          if(d.slice(0,4) !== String(sisYear)) return;
+          arr[parseInt(d.slice(5,7),10)-1]++;
+        });
+      });
       return {
         label: sisGroupLabel(g),
         data: arr.map((n,i)=> i > lastMonth ? null : n),
@@ -2245,6 +2350,18 @@
   }
 
   // ---------- 底部面板：新增／編輯見面、編輯組合 ----------
+  function sisSheetRangeText(date, days){
+    if(days <= 1) return `${sisFmtDate(date)}（${sisWeekdayOf(date)}）・單日`;
+    const end = sisShiftDate(date, days-1);
+    return `${sisFmtDate(date)}（${sisWeekdayOf(date)}）－ ${sisFmtDate(end)}（${sisWeekdayOf(end)}）・共 ${days} 天`;
+  }
+  function sisPreviewText(groupId, label, date, days, countMode, excludeId){
+    if(!groupId) return '請先選一個組合';
+    const pv = sisNthPreview(sisYear, groupId, date, excludeId, days, countMode);
+    return pv.count > 1
+      ? `這會是「${escapeHtml(label)}」${sisYear} 年第 <b>${pv.from}－${pv.to}</b> 次見面（這趟記 ${pv.count} 次）`
+      : `這會是「${escapeHtml(label)}」${sisYear} 年第 <b>${pv.from}</b> 次見面`;
+  }
   function sisSheetHtml(mine){
     if(!sisSheet) return '';
 
@@ -2261,7 +2378,7 @@
           <div class="sub">${escapeHtml(sisMemberNames(g))}</div>
           <div class="sis-lab">標籤</div>
           <input type="text" class="sis-input" id="sisEditLabel" value="${escapeHtml(typeof sisSheet.labelDraft === 'string' ? sisSheet.labelDraft : (g.labelAuto ? '' : (g.label||'')))}" placeholder="${escapeHtml(sisAutoLabel(g.memberIds||[]))}">
-          <div class="sis-hint">留空就跟著成員自動取單字首。</div>
+          <div class="sis-hint">留空就跟著成員自動取。</div>
           <div class="sis-lab">顏色</div>
           <div class="sis-swatches">${swatchHtml}</div>
           <div class="sis-btnrow">
@@ -2275,15 +2392,21 @@
     }
 
     const date = sisSheet.date;
-    const editing = sisSheet.meetId ? (sisMeetCache[sisYear]||[]).find(m=>m.id===sisSheet.meetId) : null;
+    const editing = sisSheet.meetId ? sisFindMeet(sisSheet.meetId) : null;
     const selected = sisSheet.groupId || (editing ? editing.groupId : (mine[0] ? mine[0].id : ''));
     const optsHtml = mine.map(g=>`
       <div class="sis-opt ${selected===g.id?'on':''}" data-selgroup="${g.id}">
         <span class="sw" style="background:${g.color}"></span>${escapeHtml(sisGroupLabel(g))}
       </div>
     `).join('');
-    const nth = selected ? sisNthPreview(sisYear, selected, date, editing ? editing.id : null) : 0;
     const selLabel = selected ? sisGroupLabel(sisGroupById(selected)) : '';
+    // 切組合會重繪整個面板，天數與勾選跟備註一樣先收在 sisSheet 裡帶回來
+    const days = (typeof sisSheet.days === 'number' && sisSheet.days >= 1)
+      ? sisSheet.days : (editing ? sisMeetDays(editing) : 1);
+    const countMode = sisSheet.countMode || ((editing && editing.countMode === 'each') ? 'each' : 'once');
+    const dayChips = [1,2,3,4,5,6,7].map(n=>
+      `<div class="sis-opt ${days===n?'on':''}" data-days="${n}">${n} 天</div>`
+    ).join('');
 
     return `
       <div class="sis-backdrop" data-close="1"></div>
@@ -2292,12 +2415,16 @@
         <div class="sub">星期${sisWeekdayOf(date)}${editing ? '・修改既有紀錄' : ''}</div>
         <div class="sis-lab">選擇組合</div>
         <div class="sis-opts">${optsHtml}</div>
+        <div class="sis-lab">連續幾天</div>
+        <div class="sis-opts">${dayChips}</div>
+        <input type="number" class="sis-input" id="sisDaysInput" inputmode="numeric" min="1" max="${SIS_MAX_DAYS}" value="${days}" style="margin-top:7px">
+        <div class="sis-hint" id="sisRange">${sisSheetRangeText(date, days)}</div>
+        <label class="sis-check"><input type="checkbox" id="sisEachDay" ${countMode==='each'?'checked':''}><span>連續天數各算一次見面</span></label>
+        <div class="sis-hint">不勾＝整趟算 1 次；勾了＝住幾天算幾次。</div>
         <div class="sis-lab">備註（選填）</div>
         <textarea class="sis-ta" id="sisNote" placeholder="例如：陽明山走走">${editing ? escapeHtml(editing.note||'') : ''}</textarea>
         <div class="sis-lab">存檔後</div>
-        <div class="sis-preview">${selected
-          ? `這會是「${escapeHtml(selLabel)}」${sisYear} 年第 <b>${nth}</b> 次見面`
-          : '請先選一個組合'}</div>
+        <div class="sis-preview" id="sisSheetPreview">${sisPreviewText(selected, selLabel, date, days, countMode, editing ? editing.id : null)}</div>
         <div class="sis-btnrow">
           <button class="sis-btn ghost" data-close="1">取消</button>
           <button class="sis-btn" id="sisSaveMeet">儲存</button>
@@ -2336,9 +2463,10 @@
     });
     app.querySelectorAll('[data-meet]').forEach(row=>{
       row.addEventListener('click', ()=>{
-        const m = (sisMeetCache[sisYear]||[]).find(x=>x.id===row.dataset.meet);
+        const m = sisFindMeet(row.dataset.meet);
         if(!m) return;
-        sisSheet = {kind:'meet', date:m.date, meetId:m.id, groupId:m.groupId};
+        sisSheet = {kind:'meet', date:m.date, meetId:m.id, groupId:m.groupId,
+                    days:sisMeetDays(m), countMode:(m.countMode==='each'?'each':'once')};
         renderSisters();
       });
     });
@@ -2406,10 +2534,53 @@
     app.querySelectorAll('[data-close]').forEach(el=>{
       el.addEventListener('click', ()=>{ sisSheet = null; renderSisters(); });
     });
+    // 面板上的天數／勾選，讀出來給預覽跟存檔用
+    function sisSheetDays(){
+      const el = document.getElementById('sisDaysInput');
+      let n = parseInt(el ? el.value : '1', 10);
+      if(!n || n < 1) n = 1;
+      if(n > SIS_MAX_DAYS) n = SIS_MAX_DAYS;
+      return n;
+    }
+    function sisSheetCountMode(){
+      const el = document.getElementById('sisEachDay');
+      return (el && el.checked) ? 'each' : 'once';
+    }
+    // 改天數不重繪整個面板（會把打到一半的備註洗掉），只更新日期範圍跟預覽
+    function sisRefreshSheetPreview(){
+      if(!sisSheet || sisSheet.kind !== 'meet') return;
+      const days = sisSheetDays();
+      const countMode = sisSheetCountMode();
+      app.querySelectorAll('[data-days]').forEach(c=>{
+        c.classList.toggle('on', parseInt(c.dataset.days,10) === days);
+      });
+      const rangeEl = document.getElementById('sisRange');
+      if(rangeEl) rangeEl.textContent = sisSheetRangeText(sisSheet.date, days);
+      const box = document.getElementById('sisSheetPreview');
+      if(!box) return;
+      const editingNow = sisSheet.meetId ? sisFindMeet(sisSheet.meetId) : null;
+      const groupId = sisSheet.groupId || (editingNow ? editingNow.groupId : (mine[0] ? mine[0].id : ''));
+      box.innerHTML = sisPreviewText(groupId, groupId ? sisGroupLabel(sisGroupById(groupId)) : '',
+                                     sisSheet.date, days, countMode, editingNow ? editingNow.id : null);
+    }
+    const daysInput = document.getElementById('sisDaysInput');
+    if(daysInput) daysInput.addEventListener('input', sisRefreshSheetPreview);
+    app.querySelectorAll('[data-days]').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        const el = document.getElementById('sisDaysInput');
+        if(el) el.value = chip.dataset.days;
+        sisRefreshSheetPreview();
+      });
+    });
+    const eachDayEl = document.getElementById('sisEachDay');
+    if(eachDayEl) eachDayEl.addEventListener('change', sisRefreshSheetPreview);
+
     app.querySelectorAll('[data-selgroup]').forEach(opt=>{
       opt.addEventListener('click', ()=>{
         const noteEl = document.getElementById('sisNote');
         sisSheet.note = noteEl ? noteEl.value : '';
+        sisSheet.days = sisSheetDays();
+        sisSheet.countMode = sisSheetCountMode();
         sisSheet.groupId = opt.dataset.selgroup;
         renderSisters();
       });
@@ -2422,7 +2593,7 @@
     if(saveMeetBtn){
       saveMeetBtn.addEventListener('click', async ()=>{
         const flash = document.getElementById('sisSheetFlash');
-        const editing = sisSheet.meetId ? (sisMeetCache[sisYear]||[]).find(m=>m.id===sisSheet.meetId) : null;
+        const editing = sisSheet.meetId ? sisFindMeet(sisSheet.meetId) : null;
         const groupId = sisSheet.groupId || (editing ? editing.groupId : (mine[0] ? mine[0].id : ''));
         if(!groupId){
           flash.style.color = 'var(--red)';
@@ -2430,10 +2601,16 @@
           return;
         }
         const note = (document.getElementById('sisNote').value || '').trim();
-        const list = await sisLoadMeets(sisYear);
+        const days = sisSheetDays();
+        const countMode = sisSheetCountMode();
+        // 跨年行程一律存在出發那一年
+        const targetYear = editing ? sisMeetYear(editing) : sisYear;
+        const list = await sisLoadMeets(targetYear);
         if(editing){
           editing.groupId = groupId;
           editing.note = note;
+          editing.days = days;
+          editing.countMode = countMode;
           editing.savedAt = new Date().toISOString();
         } else {
           list.push({
@@ -2441,11 +2618,13 @@
             date: sisSheet.date,
             groupId,
             note,
+            days,
+            countMode,
             createdBy: currentPersonId,
             savedAt: new Date().toISOString()
           });
         }
-        await sisSaveMeets(sisYear);
+        await sisSaveMeets(targetYear);
         sisSheet = null;
         renderSisters();
       });
@@ -2454,8 +2633,10 @@
     if(delMeetBtn){
       delMeetBtn.addEventListener('click', async ()=>{
         if(!confirm('確定要刪除這筆見面紀錄嗎？')) return;
-        sisMeetCache[sisYear] = (sisMeetCache[sisYear]||[]).filter(m=>m.id!==sisSheet.meetId);
-        await sisSaveMeets(sisYear);
+        const target = sisFindMeet(sisSheet.meetId);
+        const y = target ? sisMeetYear(target) : sisYear;
+        sisMeetCache[y] = (sisMeetCache[y]||[]).filter(m=>m.id!==sisSheet.meetId);
+        await sisSaveMeets(y);
         sisSheet = null;
         renderSisters();
       });
