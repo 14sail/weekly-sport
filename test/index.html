@@ -1897,16 +1897,33 @@
     occ.forEach(o=>{
       running[o.meet.groupId] = (running[o.meet.groupId]||0) + 1;
       const n = running[o.meet.groupId];
-      if(map[o.meet.id]) map[o.meet.id].to = n;
-      else map[o.meet.id] = {from:n, to:n};
+      // 存實際拿到的號碼，不要只記頭尾。同組合若有別筆紀錄插在多天行程中間，
+      // 號碼就不是連續的（A 拿 1、2、4，中間那筆 B 拿 3），記成 {from,to} 會謊報成「#1－4」。
+      (map[o.meet.id] = map[o.meet.id] || []).push(n);
       map[o.meet.id + '@' + o.date] = n;
     });
     return map;
   }
-  function sisNthLabel(nth, m){
-    const r = nth[m.id];
-    if(!r) return '#?';
-    return r.from === r.to ? '#' + r.from : '#' + r.from + '－' + r.to;
+  // 號碼壓成標籤：連號縮成區間，不連號就逐段列出
+  function sisNthText(nums){
+    const parts = [];
+    let from = nums[0], prev = nums[0];
+    for(let i=1; i<=nums.length; i++){
+      const n = nums[i];
+      if(n === prev + 1){ prev = n; continue; }
+      parts.push(from === prev ? String(from) : from + '－' + prev);
+      from = prev = n;
+    }
+    return '#' + parts.join('、');
+  }
+  function sisNthLabel(nth, m, year){
+    let nums = nth[m.id];
+    // 跨年帶進來的那幾筆，號碼記在出發那一年（12/30 出發的行程算在去年），
+    // 用現在檢視的年份查一定查不到，要回頭查它自己的年份，否則會顯示成 #?
+    if((!nums || !nums.length) && sisMeetYear(m) !== year){
+      nums = sisNthMap(sisMeetYear(m))[m.id];
+    }
+    return (nums && nums.length) ? sisNthText(nums) : '#?';
   }
   // 還沒存檔時，預告這筆會是第幾次（含這趟總共記幾次）
   function sisNthPreview(year, groupId, date, excludeId, days, countMode){
@@ -2010,8 +2027,17 @@
     }
 
     await sisLoadGroups();
-    await sisLoadMeets(sisYear, true);
-    await sisLoadMeets(sisYear-1, true);   // 跨年的多天行程要看得到
+    // renderSisters() 每次互動都會跑（切分頁、換月份、開關表單、點組合），
+    // 原本兩個 await 是序列且都強制重抓，等於每一下都打兩次 Firebase。
+    // 當年度一定要最新；前一年只有跨年行程會用到，載過就吃快取。
+    // 前一年要拿來顯示跨年行程；再前一年是因為「回頭查出發年份的號碼」時，
+    // 那一年自己也可能有跨年帶進來的紀錄，沒載就會算出跟直接檢視該年份不一樣的號碼。
+    // 兩者都不強制重抓，一個 session 只會各讀一次。
+    await Promise.all([
+      sisLoadMeets(sisYear, true),
+      sisLoadMeets(sisYear-1),
+      sisLoadMeets(sisYear-2)
+    ]);
     if(myRenderToken !== renderGen) return;
 
     const mine = sisMyGroups();
@@ -2091,7 +2117,7 @@
         // 每天各算一次的行程，每一格顯示自己那天的號碼；整趟算一次的只有第一天有號碼
         const label = (o.meet.countMode === 'each')
           ? '#' + (nth[o.meet.id + '@' + o.date] || '?')
-          : (isStart ? sisNthLabel(nth, o.meet) : '·');
+          : (isStart ? sisNthLabel(nth, o.meet, sisYear) : '·');
         return `<div class="sis-chip${isStart ? '' : ' cont'}" style="background:${g ? g.color : '#8A7A64'}">${label}</div>`;
       }).join('');
       const cls = 'sis-cell' + (isThisMonth && c.n===today.getDate() ? ' today' : '');
@@ -2110,12 +2136,17 @@
         const daysTag = days > 1
           ? `<span class="sis-days">${days} 天・${m.countMode === 'each' ? '每天各 1 次' : '整趟 1 次'}</span>`
           : '';
+        // 跨年帶進來的那幾筆會列在這個月，但次數記在出發那一年，
+        // 不標出來就會變成「清單有這筆、本月見面卻是 0 次」看起來像壞掉
+        const carryTag = (sisMeetYear(m) !== sisYear)
+          ? `<span class="sis-days">接續 ${sisMeetYear(m)} 年的行程</span>`
+          : '';
         return `<div class="sis-ev" data-meet="${m.id}">
           <span class="dt">${sisRangeLabel(m)}</span>
           <span class="sw" style="background:${g ? g.color : '#8A7A64'}"></span>
           <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span>
-            <div class="no">${noteLine}</div>${daysTag}</span>
-          <span class="nth">${sisNthLabel(nth, m)}</span>
+            <div class="no">${noteLine}</div>${daysTag}${carryTag}</span>
+          <span class="nth">${sisNthLabel(nth, m, sisYear)}</span>
         </div>`;
       }).join('');
     } else {
@@ -2236,13 +2267,16 @@
       const g = sisGroupById(m.groupId);
       if(!g) return;
       const n = sisCountIn([m], sisYear + '-01-01', sisYear + '-12-31');
+      // 跨年帶進來、但一次都不算在今年的那幾筆要跳過，
+      // 否則會列出「某某 0 次」，而且它若是今年唯一一筆，maxPair 會是 0 → 寬度算出 NaN
+      if(n <= 0) return;
       (g.memberIds||[]).forEach(id=>{
         if(id === currentPersonId) return;
         pairCounts[id] = (pairCounts[id]||0) + n;
       });
     });
     const pairs = Object.keys(pairCounts).map(id=>({id, n:pairCounts[id]})).sort((a,b)=>b.n-a.n);
-    const maxPair = pairs.length ? pairs[0].n : 1;
+    const maxPair = pairs.length ? Math.max(1, pairs[0].n) : 1;
     const myName = personName(currentPersonId);
     const pairHtml = pairs.length ? pairs.map(p=>`
       <div class="sis-pair">
@@ -2358,10 +2392,13 @@
   }
   function sisPreviewText(groupId, label, date, days, countMode, excludeId){
     if(!groupId) return '請先選一個組合';
-    const pv = sisNthPreview(sisYear, groupId, date, excludeId, days, countMode);
+    // 次數歸「出發那一年」。在 2026 年一月編輯一筆 2025/12/30 出發的行程時，
+    // 用 sisYear 會算出「2026 年第 1 次」這種永遠不會出現在任何地方的數字。
+    const pvYear = parseInt(String(date).slice(0,4), 10) || sisYear;
+    const pv = sisNthPreview(pvYear, groupId, date, excludeId, days, countMode);
     return pv.count > 1
-      ? `這會是「${escapeHtml(label)}」${sisYear} 年第 <b>${pv.from}－${pv.to}</b> 次見面（這趟記 ${pv.count} 次）`
-      : `這會是「${escapeHtml(label)}」${sisYear} 年第 <b>${pv.from}</b> 次見面`;
+      ? `這會是「${escapeHtml(label)}」${pvYear} 年第 <b>${pv.from}－${pv.to}</b> 次見面（這趟記 ${pv.count} 次）`
+      : `這會是「${escapeHtml(label)}」${pvYear} 年第 <b>${pv.from}</b> 次見面`;
   }
   function sisSheetHtml(mine){
     if(!sisSheet) return '';
@@ -2606,7 +2643,9 @@
         const countMode = sisSheetCountMode();
         // 跨年行程一律存在出發那一年
         const targetYear = editing ? sisMeetYear(editing) : sisYear;
-        const list = await sisLoadMeets(targetYear);
+        // sisSaveMeets 是整年一包覆寫，所以動它之前一定要拿最新的，
+        // 否則會把自己開頁面當下的舊快照寫回去，別人這段時間新增的紀錄就消失了。
+        const list = await sisLoadMeets(targetYear, true);
         if(editing){
           editing.groupId = groupId;
           editing.note = note;
@@ -2676,7 +2715,7 @@
         const years = await sisAllMeetYears();
         let used = 0;
         for(const y of years){
-          const list = await sisLoadMeets(y);
+          const list = await sisLoadMeets(y, true);   // 同上：整包覆寫前一定要最新的
           used += list.filter(m=>m.groupId===gid).length;
         }
         if(used > 0){
