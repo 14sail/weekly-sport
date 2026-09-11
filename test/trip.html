@@ -123,6 +123,16 @@
   .trip-card .tc-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; }
   .trip-card .tc-go{ color:var(--accent); font-size:20px; }
 
+  /* ---- 選人畫面：跟運動排程站一樣的小方塊 ---- */
+  .people-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  .person-btn{
+    height:64px; display:flex; align-items:center; justify-content:center;
+    background:var(--accent-soft); border:1px solid var(--line);
+    border-radius:var(--radius-sm); padding:8px; text-align:center;
+    font-size:14px; font-weight:500; color:var(--accent-deep); cursor:pointer;
+  }
+  .person-btn:active{ transform:scale(0.97); }
+
   .tag{
     display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px;
     border:1px solid var(--line); color:var(--ink-soft); background:#fff; margin-left:6px;
@@ -160,10 +170,35 @@
   .tl-item.dragging{ opacity:.4; }
   .tl-item.drop-target{ box-shadow:0 -3px 0 var(--accent); }
 
-  .tl-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .tl-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .tl-time{ font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; letter-spacing:.02em; }
   .tl-item.conflict .tl-time{ color:var(--red); }
   .tl-name{ font-size:15px; font-weight:500; flex:1; min-width:0; }
+  /* 景點名本身就是進景點庫編輯的入口，畫底線讓人看得出可以點 */
+  .tl-name-btn{
+    display:block; width:100%; text-align:left; border:0; background:transparent;
+    padding:0; font:inherit; color:inherit; cursor:pointer;
+    text-decoration:underline dotted; text-decoration-color:var(--ink-soft);
+    text-decoration-thickness:1px; text-underline-offset:4px;
+  }
+  .tl-name-btn:hover{ text-decoration:underline solid; text-decoration-color:var(--accent); color:var(--accent-deep); }
+
+  /* 釘選：右上角小圖示＋直接可改的時間欄，不跳視窗 */
+  .tl-pin{ display:flex; align-items:center; gap:6px; flex:none; margin-left:auto; }
+  .pin-btn{
+    flex:none; width:30px; height:30px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    display:grid; place-items:center; cursor:pointer;
+  }
+  .pin-btn .ic{ width:15px; height:15px; vertical-align:0; }
+  .pin-btn.on{ border-color:var(--amber); background:var(--amber-soft); color:var(--amber); }
+  /* width:auto 讓瀏覽器照自己的語系決定寬度。中文 Chrome 會顯示成「下午 07:00」，
+     寫死寬度會把分鐘切掉。 */
+  input.pin-time{
+    width:auto; min-width:0; padding:4px 7px; font-size:13px; font-weight:700;
+    color:var(--amber); background:var(--amber-soft); border-color:var(--amber);
+    font-variant-numeric:tabular-nums;
+  }
   .tl-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.6; }
   .tl-late{ font-size:12px; color:var(--red); font-weight:700; }
 
@@ -446,6 +481,13 @@
     if(!m) return null;
     return Number(m[1])*60 + Number(m[2]);
   }
+  // 給 <input type="time"> 用：一定是合法的 00:00–23:59。
+  // toHHMM() 會產生「25:30 (+1)」這種跨日寫法，直接塞進 time 欄會被瀏覽器當成空值。
+  function toClock(min){
+    if(min == null) return '12:00';
+    const m = ((Math.round(min) % 1440) + 1440) % 1440;
+    return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+  }
   function toHHMM(min){
     if(min == null) return '--:--';
     let m = Math.round(min);
@@ -713,14 +755,14 @@
         '<p class="desc">這個頁面共用運動排程站的成員清單。請先到 <a href="index.html">主站</a> 建立成員。</p></div>';
       return;
     }
-    let h = flash() + '<div class="card"><h1>你是誰？</h1>' +
-      '<p class="desc">用跟運動排程站相同的名字與密碼登入。</p>';
+    let h = flash() + '<div class="card"><h1>你是哪位快樂姊妹？</h1>' +
+      '<p class="desc">選擇你的名字，密碼跟運動排程站是同一組。</p>' +
+      '<div class="people-grid">';
     people.forEach(p=>{
-      h += '<button class="trip-card" data-pick="' + esc(p.id) + '" data-nav>' +
-           '<div class="tc-main"><div class="tc-name">' + esc(p.name) + '</div></div>' +
-           '<div class="tc-go">' + ic('chevR') + '</div></button>';
+      h += '<button class="person-btn" data-pick="' + esc(p.id) + '" data-nav>' +
+           esc(p.name) + '</button>';
     });
-    h += '</div>';
+    h += '</div></div>';
     app.innerHTML = h;
     app.querySelectorAll('[data-pick]').forEach(b=>{
       b.onclick = ()=>{
@@ -992,8 +1034,18 @@
            (isMobile?'':' draggable="true"') + '>';
       h += '<div class="tl-head">' +
            '<span class="tl-time">' + toHHMM(r.arrive) + '</span>' +
-           '<span class="tl-name">' + esc(name) +
-             (r.pinned ? '<span class="tag hot">釘選 ' + esc(r.item.pinTime) + '</span>' : '') +
+           '<span class="tl-name">' +
+             (p ? '<button class="tl-name-btn" data-goedit="' + esc(p.id) + '">' + esc(name) + '</button>'
+                : esc(name)) +
+           '</span>' +
+           '<span class="tl-pin">' +
+             (r.pinned
+               ? '<input type="time" class="pin-time" data-pintime="' + esc(r.item.id) + '" value="' +
+                 esc(r.item.pinTime) + '" aria-label="釘選時間">'
+               : '') +
+             '<button class="pin-btn' + (r.pinned?' on':'') + '" data-pin="' + esc(r.item.id) + '"' +
+               ' title="' + (r.pinned?'取消釘選':'釘選成固定時間') + '"' +
+               ' aria-label="' + (r.pinned?'取消釘選':'釘選成固定時間') + '">' + ic('anchor') + '</button>' +
            '</span></div>';
 
       let sub = '停留 ' + r.stay + ' 分　→ ' + toHHMM(r.depart);
@@ -1009,9 +1061,7 @@
 
       h += '<div class="tl-ctrl">' +
         '<button class="mini" data-stay="-15" data-id="' + esc(r.item.id) + '">−15 分</button>' +
-        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '">＋15 分</button>' +
-        '<button class="mini' + (r.pinned?' on':'') + '" data-pin="' + esc(r.item.id) + '">' +
-          (r.pinned ? ic('anchor') + '取消釘選' : ic('anchor') + '釘選') + '</button>';
+        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '">＋15 分</button>';
 
       if(p){
         h += '<button class="mini" data-nav data-copy="' + esc(p.id) + '">' + ic('copy') + '複製名稱</button>' +
@@ -1105,6 +1155,8 @@
       };
     });
 
+    // 釘選＝右上角小錨點。開啟時直接拿目前推算到的時間當預設值，
+    // 旁邊就跳出可以改的時間欄，不再跳 prompt 視窗。
     app.querySelectorAll('[data-pin]').forEach(b=>{
       b.onclick = async ()=>{
         const it = findItem(b.dataset.pin);
@@ -1114,14 +1166,35 @@
         }else{
           const rows = computeDay(dayItems(curDate), t.dayStart);
           const r = rows.find(x=>x.item.id===it.id);
-          const suggest = r ? toHHMM(r.arrive).slice(0,5) : '12:00';
-          const v = window.prompt('釘選成固定時間（24 小時制 HH:MM）\n例如演唱會 19:00、班機 20:45', suggest);
-          if(v === null) return;
-          if(toMin(v) == null){ msg={type:'err',text:'時間格式要像 19:00 這樣。'}; render(); return; }
-          it.pinTime = v.trim();
+          it.pinTime = toClock(r ? r.arrive : null);
         }
         await putItem(curTripId, it.date, it);
         render();
+      };
+    });
+
+    app.querySelectorAll('[data-pintime]').forEach(inp=>{
+      inp.onchange = async ()=>{
+        const it = findItem(inp.dataset.pintime);
+        if(!it) return;
+        // 時間欄被清空（手機上按「清除」）＝取消釘選，不要存成空字串。
+        const v = inp.value.trim();
+        it.pinTime = (toMin(v) == null) ? null : v;
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
+
+    // 點景點名＝切到景點庫並直接打開那個景點的編輯表單。
+    app.querySelectorAll('[data-goedit]').forEach(b=>{
+      b.onclick = ()=>{
+        const p = placeById(b.dataset.goedit);
+        if(!p) return;
+        editingPlace = Object.assign({}, p);
+        tab = 'places';
+        pickerOpen = false;
+        render();
+        window.scrollTo(0, 0);
       };
     });
 
