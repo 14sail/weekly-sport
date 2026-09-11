@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>團體記帳</title>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCgUDmlcV3PpiGdB989ba9FgFR637_ZKnA",
+    authDomain: "weekly-sport.firebaseapp.com",
+    databaseURL: "https://weekly-sport-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "weekly-sport",
+    storageBucket: "weekly-sport.firebasestorage.app",
+    messagingSenderId: "877154842539",
+    appId: "1:877154842539:web:83b4500eaa33ca46fb44ee"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  window.db = getDatabase(app);
+  window.dbRef = ref;
+  window.dbGet = get;
+  window.dbSet = set;
+
+  signInAnonymously(auth)
+    .catch((e)=>console.error('anonymous sign-in failed', e))
+    .finally(()=>{
+      window.firebaseReady = true;
+      document.dispatchEvent(new Event('firebase-ready'));
+    });
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+
+  :root{
+    --bg: #F6F1E7;
+    --bg-card: #FFFDF8;
+    --ink: #3A2E22;
+    --ink-soft: #8A7A64;
+    --line: #E4D9C4;
+    --accent: #A9744F;
+    --accent-deep: #7C5236;
+    --accent-soft: #EFE0CB;
+    --green: #6C7A52;
+    --green-soft: #E7EBDD;
+    --red: #B15C4A;
+    --red-soft: #F3E2DC;
+    --amber: #C08A34;
+    --amber-soft: #F5EAD3;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'Noto Sans TC', sans-serif;
+    min-height:100vh; padding-bottom:60px;
+  }
+  .wrap{ max-width:760px; margin:0 auto; padding:0 18px; }
+
+  header.top{ padding:26px 18px 16px; text-align:center; }
+  header.top .brand{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:22px; letter-spacing:.05em; }
+  header.top .seed{ color:var(--accent); }
+  header.top .who{ font-size:13px; color:var(--ink-soft); margin-top:4px; }
+
+  .card{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:14px; }
+  h1{ font-family:'Noto Serif TC',serif; font-size:19px; margin:0 0 8px; }
+  h2{ font-size:16px; margin:0 0 10px; }
+  p.desc{ font-size:13.5px; color:var(--ink-soft); line-height:1.7; margin:0 0 12px; }
+
+  button{ font-family:inherit; cursor:pointer; }
+  .btn{ display:inline-block; border:1px solid var(--accent); background:var(--accent); color:#fff;
+        border-radius:var(--radius-sm); padding:10px 16px; font-size:14px; font-weight:500; }
+  .btn.ghost{ background:transparent; color:var(--accent-deep); }
+  .btn.wide{ display:block; width:100%; text-align:center; }
+  .btn.danger{ background:var(--red); border-color:var(--red); }
+  .btn:disabled{ opacity:.45; cursor:default; }
+
+  input, select, textarea{
+    font-family:inherit; font-size:15px; color:var(--ink); background:#fff;
+    border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 11px; width:100%;
+  }
+  input:focus, select:focus{ outline:2px solid var(--accent-soft); outline-offset:1px; }
+  label.fld{ display:block; margin-bottom:10px; }
+  label.fld > span{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .row-amt{ display:grid; grid-template-columns:1fr 100px; gap:10px; }
+
+  .msg{ font-size:13px; padding:9px 12px; border-radius:var(--radius-sm); margin-bottom:12px; line-height:1.6; }
+  .msg.err{ background:var(--red-soft); color:var(--red); }
+  .msg.ok{ background:var(--green-soft); color:var(--green); }
+  .msg.warn{ background:var(--amber-soft); color:#8a6220; }
+
+  .book-card{
+    background:var(--bg-card); border:1px solid var(--line); border-left:4px solid var(--green);
+    border-radius:var(--radius); padding:14px 16px; margin-bottom:10px;
+    display:flex; align-items:center; gap:12px; text-align:left; width:100%; color:inherit; font-size:inherit;
+  }
+  .book-card.done{ border-left-color:var(--ink-soft); opacity:.72; }
+  .book-card .bc-main{ flex:1; min-width:0; }
+  .book-card .bc-name{ font-weight:700; font-size:16px; }
+  .book-card .bc-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; }
+  .book-card .bc-go{ color:var(--accent); font-size:20px; }
+
+  .tag{ display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px;
+        border:1px solid var(--line); color:var(--ink-soft); background:#fff; margin-left:6px; }
+  .tag.soft{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
+  .tag.hot{ border-color:var(--red); color:var(--red); background:var(--red-soft); }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .tabs button{ border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
+                border-radius:99px; padding:7px 14px; font-size:13.5px; }
+  .tabs button.on{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:500; }
+
+  /* ---------- 帳目 ---------- */
+  .exp{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 14px; margin-bottom:8px;
+  }
+  .exp-top{ display:flex; align-items:baseline; gap:10px; }
+  .exp-title{ font-weight:600; font-size:15px; flex:1; min-width:0; }
+  .exp-amt{ font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .exp-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.7; }
+  .exp-btns{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+
+  .mini{ border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+         border-radius:var(--radius-sm); padding:5px 9px; font-size:12.5px; line-height:1.3; }
+  .mini.on{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
+  .mini.warn{ border-color:var(--red); color:var(--red); }
+
+  /* ---------- 結算 ---------- */
+  .net-row{
+    display:flex; align-items:baseline; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .net-row:last-child{ border-bottom:0; }
+  .net-name{ flex:1; font-weight:500; }
+  .net-val{ font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .net-val.plus{ color:var(--green); }
+  .net-val.minus{ color:var(--red); }
+  .net-sub{ font-size:12px; color:var(--ink-soft); }
+
+  .transfer{
+    background:var(--accent-soft); border:1px solid var(--accent);
+    border-radius:var(--radius); padding:13px 15px; margin-bottom:8px;
+    font-size:15px; line-height:1.6;
+  }
+  .transfer b{ font-variant-numeric:tabular-nums; }
+
+  .split-row{
+    display:flex; align-items:center; gap:9px; padding:7px 2px; font-size:14.5px;
+  }
+  .split-row input[type=checkbox]{ width:auto; }
+  .split-row .sr-name{ flex:1; }
+  .split-row input[type=number]{ width:110px; text-align:right; }
+  .split-row .sr-calc{ font-size:12.5px; color:var(--ink-soft); font-variant-numeric:tabular-nums; min-width:78px; text-align:right; }
+
+  .empty{ border:1px dashed var(--line); border-radius:var(--radius);
+          padding:22px 16px; text-align:center; color:var(--ink-soft); font-size:13.5px; }
+  .hint{ font-size:12px; color:var(--ink-soft); line-height:1.65; margin-top:8px; }
+  .foot{ text-align:center; margin-top:26px; }
+  .foot button{ background:none; border:0; color:var(--ink-soft); font-size:13px; text-decoration:underline; }
+
+  .switchbar{ display:flex; gap:8px; margin-bottom:14px; }
+  .switchbar a{
+    flex:1; text-align:center; text-decoration:none; font-size:13.5px;
+    border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
+    border-radius:99px; padding:8px 10px;
+  }
+  .switchbar a.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
+
+  .sumline{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:13.5px; color:var(--ink-soft); padding:5px 0;
+  }
+  .sumline b{ color:var(--ink); font-size:15px; font-variant-numeric:tabular-nums; }
+
+
+  /* Feather Icons 內嵌用 */
+  .ic{ width:1em; height:1em; vertical-align:-0.14em; flex:0 0 auto; }
+  .mini .ic, .btn .ic{ margin-right:.3em; }
+  .mini.icon-only .ic, .btn .ic.only{ margin-right:0; }
+
+  /* 離線唯讀：所有會改資料的控制項一律停用 */
+  .offbar{
+    display:flex; align-items:center; gap:9px;
+    background:var(--amber-soft); border:1px solid var(--amber); color:#7d5716;
+    border-radius:var(--radius-sm); padding:10px 13px; margin-bottom:14px;
+    font-size:13px; line-height:1.6;
+  }
+  .offbar .ic{ width:1.2em; height:1.2em; }
+  button:disabled, input:disabled, select:disabled{ opacity:.4; cursor:not-allowed; }
+
+  @media (max-width:480px){ .row2{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="seed">●</span> 團體記帳 <span class="seed">●</span></div>
+  <div class="who" id="whoLine"></div>
+</header>
+
+<div class="wrap" id="app">
+  <div class="card"><p class="desc">載入中…</p></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const app = document.getElementById('app');
+  const whoLine = document.getElementById('whoLine');
+
+  // 圖示：Feather Icons 4.29.2（MIT License, https://feathericons.com）
+  // 直接內嵌 SVG path，不連 CDN，離線一樣顯示得出來。
+  const ICONS = {
+    map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line>',
+    wallet:'<rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>',
+    copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+    pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
+    route:'<polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>',
+    anchor:'<circle cx="12" cy="5" r="3"></circle><line x1="12" y1="22" x2="12" y2="8"></line><path d="M5 12H2a10 10 0 0 0 20 0h-3"></path>',
+    transit:'<polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>',
+    note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>',
+    coord:'<circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line>',
+    warn:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
+    plus:'<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
+    up:'<polyline points="18 15 12 9 6 15"></polyline>',
+    down:'<polyline points="6 9 12 15 18 9"></polyline>',
+    grip:'<circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>',
+    trash:'<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
+    edit:'<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>',
+    gear:'<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
+    back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
+    offline:'<path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line>',
+    check:'<polyline points="20 6 9 17 4 12"></polyline>',
+    link:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>',
+    arrowR:'<line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>',
+    chevR:'<polyline points="9 18 15 12 9 6"></polyline>'
+  };
+  function ic(name){
+    return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      (ICONS[name] || '') + '</svg>';
+  }
+
+  // ================= Storage =================
+  function safeKey(key){ return key.replace(/[.#$\[\]]/g, '_'); }
+
+  async function sSet(key, val){
+    try{
+      await window.dbSet(window.dbRef(window.db, 'data/' + safeKey(key)), JSON.stringify(val));
+      return true;
+    }catch(e){ console.error('sSet error', key, e); return false; }
+  }
+  async function sDelete(key){
+    try{
+      await window.dbSet(window.dbRef(window.db, 'data/' + safeKey(key)), null);
+      return true;
+    }catch(e){ console.error('sDelete error', key, e); return false; }
+  }
+  async function sAll(){
+    try{
+      const snap = await window.dbGet(window.dbRef(window.db, 'data'));
+      if(!snap.exists()) return {};
+      return snap.val() || {};
+    }catch(e){ console.error('sAll error', e); return null; }
+  }
+  function parseVal(raw){
+    if(raw === undefined || raw === null) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+
+  const CACHE_KEY = 'split-cache-v1';
+  let offline = false;
+  // 整包 data 裡的 people-list 帶著所有人的明碼密碼，寫進 localStorage 會落地到硬碟。
+  // 登入只需要 id 與名字，存快取前先把 password 拔掉。
+  function stripSecrets(all){
+    const out = {};
+    Object.keys(all).forEach(k=>{ out[k] = all[k]; });
+    try{
+      const raw = out['people-list'];
+      if(raw){
+        const list = JSON.parse(raw);
+        if(Array.isArray(list)){
+          out['people-list'] = JSON.stringify(list.map(p=>{
+            const c = Object.assign({}, p);
+            delete c.password;
+            return c;
+          }));
+        }
+      }
+    }catch(e){ delete out['people-list']; }
+    return out;
+  }
+  function writeCache(all){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({at:Date.now(), all:stripSecrets(all)})); }catch(e){} }
+  function readCache(){
+    try{ const raw = localStorage.getItem(CACHE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+  }
+
+  // ================= 狀態 =================
+  let people = [], allData = {}, me = null, view = 'pick', msg = null;
+  let books = [], trips = [];
+  let curBookId = null, exps = [];
+  let tab = 'list';           // list | settle
+  // 跟 trip.html 共用，換頁不用重登。只記「上次是誰」，不是憑證。
+  const SESSION_KEY = 'trip-me';
+  function rememberMe(id){
+    try{ id ? localStorage.setItem(SESSION_KEY, id) : localStorage.removeItem(SESSION_KEY); }catch(e){}
+  }
+  function recallMe(){
+    try{ return localStorage.getItem(SESSION_KEY); }catch(e){ return null; }
+  }
+
+  // ================= 幣別 =================
+  // rates 存的是「1 個 base 換得到幾個該幣別」，例如 base=TWD 時 KRW:43 代表 1 台幣 ≈ 43 韓元。
+  // 一般人腦中就是這樣想匯率的，所以照這個方向存，不要反過來。
+  const CURRENCIES = [
+    {code:'TWD', name:'新台幣', sym:'NT$', dp:0},
+    {code:'KRW', name:'韓元',   sym:'₩',   dp:0},
+    {code:'JPY', name:'日圓',   sym:'¥',   dp:0},
+    {code:'USD', name:'美元',   sym:'US$', dp:2},
+    {code:'EUR', name:'歐元',   sym:'€',   dp:2},
+    {code:'CNY', name:'人民幣', sym:'¥',   dp:2},
+    {code:'HKD', name:'港幣',   sym:'HK$', dp:2},
+    {code:'THB', name:'泰銖',   sym:'฿',   dp:2},
+    {code:'VND', name:'越南盾', sym:'₫',   dp:0},
+    {code:'SGD', name:'新加坡幣', sym:'S$', dp:2}
+  ];
+  function cur(code){ return CURRENCIES.find(c=>c.code===code) || CURRENCIES[0]; }
+
+  function fmt(n, code, forceDp){
+    const c = cur(code);
+    const dp = forceDp != null ? forceDp : c.dp;
+    const v = Number(n)||0;
+    return c.sym + v.toLocaleString('zh-TW', {minimumFractionDigits:dp, maximumFractionDigits:dp});
+  }
+
+  // 換算到帳本的結算幣別。過程一律保留小數，不在這裡做任何進位。
+  function toBase(book, amount, code){
+    if(code === book.baseCurrency) return Number(amount)||0;
+    const r = Number((book.rates||{})[code]);
+    if(!r) return 0;
+    return (Number(amount)||0) / r;
+  }
+
+  // ================= 小工具 =================
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function uid(p){ return p + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function personName(id){
+    const p = people.find(x=>x.id===id);
+    return p ? p.name : '(已離開的成員)';
+  }
+  function today(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  // ================= 分攤計算 =================
+  // 回傳 {personId: 該負擔多少（原幣）}，全程保留小數。
+  function sharesOf(exp, memberIds){
+    const total = Number(exp.amount)||0;
+    const out = {};
+    memberIds.forEach(id=>{ out[id] = 0; });
+
+    if(exp.splitMode === 'exact'){
+      const d = exp.splitDetail || {};
+      memberIds.forEach(id=>{ out[id] = Number(d[id])||0; });
+      return out;
+    }
+
+    const excluded = exp.splitMode === 'exclude' ? (exp.excluded||[]) : [];
+    const sharers = memberIds.filter(id => excluded.indexOf(id) < 0);
+    if(!sharers.length) return out;
+    const each = total / sharers.length;
+    sharers.forEach(id=>{ out[id] = each; });
+    return out;
+  }
+
+  function paidOf(exp, memberIds){
+    const out = {};
+    memberIds.forEach(id=>{ out[id] = 0; });
+    (exp.payers||[]).forEach(p=>{
+      if(out[p.id] !== undefined) out[p.id] += Number(p.amt)||0;
+    });
+    return out;
+  }
+
+  // 每人淨額（結算幣別）：正數＝別人欠他，負數＝他欠別人
+  function netOf(book, list){
+    const ids = book.memberIds||[];
+    const net = {};
+    ids.forEach(id=>{ net[id] = 0; });
+    list.forEach(e=>{
+      const paid = paidOf(e, ids);
+      const share = sharesOf(e, ids);
+      ids.forEach(id=>{
+        net[id] += toBase(book, paid[id] - share[id], e.currency);
+      });
+    });
+    return net;
+  }
+
+  // 結算：這裡才四捨五入，餘數塞給金額最大的人，確保總和歸零。
+  function settle(book, net){
+    const ids = (book.memberIds||[]).slice();
+    const dp = cur(book.baseCurrency).dp;
+    const f = Math.pow(10, dp);
+    const r = {};
+    let sum = 0;
+    ids.forEach(id=>{
+      r[id] = Math.round((net[id]||0) * f) / f;
+      sum += r[id];
+    });
+    sum = Math.round(sum * f) / f;
+    if(sum !== 0 && ids.length){
+      const target = ids.reduce((a,b)=> Math.abs(r[a]) >= Math.abs(r[b]) ? a : b);
+      r[target] = Math.round((r[target] - sum) * f) / f;
+    }
+
+    const debtors = ids.filter(i=>r[i] < 0).map(i=>({id:i, amt:-r[i]})).sort((a,b)=>b.amt-a.amt);
+    const creditors = ids.filter(i=>r[i] > 0).map(i=>({id:i, amt:r[i]})).sort((a,b)=>b.amt-a.amt);
+    const out = [];
+    let di = 0, ci = 0, guard = 0;
+    while(di < debtors.length && ci < creditors.length && guard++ < 500){
+      const d = debtors[di], c = creditors[ci];
+      const x = Math.round(Math.min(d.amt, c.amt) * f) / f;
+      if(x > 0) out.push({from:d.id, to:c.id, amt:x});
+      d.amt = Math.round((d.amt - x) * f) / f;
+      c.amt = Math.round((c.amt - x) * f) / f;
+      if(d.amt <= 0) di++;
+      if(c.amt <= 0) ci++;
+    }
+    return {rounded:r, transfers:out};
+  }
+
+  // ================= 載入 =================
+  function hydrate(all){
+    allData = all;
+    people = parseVal(all['people-list']) || [];
+    books = []; trips = [];
+    Object.keys(all).forEach(k=>{
+      if(k.startsWith('book:')){
+        const v = parseVal(all[k]);
+        if(v && v.id) books.push(v);
+      }else if(k.startsWith('trip:')){
+        const v = parseVal(all[k]);
+        if(v && v.id) trips.push(v);
+      }
+    });
+    books.sort((a,b)=> String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  }
+
+  function loadExps(bookId){
+    exps = [];
+    const prefix = safeKey('book-exp:' + bookId + ':');
+    Object.keys(allData).forEach(k=>{
+      if(k.startsWith(prefix)){
+        const v = parseVal(allData[k]);
+        if(v && v.id) exps.push(v);
+      }
+    });
+    exps.sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')) ||
+                      String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+  }
+
+  async function refresh(){
+    const all = await sAll();
+    if(all === null){
+      const cache = readCache();
+      if(cache && cache.all){
+        offline = true;
+        hydrate(cache.all);
+        msg = {type:'warn', text:'連不上資料庫，顯示離線快取（' + new Date(cache.at).toLocaleString('zh-TW') + '），這個狀態下的修改不會被儲存。'};
+        return;
+      }
+      offline = true;
+      hydrate({});
+      msg = {type:'err', text:'連不上資料庫，本機也沒有快取。'};
+      return;
+    }
+    offline = false;
+    hydrate(all);
+    writeCache(all);
+  }
+
+  async function putBook(b){
+    if(offline){ msg={type:'err',text:'離線狀態無法儲存。'}; return false; }
+    const ok = await sSet('book:' + b.id, b);
+    if(ok) allData[safeKey('book:' + b.id)] = JSON.stringify(b);
+    return ok;
+  }
+  async function putExp(bookId, e){
+    if(offline){ msg={type:'err',text:'離線狀態無法儲存。'}; return false; }
+    const ok = await sSet('book-exp:' + bookId + ':' + e.id, e);
+    if(ok) allData[safeKey('book-exp:' + bookId + ':' + e.id)] = JSON.stringify(e);
+    return ok;
+  }
+  async function delExp(bookId, expId){
+    if(offline) return false;
+    const ok = await sDelete('book-exp:' + bookId + ':' + expId);
+    if(ok) delete allData[safeKey('book-exp:' + bookId + ':' + expId)];
+    return ok;
+  }
+
+  // ================= 畫面 =================
+  function flash(){
+    if(!msg) return '';
+    const h = '<div class="msg ' + msg.type + '">' + esc(msg.text) + '</div>';
+    msg = null;
+    return h;
+  }
+  // 離線時：除了標了 data-nav 的瀏覽類控制項，其餘一律停用。
+  function applyReadOnly(){
+    if(!offline) return;
+    app.querySelectorAll('button, input, select, textarea').forEach(el=>{
+      if(el.hasAttribute('data-nav')) return;
+      el.disabled = true;
+    });
+  }
+  function offBar(){
+    if(!offline) return '';
+    return '<div class="offbar">' + ic('offline') +
+      '<span>離線中，目前是唯讀模式。看得到快取的帳，但不能新增或修改。</span></div>';
+  }
+
+  function switchBar(active){
+    return '<div class="switchbar">' +
+      '<a class="' + (active==='trip'?'on':'') + '" href="trip.html">' + ic('map') + ' 行程</a>' +
+      '<a class="' + (active==='split'?'on':'') + '" href="split.html">' + ic('wallet') + ' 記帳</a>' +
+      '</div>';
+  }
+
+  function render(){
+    renderView();
+    applyReadOnly();
+  }
+
+  function renderView(){
+    whoLine.textContent = me ? personName(me) : '';
+    if(view === 'pick') return renderPick();
+    if(view === 'password') return renderPassword();
+    if(view === 'list') return renderList();
+    if(view === 'bookForm') return renderBookForm();
+    if(view === 'book') return renderBook();
+    if(view === 'expForm') return renderExpForm();
+    renderList();
+  }
+
+  // ---------- 登入 ----------
+  let pendingPersonId = null;
+
+  function renderPick(){
+    if(!people.length){
+      app.innerHTML = flash() + '<div class="card"><h1>還沒有成員資料</h1>' +
+        '<p class="desc">這個頁面共用運動排程站的成員清單，請先到 <a href="index.html">主站</a> 建立成員。</p></div>';
+      return;
+    }
+    let h = flash() + '<div class="card"><h1>你是誰？</h1>' +
+      '<p class="desc">用跟運動排程站相同的名字與密碼登入。</p>';
+    people.forEach(p=>{
+      h += '<button class="book-card" data-pick="' + esc(p.id) + '" data-nav>' +
+           '<div class="bc-main"><div class="bc-name">' + esc(p.name) + '</div></div>' +
+           '<div class="bc-go">' + ic('chevR') + '</div></button>';
+    });
+    h += '</div>';
+    app.innerHTML = h;
+    app.querySelectorAll('[data-pick]').forEach(b=>{
+      b.onclick = ()=>{
+        pendingPersonId = b.dataset.pick;
+        const p = people.find(x=>x.id===pendingPersonId);
+        if(!p.password){
+          msg = offline
+            ? {type:'err', text:'離線中無法驗證密碼（快取不保存密碼）。請連上網路後登入一次。'}
+            : {type:'err', text:'「' + p.name + '」還沒在主站設定密碼，請先到主站設定。'};
+          render(); return;
+        }
+        view = 'password'; render();
+      };
+    });
+  }
+
+  function renderPassword(){
+    const p = people.find(x=>x.id===pendingPersonId);
+    app.innerHTML = flash() +
+      '<div class="card"><h1>' + esc(p.name) + '</h1>' +
+      '<label class="fld"><span>密碼</span><input id="pw" type="password" autocomplete="current-password" data-nav></label>' +
+      '<button class="btn wide" id="go" data-nav>登入</button>' +
+      '<div class="foot"><button id="back" data-nav>回到選擇身份</button></div></div>';
+    const pw = document.getElementById('pw');
+    pw.focus();
+    const submit = ()=>{
+      if(pw.value === p.password){
+        me = p.id;
+        rememberMe(me);
+        view = 'list'; render();
+      }else{
+        msg = {type:'err', text:'密碼不對。'};
+        render();
+      }
+    };
+    document.getElementById('go').onclick = submit;
+    pw.onkeydown = (e)=>{ if(e.key === 'Enter') submit(); };
+    document.getElementById('back').onclick = ()=>{ view='pick'; render(); };
+  }
+
+  // ---------- 帳本列表 ----------
+  function myBooks(){ return books.filter(b => (b.memberIds||[]).indexOf(me) >= 0); }
+
+  function renderList(){
+    const mine = myBooks();
+    const live = mine.filter(b=>!b.archived);
+    const done = mine.filter(b=>b.archived);
+
+    let h = flash() + offBar() + switchBar('split');
+    h += '<div class="card"><h1>我的帳本</h1>' +
+      '<p class="desc">每趟旅遊各一本，分開算。舊帳本永久保留，隨時回來看。</p>' +
+      '<button class="btn wide" id="newBook">' + ic('plus') + '建立新帳本</button></div>';
+
+    if(!live.length && !done.length){
+      h += '<div class="empty">還沒有帳本。建一個吧。</div>';
+    }
+
+    const cardHtml = (b)=>{
+      const list = expsOf(b.id);
+      const total = list.reduce((s,e)=> s + toBase(b, e.amount, e.currency), 0);
+      const t = b.tripId ? trips.find(x=>x.id===b.tripId) : null;
+      return '<button class="book-card' + (b.archived?' done':'') + '" data-book="' + esc(b.id) + '" data-nav>' +
+        '<div class="bc-main"><div class="bc-name">' + esc(b.name) +
+          (b.archived?'<span class="tag">已結束</span>':'') +
+          (t?'<span class="tag soft">' + ic('map') + ' ' + esc(t.name) + '</span>':'') + '</div>' +
+        '<div class="bc-meta">' + list.length + ' 筆　合計 ' + fmt(total, b.baseCurrency) +
+          '　' + (b.memberIds||[]).length + ' 人</div></div>' +
+        '<div class="bc-go">' + ic('chevR') + '</div></button>';
+    };
+    live.forEach(b=>{ h += cardHtml(b); });
+    if(done.length){
+      h += '<h2 style="margin:22px 0 8px;font-size:14px;color:var(--ink-soft)">已結束</h2>';
+      done.forEach(b=>{ h += cardHtml(b); });
+    }
+    h += '<div class="foot"><button id="logout" data-nav>回到選擇身份</button></div>';
+    app.innerHTML = h;
+
+    document.getElementById('newBook').onclick = ()=>{ editingBook = null; view='bookForm'; render(); };
+    app.querySelectorAll('[data-book]').forEach(b=>{
+      b.onclick = ()=>{
+        curBookId = b.dataset.book;
+        loadExps(curBookId);
+        tab = 'list'; view = 'book'; render();
+      };
+    });
+    document.getElementById('logout').onclick = ()=>{
+      me = null;
+      rememberMe(null);
+      view='pick'; render();
+    };
+  }
+
+  function expsOf(bookId){
+    const prefix = safeKey('book-exp:' + bookId + ':');
+    const out = [];
+    Object.keys(allData).forEach(k=>{
+      if(k.startsWith(prefix)){
+        const v = parseVal(allData[k]);
+        if(v && v.id) out.push(v);
+      }
+    });
+    return out;
+  }
+
+  // ---------- 建立／編輯帳本 ----------
+  let editingBook = null;
+
+  function renderBookForm(){
+    const b = editingBook || {
+      id:'', name:'', memberIds:[me], baseCurrency:'TWD',
+      currencies:['TWD'], rates:{}, tripId:'', archived:false
+    };
+    const isNew = !editingBook;
+
+    let h = flash() + '<div class="card"><h1>' + (isNew?'建立新帳本':'編輯帳本') + '</h1>' +
+      '<label class="fld"><span>帳本名稱</span><input id="bName" value="' + esc(b.name) + '" placeholder="例：首爾 2026.10"></label>';
+
+    const myTrips = trips.filter(t=>(t.memberIds||[]).indexOf(me)>=0);
+    h += '<label class="fld"><span>關聯行程（選填）</span><select id="bTrip">' +
+      '<option value="">不關聯任何行程</option>' +
+      myTrips.map(t=>'<option value="' + esc(t.id) + '"' + (b.tripId===t.id?' selected':'') + '>' + esc(t.name) + '</option>').join('') +
+      '</select></label>' +
+      '<p class="hint">關聯之後兩邊互通，但帳本本來就能單獨存在——只是分攤一頓飯也可以開一本。</p>';
+
+    h += '<label class="fld" style="margin-top:14px"><span>結算幣別（最後誰給誰用這個幣別算）</span><select id="bBase">' +
+      CURRENCIES.map(c=>'<option value="' + c.code + '"' + (b.baseCurrency===c.code?' selected':'') + '>' +
+        c.code + '　' + c.name + '</option>').join('') + '</select></label>';
+
+    h += '<label class="fld" style="margin-top:14px"><span>這趟會用到哪些幣別</span></label>';
+    CURRENCIES.forEach(c=>{
+      const on = (b.currencies||[]).indexOf(c.code) >= 0;
+      h += '<div class="split-row">' +
+        '<input type="checkbox" data-cur="' + c.code + '"' + (on?' checked':'') + '>' +
+        '<span class="sr-name">' + c.code + '　' + c.name + '</span></div>';
+    });
+    h += '<p class="hint">勾選的幣別才會出現在記帳表單的下拉裡，免得一長串選到眼花。結算幣別一定會被包含進去。</p>';
+
+    h += '<div id="rateBox"></div>';
+
+    h += '<label class="fld" style="margin-top:14px"><span>成員</span></label>';
+    people.forEach(p=>{
+      const on = (b.memberIds||[]).indexOf(p.id) >= 0;
+      const isMe = p.id === me;
+      h += '<div class="split-row">' +
+        '<input type="checkbox" data-mem="' + esc(p.id) + '"' + (on?' checked':'') + (isMe?' disabled':'') + '>' +
+        '<span class="sr-name">' + esc(p.name) + (isMe?'<span class="tag soft">你自己</span>':'') + '</span></div>';
+    });
+
+    if(!isNew){
+      h += '<div class="split-row" style="margin-top:10px">' +
+        '<input type="checkbox" id="bArch"' + (b.archived?' checked':'') + '>' +
+        '<span class="sr-name">標記為已結束</span></div>';
+    }
+
+    h += '<div style="display:flex;gap:8px;margin-top:16px">' +
+      '<button class="btn" id="save" style="flex:1">' + (isNew?'建立':'儲存') + '</button>' +
+      '<button class="btn ghost" id="cancel">取消</button></div></div>';
+
+    app.innerHTML = h;
+
+    function drawRates(){
+      const base = document.getElementById('bBase').value;
+      const picked = [];
+      app.querySelectorAll('[data-cur]').forEach(cb=>{ if(cb.checked) picked.push(cb.dataset.cur); });
+      const need = picked.filter(c=>c !== base);
+      const box = document.getElementById('rateBox');
+      if(!need.length){ box.innerHTML = ''; return; }
+      // 舊匯率是以「舊的結算幣別」為基準存的（1 TWD = 43 KRW）。
+      // 換了結算幣別之後同一個數字意義完全不同，預填等於直接給一個錯值，所以要清空重填。
+      const baseChanged = !!(b.baseCurrency && base !== b.baseCurrency);
+      box.innerHTML = '<label class="fld" style="margin-top:14px"><span>匯率（隨時可以回來改，改完全部重算）' +
+        (baseChanged ? '<br>結算幣別換了，匯率的基準也跟著變，請重新填。' : '') + '</span></label>' +
+        need.map(c=>{
+          const v = (!baseChanged && b.rates && b.rates[c] != null) ? b.rates[c] : '';
+          return '<label class="fld"><span>1 ' + base + ' ＝ 多少 ' + c + '？</span>' +
+            '<input type="number" step="any" min="0" data-rate="' + c + '" value="' + esc(v) + '" placeholder="' +
+            (c==='KRW'&&base==='TWD' ? '例如 43' : '') + '"></label>';
+        }).join('');
+    }
+    drawRates();
+    document.getElementById('bBase').onchange = drawRates;
+    app.querySelectorAll('[data-cur]').forEach(cb=>{ cb.onchange = drawRates; });
+
+    document.getElementById('cancel').onclick = ()=>{
+      view = editingBook ? 'book' : 'list';
+      editingBook = null;
+      render();
+    };
+    document.getElementById('save').onclick = async ()=>{
+      const name = document.getElementById('bName').value.trim();
+      if(!name){ msg={type:'err',text:'請填帳本名稱。'}; render(); return; }
+      const base = document.getElementById('bBase').value;
+
+      const currencies = [];
+      app.querySelectorAll('[data-cur]').forEach(cb=>{ if(cb.checked) currencies.push(cb.dataset.cur); });
+      if(currencies.indexOf(base) < 0) currencies.unshift(base);
+
+      const rates = {};
+      let missing = [];
+      app.querySelectorAll('[data-rate]').forEach(inp=>{
+        const v = Number(inp.value);
+        if(!v || v <= 0) missing.push(inp.dataset.rate);
+        else rates[inp.dataset.rate] = v;
+      });
+      if(missing.length){
+        msg = {type:'err', text:'還沒填匯率：' + missing.join('、') + '。沒有匯率就算不出結算金額。'};
+        render(); return;
+      }
+
+      const memberIds = [me];
+      app.querySelectorAll('[data-mem]').forEach(cb=>{
+        if(cb.checked && cb.dataset.mem !== me) memberIds.push(cb.dataset.mem);
+      });
+
+      if(editingBook){
+        const list = expsOf(editingBook.id);
+        const oldIds = editingBook.memberIds || [];
+
+        // 把還有帳的人移除會讓帳對不起來：paidOf 會丟掉他墊的錢，
+        // sharesOf 卻照樣把全額分給剩下的人，淨額總和不再是 0，
+        // settle() 的進位補正就會把整個差額倒在某一個人頭上，而且完全沒有提示。
+        const dropped = oldIds.filter(id => memberIds.indexOf(id) < 0);
+        const stuck = dropped.filter(id =>
+          list.some(e =>
+            (e.payers||[]).some(p => p.id === id && Number(p.amt) > 0) ||
+            (sharesOf(e, oldIds)[id] || 0) !== 0
+          )
+        );
+        if(stuck.length){
+          msg = {type:'err', text:'「' + stuck.map(personName).join('、') +
+            '」在這本帳裡還有付款或分攤紀錄，不能移除。要先把相關的帳改掉或刪掉。'};
+          render(); return;
+        }
+
+        // 取消勾選還在用的幣別，會連匯率一起刪掉，那些帳就會被換算成 0 而悄悄消失
+        const inUse = {};
+        list.forEach(e=>{ if(e.currency) inUse[e.currency] = (inUse[e.currency]||0) + 1; });
+        const lost = Object.keys(inUse).filter(c => currencies.indexOf(c) < 0);
+        if(lost.length){
+          msg = {type:'err', text:'還有 ' + lost.map(c=>inUse[c] + ' 筆 ' + c).join('、') +
+            ' 的帳在用這些幣別，不能取消勾選。'};
+          render(); return;
+        }
+      }
+
+      const rec = {
+        id: editingBook ? editingBook.id : uid('b'),
+        name, memberIds, baseCurrency:base, currencies, rates,
+        tripId: document.getElementById('bTrip').value || '',
+        archived: editingBook ? !!document.getElementById('bArch').checked : false,
+        createdBy: editingBook ? editingBook.createdBy : me,
+        createdAt: editingBook ? editingBook.createdAt : new Date().toISOString(),
+        savedAt: new Date().toISOString()
+      };
+      const ok = await putBook(rec);
+      if(!ok){ render(); return; }
+      const i = books.findIndex(x=>x.id===rec.id);
+      if(i>=0) books[i] = rec; else books.unshift(rec);
+
+      curBookId = rec.id;
+      loadExps(curBookId);
+      editingBook = null;
+      tab = 'list';
+      view = 'book';
+      render();
+    };
+  }
+
+  // ---------- 帳本內頁 ----------
+  function curBook(){ return books.find(b=>b.id===curBookId); }
+
+  function renderBook(){
+    const b = curBook();
+    if(!b){ view='list'; render(); return; }
+
+    const total = exps.reduce((s,e)=> s + toBase(b, e.amount, e.currency), 0);
+    const myShare = exps.reduce((s,e)=> s + toBase(b, sharesOf(e, b.memberIds)[me]||0, e.currency), 0);
+
+    const noRate = [...new Set(exps.map(e=>e.currency)
+      .filter(c => c && c !== b.baseCurrency && !Number((b.rates||{})[c])))];
+    if(noRate.length){
+      msg = {type:'err', text:'缺少 ' + noRate.join('、') + ' 的匯率，這些帳目前被當成 0 計算。請到「設定」補上匯率。'};
+    }
+
+    let h = flash() + offBar() + switchBar('split');
+    h += '<div class="card" style="padding:14px 16px">' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+      '<div style="flex:1;min-width:0"><h1 style="margin:0">' + esc(b.name) + '</h1>' +
+      '<div style="font-size:12.5px;color:var(--ink-soft);margin-top:3px">' +
+        (b.memberIds||[]).map(personName).map(esc).join('、') + '　結算 ' + b.baseCurrency + '</div></div>' +
+      '<button class="mini" id="editBook">' + ic('gear') + '設定</button></div>' +
+      '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">' +
+      '<div class="sumline">總支出<b>' + fmt(total, b.baseCurrency) + '</b></div>' +
+      '<div class="sumline">我該分攤<b>' + fmt(myShare, b.baseCurrency) + '</b></div>' +
+      '</div></div>';
+
+    h += '<div class="tabs">' +
+      '<button data-tab="list" data-nav class="' + (tab==='list'?'on':'') + '">明細 ' + exps.length + '</button>' +
+      '<button data-tab="settle" data-nav class="' + (tab==='settle'?'on':'') + '">結算</button></div>';
+
+    if(tab === 'list'){
+      h += '<button class="btn wide" id="newExp" style="margin-bottom:12px">' + ic('plus') + '記一筆</button>';
+      if(!exps.length){
+        h += '<div class="empty">還沒有任何帳。</div>';
+      }
+      exps.forEach(e=>{
+        const share = sharesOf(e, b.memberIds);
+        const payers = (e.payers||[]).filter(p=>Number(p.amt) > 0);
+        let modeTxt = '平分';
+        if(e.splitMode === 'exact') modeTxt = '指定金額';
+        else if(e.splitMode === 'exclude'){
+          const ex = (e.excluded||[]).map(personName);
+          modeTxt = ex.length ? '平分（不含 ' + ex.join('、') + '）' : '平分';
+        }
+        const conv = e.currency !== b.baseCurrency
+          ? '　≈ ' + fmt(toBase(b, e.amount, e.currency), b.baseCurrency)
+          : '';
+
+        h += '<div class="exp">' +
+          '<div class="exp-top"><span class="exp-title">' + esc(e.title) + '</span>' +
+          '<span class="exp-amt">' + fmt(e.amount, e.currency) + '</span></div>' +
+          '<div class="exp-sub">' + esc(e.date) + conv + '<br>' +
+          '付款：' + (payers.length
+            ? payers.map(p=> esc(personName(p.id)) + (payers.length>1 ? ' ' + fmt(p.amt, e.currency) : '')).join('、')
+            : '（未填）') +
+          '<br>分攤：' + esc(modeTxt) + '　' +
+          (b.memberIds||[]).map(id=> esc(personName(id)) + ' ' + fmt(share[id]||0, e.currency, cur(e.currency).dp===0?1:2)).join('　') +
+          '</div>' +
+          '<div class="exp-btns">' +
+            '<button class="mini" data-eedit="' + esc(e.id) + '">' + ic('edit') + '編輯</button>' +
+            '<button class="mini warn" data-edel="' + esc(e.id) + '">' + ic('trash') + '刪除</button>' +
+          '</div></div>';
+      });
+      h += '<p class="hint">分攤金額刻意不做進位，小數全部保留到結算那一步才處理。</p>';
+    }else{
+      h += settleHtml(b);
+    }
+
+    h += '<div class="foot"><button id="back" data-nav>' + ic('back') + ' 回帳本列表</button></div>';
+    app.innerHTML = h;
+
+    document.getElementById('editBook').onclick = ()=>{ editingBook = b; view='bookForm'; render(); };
+    document.getElementById('back').onclick = ()=>{ view='list'; render(); };
+    app.querySelectorAll('[data-tab]').forEach(t=>{
+      t.onclick = ()=>{ tab = t.dataset.tab; render(); };
+    });
+
+    const ne = document.getElementById('newExp');
+    if(ne) ne.onclick = ()=>{ editingExp = null; view='expForm'; render(); };
+
+    app.querySelectorAll('[data-eedit]').forEach(btn=>{
+      btn.onclick = ()=>{
+        editingExp = exps.find(x=>x.id===btn.dataset.eedit);
+        view='expForm'; render();
+      };
+    });
+    app.querySelectorAll('[data-edel]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const e = exps.find(x=>x.id===btn.dataset.edel);
+        if(!window.confirm('刪除「' + e.title + '」這筆帳？')) return;
+        await delExp(curBookId, e.id);
+        exps = exps.filter(x=>x.id!==e.id);
+        msg = {type:'ok', text:'已刪除。'};
+        render();
+      };
+    });
+  }
+
+  // ---------- 結算 ----------
+  function settleHtml(b){
+    if(!exps.length) return '<div class="empty">還沒有帳可以結算。</div>';
+
+    const net = netOf(b, exps);
+    const {rounded, transfers} = settle(b, net);
+    const ids = b.memberIds||[];
+
+    let h = '<div class="card"><h2>每個人的淨額</h2>' +
+      '<p class="desc">正數＝別人欠他，負數＝他要付出去。</p>';
+    ids.forEach(id=>{
+      const v = rounded[id] || 0;
+      const cls = v > 0 ? 'plus' : (v < 0 ? 'minus' : '');
+      const paid = exps.reduce((s,e)=> s + toBase(b, paidOf(e, ids)[id], e.currency), 0);
+      const share = exps.reduce((s,e)=> s + toBase(b, sharesOf(e, ids)[id]||0, e.currency), 0);
+      h += '<div class="net-row"><span class="net-name">' + esc(personName(id)) + '<br>' +
+        '<span class="net-sub">墊了 ' + fmt(paid, b.baseCurrency) + '　該分攤 ' + fmt(share, b.baseCurrency) + '</span></span>' +
+        '<span class="net-val ' + cls + '">' + (v>0?'+':'') + fmt(v, b.baseCurrency) + '</span></div>';
+    });
+    h += '</div>';
+
+    h += '<div class="card"><h2>怎麼還錢</h2>';
+    if(!transfers.length){
+      h += '<p class="desc">大家剛好打平，不用轉帳。</p>';
+    }else{
+      transfers.forEach(t=>{
+        h += '<div class="transfer">' + esc(personName(t.from)) + ' ' + ic('arrowR') + ' ' + esc(personName(t.to)) +
+             '　<b>' + fmt(t.amt, b.baseCurrency) + '</b></div>';
+      });
+      h += '<p class="hint">已經用最少的轉帳筆數算過了' +
+        (ids.length <= 2 ? '——兩個人的帳本本來就只會有一筆。' : '，共 ' + transfers.length + ' 筆。') +
+        '<br>四捨五入的零頭塞給了金額最大的人，所以總額一定對得起來。</p>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  // ---------- 記一筆 ----------
+  let editingExp = null;
+  let formState = null;
+
+  function renderExpForm(){
+    const b = curBook();
+    const ids = b.memberIds||[];
+
+    if(!formState){
+      const e = editingExp || {
+        id:'', title:'', amount:'', currency:b.baseCurrency, date:today(),
+        payers:[{id:me, amt:''}], splitMode:'even', splitDetail:{}, excluded:[]
+      };
+      formState = {
+        id: e.id,
+        title: e.title,
+        amount: e.amount === '' ? '' : String(e.amount),
+        currency: e.currency,
+        date: e.date,
+        multiPayer: (e.payers||[]).filter(p=>Number(p.amt)>0).length > 1,
+        payerSingle: (e.payers&&e.payers[0]) ? e.payers[0].id : me,
+        payerAmts: (()=>{ const o={}; ids.forEach(i=>o[i]=''); (e.payers||[]).forEach(p=>{ o[p.id]=String(p.amt||''); }); return o; })(),
+        splitMode: e.splitMode || 'even',
+        splitDetail: (()=>{ const o={}; ids.forEach(i=>o[i] = (e.splitDetail&&e.splitDetail[i]!=null)?String(e.splitDetail[i]):''); return o; })(),
+        excluded: (e.excluded||[]).slice(),
+        createdBy: e.createdBy || me
+      };
+    }
+    const f = formState;
+    // 這筆帳原本的幣別若已經不在帳本清單裡，下拉就沒有相符的 option，
+    // 瀏覽器會自動選第一個，grab() 再把它寫回 formState——按個儲存就把 ₩50,000 變成 NT$50,000。
+    const avail = (b.currencies&&b.currencies.length) ? b.currencies.slice() : [b.baseCurrency];
+    if(f.currency && avail.indexOf(f.currency) < 0) avail.unshift(f.currency);
+    const amt = Number(f.amount) || 0;
+
+    let h = flash() + '<div class="card"><h1>' + (f.id?'編輯這筆':'記一筆') + '</h1>' +
+      '<label class="fld"><span>項目</span><input id="eTitle" value="' + esc(f.title) + '" placeholder="例：來回機票"></label>' +
+      '<div class="row-amt">' +
+        '<label class="fld"><span>金額</span><input id="eAmt" type="number" step="any" min="0" value="' + esc(f.amount) + '" inputmode="decimal"></label>' +
+        '<label class="fld"><span>幣別</span><select id="eCur">' +
+          avail.map(c=>'<option value="' + c + '"' + (f.currency===c?' selected':'') + '>' + c + '</option>').join('') +
+        '</select></label>' +
+      '</div>';
+
+    // 所有「算出來的數字」都留空殼，由 refreshCalc() 填。
+    // 打字時只改這些空殼、不重繪表單，否則每敲一個字輸入焦點就會被炸掉。
+    h += '<p class="hint" id="convHint" style="margin-top:-4px"></p>';
+
+    h += '<label class="fld"><span>日期</span><input id="eDate" type="date" value="' + esc(f.date) + '"></label>';
+
+    // 付款人
+    h += '<label class="fld" style="margin-top:14px"><span>誰付的錢</span></label>';
+    if(!f.multiPayer){
+      h += '<label class="fld"><select id="ePayer">' +
+        ids.map(i=>'<option value="' + esc(i) + '"' + (f.payerSingle===i?' selected':'') + '>' + esc(personName(i)) + '</option>').join('') +
+        '</select></label>' +
+        '<button class="mini" id="toMulti">改成多人共付</button>';
+    }else{
+      ids.forEach(i=>{
+        h += '<div class="split-row"><span class="sr-name">' + esc(personName(i)) + '</span>' +
+          '<input type="number" step="any" min="0" data-payamt="' + esc(i) + '" value="' + esc(f.payerAmts[i]||'') + '" placeholder="0"></div>';
+      });
+      h += '<p class="hint" id="paySum"></p>' +
+        '<button class="mini" id="toSingle">改回單一付款人</button>';
+    }
+
+    // 分攤
+    h += '<label class="fld" style="margin-top:18px"><span>怎麼分</span></label>' +
+      '<div class="tabs">' +
+      '<button data-mode="even" class="' + (f.splitMode==='even'?'on':'') + '">平分</button>' +
+      '<button data-mode="exclude" class="' + (f.splitMode==='exclude'?'on':'') + '">排除某人</button>' +
+      '<button data-mode="exact" class="' + (f.splitMode==='exact'?'on':'') + '">指定金額</button>' +
+      '</div>';
+
+    if(f.splitMode === 'even'){
+      h += '<div class="card" style="margin:0;background:#fff">';
+      ids.forEach(i=>{
+        h += '<div class="split-row"><span class="sr-name">' + esc(personName(i)) + '</span>' +
+             '<span class="sr-calc" data-calc="' + esc(i) + '"></span></div>';
+      });
+      h += '</div>';
+    }else if(f.splitMode === 'exclude'){
+      h += '<div class="card" style="margin:0;background:#fff">';
+      ids.forEach(i=>{
+        const on = f.excluded.indexOf(i) < 0;
+        h += '<div class="split-row"><input type="checkbox" data-inc="' + esc(i) + '"' + (on?' checked':'') + '>' +
+             '<span class="sr-name">' + esc(personName(i)) + '</span>' +
+             '<span class="sr-calc" data-calc="' + esc(i) + '"></span></div>';
+      });
+      h += '</div><p class="hint">取消勾選＝這個人不用分攤這筆。</p>';
+    }else{
+      h += '<div class="card" style="margin:0;background:#fff">';
+      ids.forEach(i=>{
+        h += '<div class="split-row"><span class="sr-name">' + esc(personName(i)) + '</span>' +
+             '<input type="number" step="any" min="0" data-exact="' + esc(i) + '" value="' + esc(f.splitDetail[i]||'') + '" placeholder="0"></div>';
+      });
+      h += '</div><p class="hint" id="exactSum"></p>';
+    }
+
+    h += '<div style="display:flex;gap:8px;margin-top:18px">' +
+      '<button class="btn" id="eSave" style="flex:1">儲存</button>' +
+      '<button class="btn ghost" id="eCancel">取消</button></div></div>';
+
+    app.innerHTML = h;
+
+    // 綁定：改欄位先把值收回 formState 再重繪，免得洗掉打到一半的東西
+    const grab = ()=>{
+      f.title = document.getElementById('eTitle').value;
+      f.amount = document.getElementById('eAmt').value;
+      f.currency = document.getElementById('eCur').value;
+      f.date = document.getElementById('eDate').value;
+      const ps = document.getElementById('ePayer');
+      if(ps) f.payerSingle = ps.value;
+      app.querySelectorAll('[data-payamt]').forEach(inp=>{ f.payerAmts[inp.dataset.payamt] = inp.value; });
+      app.querySelectorAll('[data-exact]').forEach(inp=>{ f.splitDetail[inp.dataset.exact] = inp.value; });
+    };
+
+    // 只更新算出來的數字，完全不碰輸入框——這樣打字才不會被重繪打斷。
+    function refreshCalc(){
+      const amtNow = Number(f.amount) || 0;
+
+      const ch = document.getElementById('convHint');
+      if(ch){
+        ch.innerHTML = (f.currency !== b.baseCurrency && amtNow > 0)
+          ? '≈ ' + fmt(toBase(b, amtNow, f.currency), b.baseCurrency) +
+            '（1 ' + b.baseCurrency + ' ＝ ' + (b.rates[f.currency]||'?') + ' ' + f.currency + '）'
+          : '';
+      }
+
+      const ps = document.getElementById('paySum');
+      if(ps){
+        const sumPaid = ids.reduce((s,i)=> s + (Number(f.payerAmts[i])||0), 0);
+        const diff = amtNow - sumPaid;
+        ps.innerHTML = '已填 ' + fmt(sumPaid, f.currency) + ' / 總額 ' + fmt(amtNow, f.currency) +
+          (Math.abs(diff) > 0.005 ? '　<span style="color:var(--red)">差 ' + fmt(diff, f.currency) + '</span>' : '　' + ic('check') + ' 對上了');
+      }
+
+      const shares = sharesOf({
+        amount: amtNow, splitMode: f.splitMode,
+        splitDetail: (()=>{ const o={}; ids.forEach(i=>o[i]=Number(f.splitDetail[i])||0); return o; })(),
+        excluded: f.excluded
+      }, ids);
+      app.querySelectorAll('[data-calc]').forEach(el=>{
+        el.textContent = fmt(shares[el.dataset.calc]||0, f.currency, 2);
+      });
+
+      const es = document.getElementById('exactSum');
+      if(es){
+        const sumS = ids.reduce((s,i)=> s + (Number(f.splitDetail[i])||0), 0);
+        const d = amtNow - sumS;
+        es.innerHTML = '已填 ' + fmt(sumS, f.currency) + ' / 總額 ' + fmt(amtNow, f.currency) +
+          (Math.abs(d) > 0.005 ? '　<span style="color:var(--red)">差 ' + fmt(d, f.currency) + '</span>' : '　' + ic('check') + ' 對上了');
+      }
+    }
+
+    document.getElementById('eAmt').oninput = ()=>{ grab(); refreshCalc(); };
+    document.getElementById('eCur').onchange = ()=>{ grab(); refreshCalc(); };
+
+    const tm = document.getElementById('toMulti');
+    if(tm) tm.onclick = ()=>{
+      grab();
+      f.multiPayer = true;
+      f.payerAmts[f.payerSingle] = f.amount;
+      render();
+    };
+    const ts = document.getElementById('toSingle');
+    if(ts) ts.onclick = ()=>{ grab(); f.multiPayer = false; render(); };
+
+    app.querySelectorAll('[data-payamt]').forEach(inp=>{ inp.oninput = ()=>{ grab(); refreshCalc(); }; });
+    app.querySelectorAll('[data-exact]').forEach(inp=>{ inp.oninput = ()=>{ grab(); refreshCalc(); }; });
+
+    // 換分攤方式會改變表單結構，這裡才需要整個重繪
+    app.querySelectorAll('[data-mode]').forEach(btn=>{
+      btn.onclick = ()=>{ grab(); f.splitMode = btn.dataset.mode; render(); };
+    });
+    app.querySelectorAll('[data-inc]').forEach(cb=>{
+      cb.onchange = ()=>{
+        grab();
+        const id = cb.dataset.inc;
+        if(cb.checked) f.excluded = f.excluded.filter(x=>x!==id);
+        else if(f.excluded.indexOf(id) < 0) f.excluded.push(id);
+        refreshCalc();
+      };
+    });
+
+    refreshCalc();
+
+    document.getElementById('eCancel').onclick = ()=>{
+      formState = null; editingExp = null; view='book'; render();
+    };
+
+    document.getElementById('eSave').onclick = async ()=>{
+      grab();
+      const title = f.title.trim();
+      const amount = Number(f.amount);
+      if(!title){ msg={type:'err',text:'請填項目名稱。'}; render(); return; }
+      if(!amount || amount <= 0){ msg={type:'err',text:'請填大於 0 的金額。'}; render(); return; }
+
+      let payers;
+      if(f.multiPayer){
+        payers = ids.map(i=>({id:i, amt:Number(f.payerAmts[i])||0})).filter(p=>p.amt>0);
+        const sum = payers.reduce((s,p)=>s+p.amt,0);
+        if(!payers.length){ msg={type:'err',text:'多人共付至少要有一個人填金額。'}; render(); return; }
+        if(Math.abs(sum - amount) > 0.005){
+          msg={type:'err',text:'付款金額合計 ' + fmt(sum,f.currency) + ' 跟總額 ' + fmt(amount,f.currency) + ' 對不起來。'};
+          render(); return;
+        }
+      }else{
+        payers = [{id:f.payerSingle, amt:amount}];
+      }
+
+      let splitDetail = {};
+      if(f.splitMode === 'exact'){
+        let sum = 0;
+        ids.forEach(i=>{ const v = Number(f.splitDetail[i])||0; splitDetail[i]=v; sum+=v; });
+        if(Math.abs(sum - amount) > 0.005){
+          msg={type:'err',text:'指定金額合計 ' + fmt(sum,f.currency) + ' 跟總額 ' + fmt(amount,f.currency) + ' 對不起來。'};
+          render(); return;
+        }
+      }
+      if(f.splitMode === 'exclude' && f.excluded.length >= ids.length){
+        msg={type:'err',text:'至少要留一個人分攤。'}; render(); return;
+      }
+
+      const rec = {
+        id: f.id || uid('e'),
+        title, amount, currency: f.currency, date: f.date || today(),
+        payers,
+        splitMode: f.splitMode,
+        splitDetail: f.splitMode==='exact' ? splitDetail : {},
+        excluded: f.splitMode==='exclude' ? f.excluded : [],
+        createdBy: f.createdBy || me,
+        savedAt: new Date().toISOString(),
+        savedBy: me
+      };
+      const ok = await putExp(curBookId, rec);
+      if(!ok){ render(); return; }
+      const i = exps.findIndex(x=>x.id===rec.id);
+      if(i>=0) exps[i] = rec; else exps.unshift(rec);
+      exps.sort((a,b2)=> String(b2.date||'').localeCompare(String(a.date||'')) ||
+                         String(b2.savedAt||'').localeCompare(String(a.savedAt||'')));
+      formState = null; editingExp = null;
+      msg = {type:'ok', text:'已記錄。'};
+      view='book'; render();
+    };
+  }
+
+  // ================= 啟動 =================
+  function waitForFirebase(){
+    return new Promise((resolve)=>{
+      if(window.firebaseReady){ resolve(); return; }
+      document.addEventListener('firebase-ready', ()=>resolve(), {once:true});
+      setTimeout(()=>resolve(), 3000);
+    });
+  }
+
+  async function init(){
+    await waitForFirebase();
+    await refresh();
+    const saved = recallMe();
+    if(saved && people.some(p=>p.id===saved)){ me = saved; view='list'; }
+    else{
+      view = 'pick';
+      if(offline) msg = {type:'warn', text:'離線中而且這台裝置還沒登入過。請先連上網路登入一次，之後沒網路也進得來。'};
+    }
+    render();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
