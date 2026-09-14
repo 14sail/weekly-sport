@@ -185,6 +185,15 @@
   .sheet-place:active .pcode{ background:rgba(255,255,255,.3); color:#fff; }
   .tt-block:active .tt-b-in{ border-color:var(--accent-deep); box-shadow:0 0 0 2px var(--accent-soft); }
 
+  /* 選中狀態（.on）跟 :active 同優先級且寫在後面，會把按壓回饋整個蓋掉。
+     這些規則多一個 class，優先級才壓得過去。
+     實心的選中狀態按下用「變暗」，套淺色底會看起來像被取消選取。 */
+  .tabs button.on:active,
+  .daybar button.on:active,
+  .switchbar a.on:active{ filter:brightness(.9); }
+  .mini.on:active{ filter:brightness(.94); }
+  .switchbar a:active{ background:var(--accent-soft); }
+
   @media (prefers-reduced-motion: reduce){
     *, *::before, *::after{
       animation-duration:.01ms !important; animation-iteration-count:1 !important;
@@ -422,6 +431,8 @@
     /* 只有課表需要放右欄才變寬；列表和表單維持 760px，一行才不會長到難讀 */
     .wrap.wide{ max-width:1140px; }
     .tl-cols{ display:grid; grid-template-columns:1fr 300px; gap:22px; align-items:start; }
+    /* 景點分頁沒有右欄，用兩欄把多出來的寬度吃掉，卡片才不會被拉成長條 */
+    .place-list{ display:grid; grid-template-columns:1fr 1fr; gap:0 10px; align-items:start; }
     .side{ display:block; position:sticky; top:12px; }
     .side h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0 0 8px; }
     .side-list{
@@ -918,7 +929,9 @@
     sheetJustOpened = !!sheet && !sheetWasOpen;
     sheetWasOpen = !!sheet;
     renderView();
-    app.classList.toggle('wide', view === 'trip' && tab === 'timeline');
+    // 寬版是整個旅程內頁的事，不是某個分頁的事。只在時間軸套用的話，
+    // 切到景點分頁時整頁寬度會跳動。
+    app.classList.toggle('wide', view === 'trip');
     if(helpOpen) app.insertAdjacentHTML('beforeend', helpHtml());
     wireHelp();
     applyReadOnly();
@@ -2062,6 +2075,7 @@
       h += '<div class="empty">還沒有景點</div>';
     }
 
+    h += '<div class="place-list">';
     places.forEach(p=>{
       const inUse = used.has(p.id);
       h += '<div class="place-card">' +
@@ -2079,6 +2093,7 @@
         '<button class="mini warn icon-only" data-pdel="' + esc(p.id) + '" title="刪除景點" aria-label="刪除景點">' + ic('trash') + '</button>' +
         '</div></div>';
     });
+    h += '</div>';
     return h;
   }
 

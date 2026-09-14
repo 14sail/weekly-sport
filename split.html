@@ -161,6 +161,15 @@
   .book-card:active,
   .tabs button:active{ background:var(--accent-soft); }
 
+  /* 選中狀態（.on）跟 :active 同優先級且寫在後面，會把按壓回饋整個蓋掉。
+     這些規則多一個 class，優先級才壓得過去。
+     實心的選中狀態按下用「變暗」，套淺色底會看起來像被取消選取。 */
+  .tabs button.on:active,
+  .daybar button.on:active,
+  .switchbar a.on:active{ filter:brightness(.9); }
+  .mini.on:active{ filter:brightness(.94); }
+  .switchbar a:active{ background:var(--accent-soft); }
+
   @media (prefers-reduced-motion: reduce){
     *, *::before, *::after{
       animation-duration:.01ms !important; animation-iteration-count:1 !important;
