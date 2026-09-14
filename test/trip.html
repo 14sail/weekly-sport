@@ -245,6 +245,13 @@
     padding:12px 14px; margin-bottom:8px;
   }
   .place-card .pc-name{ font-weight:600; font-size:15px; }
+  /* 景點編號 A、B、C…，建立時就固定，用來在搜尋框裡快速叫出某個景點 */
+  .pcode{
+    display:inline-block; min-width:21px; text-align:center;
+    font-size:11.5px; font-weight:700; letter-spacing:.04em;
+    color:var(--accent-deep); background:var(--accent-soft);
+    border-radius:6px; padding:1px 5px; margin-right:7px;
+  }
   .place-card .pc-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; line-height:1.6; }
   .place-card .pc-btns{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
 
@@ -313,9 +320,7 @@
     pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
     route:'<polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>',
     tack:'<line x1="12" y1="17" x2="12" y2="22"></line><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path>',
-    transit:'<polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>',
     note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>',
-    coord:'<circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line>',
     warn:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
     plus:'<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
     up:'<polyline points="18 15 12 9 6 15"></polyline>',
@@ -519,16 +524,8 @@
       ? 'nmap://search?query=' + q + '&appname=' + APPNAME
       : 'comgooglemaps://?q=' + q;
   }
-  function appRouteUrl(trip, from, to){
-    if(trip.mapProvider !== 'naver') return null;
-    if(!to || to.lat == null || to.lng == null) return null;
-    let u = 'nmap://route/public?dlat=' + to.lat + '&dlng=' + to.lng +
-            '&dname=' + encodeURIComponent(mapQuery(to));
-    if(from && from.lat != null && from.lng != null){
-      u += '&slat=' + from.lat + '&slng=' + from.lng + '&sname=' + encodeURIComponent(mapQuery(from));
-    }
-    return u + '&appname=' + APPNAME;
-  }
+  // NAVER 的 App 路線要起訖座標才算得出來，景點不再存座標之後就不做 App 跳轉，
+  // 一律開網頁版，NAVER 那邊改成複製終點名稱讓使用者自己貼。
   function webRouteUrl(trip, from, to){
     if(trip.mapProvider === 'naver'){
       return 'https://map.naver.com/p/directions/-/-/-/transit';
@@ -646,7 +643,7 @@
         if(v && v.id) items.push(v);
       }
     });
-    places.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant'));
+    sortPlaces();
     items.sort((a,b)=> (a.order||0) - (b.order||0));
   }
 
@@ -845,13 +842,16 @@
 
     document.getElementById('newTrip').onclick = ()=>{ editingTrip = null; view='tripForm'; render(); };
     app.querySelectorAll('[data-trip]').forEach(b=>{
-      b.onclick = ()=>{
+      b.onclick = async ()=>{
         curTripId = b.dataset.trip;
         loadTripChildren(curTripId);
         const t = trips.find(x=>x.id===curTripId);
         curDate = t.startDate;
         tab = 'timeline';
         view = 'trip';
+        render();
+        // 舊景點補編號；補完再畫一次，不擋住第一次進畫面的速度。
+        await ensurePlaceCodes(curTripId);
         render();
       };
     });
@@ -967,6 +967,70 @@
   }
   function placeById(id){ return places.find(p=>p.id===id); }
 
+  // ---------- 景點編號 ----------
+  // A、B…Z、AA、AB…。編號在建立景點時就寫進資料裡，之後不會因為改名、
+  // 排序或新增別的景點而跳號——寫在紙上的「先去 B 再去 D」才不會隔天變成別的地方。
+  function codeOfIndex(n){
+    let s = '';
+    while(n >= 0){
+      s = String.fromCharCode(65 + (n % 26)) + s;
+      n = Math.floor(n / 26) - 1;
+    }
+    return s;
+  }
+  function nextPlaceCode(list){
+    const used = {};
+    list.forEach(p=>{ if(p.code) used[p.code] = true; });
+    for(let i = 0; i < 5000; i++){
+      const c = codeOfIndex(i);
+      if(!used[c]) return c;
+    }
+    return '';
+  }
+  function placeCode(p){ return p && p.code ? p.code : '—'; }
+  function codeTag(p){ return '<span class="pcode">' + esc(placeCode(p)) + '</span>'; }
+
+  // 搜尋框打 A 就叫得出 A 那個景點；打名字或當地語名也一樣找得到。
+  function placeMatches(p, q){
+    if(!q) return true;
+    return (p.code||'').toLowerCase().startsWith(q)
+        || (p.name||'').toLowerCase().includes(q)
+        || (p.localName||'').toLowerCase().includes(q);
+  }
+  function pickerRowHtml(p){
+    return '<button data-add="' + esc(p.id) + '">' + codeTag(p) + esc(p.name) +
+           '<span class="pl-sub">' + esc(p.category||'') +
+           (p.localName?'　'+esc(p.localName):'') + '　' + (p.stayMin||60) + ' 分</span></button>';
+  }
+
+  // 短的編號排前面（Z 在 AA 前面），沒編號的沿用名字排序墊底。
+  function sortPlaces(){
+    places.sort((a,b)=>{
+      const ca = a.code || '', cb = b.code || '';
+      if(ca && cb){
+        if(ca.length !== cb.length) return ca.length - cb.length;
+        return ca < cb ? -1 : (ca > cb ? 1 : 0);
+      }
+      if(ca) return -1;
+      if(cb) return 1;
+      return String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant');
+    });
+  }
+
+  // 這個功能上線前建立的景點沒有編號，第一次打開旅程時補上。
+  // 照原本看到的名字順序補，編出來的 A、B、C 才跟她們印象中的清單一致。
+  async function ensurePlaceCodes(tripId){
+    if(offline) return;
+    const missing = places.filter(p=>!p.code);
+    if(!missing.length) return;
+    missing.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant'));
+    for(let i = 0; i < missing.length; i++){
+      missing[i].code = nextPlaceCode(places);
+      await putPlace(tripId, missing[i]);
+    }
+    sortPlaces();
+  }
+
   function renderTrip(){
     const t = curTrip();
     if(!t){ view='list'; render(); return; }
@@ -1018,6 +1082,8 @@
 
     if(!rows.length){
       h += '<div class="empty">' + dayLabel(curDate) + ' 還沒有行程</div>';
+    }else{
+      h += '<p class="hint">停留和移動都預設 60 分，記得改成大概的實際時間喔</p>';
     }
 
     rows.forEach((r, i)=>{
@@ -1033,7 +1099,7 @@
       h += '<div class="tl-head">' +
            '<span class="tl-time">' + toHHMM(r.arrive) + '</span>' +
            '<span class="tl-name">' +
-             (p ? '<button class="tl-name-btn" data-goedit="' + esc(p.id) + '">' + esc(name) + '</button>'
+             (p ? '<button class="tl-name-btn" data-goedit="' + esc(p.id) + '">' + codeTag(p) + esc(name) + '</button>'
                 : esc(name)) +
            '</span>' +
            '<span class="tl-pin">' +
@@ -1047,8 +1113,7 @@
            '</span></div>';
 
       let sub = '停留 ' + r.stay + ' 分　→ ' + toHHMM(r.depart);
-      if(p && p.transitNote) sub += '<br>' + ic('transit') + ' ' + esc(p.transitNote);
-      if(r.item.note) sub += '<br>' + ic('note') + ' ' + esc(r.item.note);
+      if(p && p.transitNote) sub += '<br>' + ic('note') + ' ' + esc(p.transitNote);
       h += '<div class="tl-sub">' + sub + '</div>';
 
       if(r.lateBy > 0){
@@ -1093,19 +1158,12 @@
       h += '<button class="btn wide ghost" id="openPicker">' + ic('plus') + '加入景點</button>';
     }else{
       h += '<label class="fld"><span>搜尋景點，或直接輸入新名稱</span>' +
-           '<input id="pq" placeholder="輸入名稱搜尋…" value="' + esc(pickerQuery) + '" autocomplete="off"></label>';
+           '<input id="pq" placeholder="編號或名稱，例如 A" value="' + esc(pickerQuery) + '" autocomplete="off"></label>';
       const q = pickerQuery.trim().toLowerCase();
-      const hit = places.filter(p=>{
-        if(!q) return true;
-        return (p.name||'').toLowerCase().includes(q) || (p.localName||'').toLowerCase().includes(q);
-      });
+      const hit = places.filter(p=> placeMatches(p, q));
       h += '<div class="picker-list">';
       if(hit.length){
-        hit.forEach(p=>{
-          h += '<button data-add="' + esc(p.id) + '">' + esc(p.name) +
-               '<span class="pl-sub">' + esc(p.category||'') +
-               (p.localName?'　'+esc(p.localName):'') + '　' + (p.stayMin||60) + ' 分</span></button>';
-        });
+        hit.forEach(p=>{ h += pickerRowHtml(p); });
       }else{
         h += '<div class="none">沒有符合的景點</div>';
       }
@@ -1247,17 +1305,17 @@
       };
     });
     app.querySelectorAll('[data-route]').forEach(b=>{
-      b.onclick = ()=>{
+      b.onclick = async ()=>{
         const to = placeById(b.dataset.route);
         const from = placeById(b.dataset.from);
-        const scheme = appRouteUrl(t, from, to);
-        if(t.mapProvider === 'naver' && !scheme){
-          msg = {type:'warn', text:'「' + to.name + '」沒有座標，已改為複製名稱'};
-          copyText(mapQuery(to));
+        if(t.mapProvider === 'naver'){
+          await copyText(mapQuery(to));
+          msg = {type:'ok', text:'已複製「' + mapQuery(to) + '」，在 NAVER 貼上當終點'};
+          window.open(webRouteUrl(t, from, to), '_blank', 'noopener');
           render();
           return;
         }
-        openMap(scheme, webRouteUrl(t, from, to));
+        openMap(null, webRouteUrl(t, from, to));
       };
     });
 
@@ -1276,11 +1334,9 @@
         // 只重繪清單，不整頁重繪，免得洗掉正在打的字
         const q = pickerQuery.trim().toLowerCase();
         const list = app.querySelector('.picker-list');
-        const hit = places.filter(p=> !q || (p.name||'').toLowerCase().includes(q) || (p.localName||'').toLowerCase().includes(q));
+        const hit = places.filter(p=> placeMatches(p, q));
         list.innerHTML = hit.length
-          ? hit.map(p=>'<button data-add="' + esc(p.id) + '">' + esc(p.name) +
-              '<span class="pl-sub">' + esc(p.category||'') + (p.localName?'　'+esc(p.localName):'') +
-              '　' + (p.stayMin||60) + ' 分</span></button>').join('')
+          ? hit.map(pickerRowHtml).join('')
           : '<div class="none">沒有符合的景點</div>';
         list.querySelectorAll('[data-add]').forEach(bindAdd);
         const qn = document.getElementById('quickNew');
@@ -1301,14 +1357,14 @@
         const name = pickerQuery.trim();
         if(!name) return;
         const p = {
-          id: uid('pl'), name, localName:'', mapUrl:'', lat:null, lng:null,
-          transitNote:'', category:'景點', stayMin:60,
+          id: uid('pl'), code: nextPlaceCode(places), name,
+          localName:'', mapUrl:'', transitNote:'', category:'景點', stayMin:60,
           createdBy: me, savedAt:new Date().toISOString()
         };
         const ok = await putPlace(curTripId, p);
         if(!ok){ render(); return; }
         places.push(p);
-        places.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant'));
+        sortPlaces();
         await addToDay(p.id);
       };
     }
@@ -1320,7 +1376,7 @@
         id: uid('ti'), date: curDate, placeId,
         order: list.length ? (list[list.length-1].order||0) + 10 : 10,
         stayMin: p ? (p.stayMin||60) : 60,
-        moveMin: 20,
+        moveMin: 60,
         pinTime: null, note:'',
         createdBy: me, savedAt:new Date().toISOString()
       };
@@ -1386,7 +1442,7 @@
     if(editingPlace !== null){
       const p = editingPlace;
       const isNew = !p.id;
-      h += '<div class="card"><h2>' + (isNew?'新增景點':'編輯景點') + '</h2>' +
+      h += '<div class="card"><h2>' + (isNew ? '新增景點' : codeTag(p) + '編輯景點') + '</h2>' +
         '<label class="fld"><span>名稱</span><input id="qName" value="' + esc(p.name||'') + '"></label>';
 
       if(t.needsLocalName){
@@ -1404,14 +1460,7 @@
 
       h += '<label class="fld"><span>地圖連結（選填）</span><input id="qUrl" value="' + esc(p.mapUrl||'') + '" placeholder="https://naver.me/…"></label>';
 
-      if(t.mapProvider === 'naver'){
-        h += '<div class="row2">' +
-          '<label class="fld"><span>緯度</span><input id="qLat" value="' + (p.lat==null?'':p.lat) + '" placeholder="37.5563"></label>' +
-          '<label class="fld"><span>經度</span><input id="qLng" value="' + (p.lng==null?'':p.lng) + '" placeholder="126.9236"></label>' +
-        '</div><p class="hint">選填，只影響「路線」能不能一鍵開</p>';
-      }
-
-      h += '<label class="fld"><span>交通備註</span><input id="qNote" value="' + esc(p.transitNote||'') + '" placeholder="弘大入口站 9 號出口走 5 分"></label>';
+      h += '<label class="fld"><span>備註</span><textarea id="qNote" rows="3" placeholder="弘大入口站 9 號出口走 5 分／要先訂位">' + esc(p.transitNote||'') + '</textarea></label>';
       h += '<div style="display:flex;gap:8px;margin-top:12px">' +
         '<button class="btn" id="qSave" style="flex:1">儲存</button>' +
         '<button class="btn ghost" id="qCancel">取消</button></div></div>';
@@ -1426,13 +1475,12 @@
     places.forEach(p=>{
       const inUse = used.has(p.id);
       h += '<div class="place-card">' +
-        '<div class="pc-name">' + esc(p.name) +
+        '<div class="pc-name">' + codeTag(p) + esc(p.name) +
           '<span class="tag">' + esc(p.category||'景點') + '</span>' +
           (inUse ? '' : '<span class="tag soft">口袋名單</span>') + '</div>';
       let sub = '停留 ' + (p.stayMin||60) + ' 分';
       if(p.localName) sub += '　' + esc(p.localName);
-      if(p.lat != null && p.lng != null) sub += '　' + ic('coord') + ' 有座標';
-      if(p.transitNote) sub += '<br>' + ic('transit') + ' ' + esc(p.transitNote);
+      if(p.transitNote) sub += '<br>' + ic('note') + ' ' + esc(p.transitNote);
       h += '<div class="pc-sub">' + sub + '</div>';
       h += '<div class="pc-btns">' +
         '<button class="mini icon-only" data-nav data-pcopy="' + esc(p.id) + '" title="複製名稱" aria-label="複製名稱">' + ic('copy') + '</button>' +
@@ -1447,7 +1495,7 @@
   function wirePlaces(t){
     const nb = document.getElementById('newPlace');
     if(nb) nb.onclick = ()=>{
-      editingPlace = {id:'', name:'', localName:'', mapUrl:'', lat:null, lng:null, transitNote:'', category:'景點', stayMin:60};
+      editingPlace = {id:'', name:'', localName:'', mapUrl:'', transitNote:'', category:'景點', stayMin:60};
       render();
     };
 
@@ -1457,35 +1505,16 @@
     const save = document.getElementById('qSave');
     if(save) save.onclick = async ()=>{
       const name = document.getElementById('qName').value.trim();
-      if(!name){ msg={type:'err',text:'請填顯示名。'}; render(); return; }
-      const lat = document.getElementById('qLat');
-      const lng = document.getElementById('qLng');
+      if(!name){ msg={type:'err',text:'請填名稱。'}; render(); return; }
       const local = document.getElementById('qLocal');
-      // 欄位沒出現在畫面上時（台灣／日本模式沒有座標欄）要沿用原值，不能當成「使用者清空」。
-      // 另外非數字要擋下來，否則會存進 NaN，之後 p.lat != null 仍成立，
-      // 畫面顯示「有座標」但路線網址會變成 dlat=NaN。
-      function coordOf(el, prev){
-        if(!el) return (prev == null ? null : prev);
-        const v = el.value.trim();
-        if(v === '') return null;
-        const n = Number(v);
-        return isFinite(n) ? n : undefined;   // undefined 代表格式錯誤
-      }
-      const latVal = coordOf(lat, editingPlace.lat);
-      const lngVal = coordOf(lng, editingPlace.lng);
-      if(latVal === undefined || lngVal === undefined){
-        msg = {type:'err', text:'座標要填數字，例如 37.5563 / 126.9236。'};
-        render(); return;
-      }
       const rec = {
         id: editingPlace.id || uid('pl'),
+        code: editingPlace.code || nextPlaceCode(places),
         name,
         localName: local ? local.value.trim() : (editingPlace.localName||''),
         category: document.getElementById('qCat').value,
         stayMin: Math.max(0, Number(document.getElementById('qStay').value)||60),
         mapUrl: document.getElementById('qUrl').value.trim(),
-        lat: latVal,
-        lng: lngVal,
         transitNote: document.getElementById('qNote').value.trim(),
         createdBy: editingPlace.createdBy || me,
         savedAt: new Date().toISOString()
@@ -1494,7 +1523,7 @@
       if(!ok){ render(); return; }
       const i = places.findIndex(x=>x.id===rec.id);
       if(i>=0) places[i] = rec; else places.push(rec);
-      places.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'zh-Hant'));
+      sortPlaces();
       editingPlace = null;
       msg = {type:'ok', text:'已儲存。'};
       render();
