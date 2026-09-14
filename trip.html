@@ -57,6 +57,9 @@
     --amber-soft: #F5EAD3;
     --radius: 16px;
     --radius-sm: 10px;
+    /* 疊層順序集中在這裡，不要在各處自己填數字 */
+    --z-mask: 40;
+    --z-sheet: 41;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; padding:0; }
@@ -97,10 +100,19 @@
   .btn.danger{ background:var(--red); border-color:var(--red); }
   .btn:disabled{ opacity:.45; cursor:default; }
 
+  /* min-height 44px：手指點得到的最小尺寸。原本算出來只有約 38px。 */
   input, select, textarea{
     font-family:inherit; font-size:15px; color:var(--ink);
     background:#fff; border:1px solid var(--line);
     border-radius:var(--radius-sm); padding:9px 11px; width:100%;
+    min-height:44px;
+  }
+  /* 核取方塊不適用上面的最小高度，會被撐成一個 44px 的大方塊。
+     觸控範圍改由包住它的整列 .chk-row 提供。 */
+  input[type="checkbox"], input[type="radio"]{ width:auto; min-height:0; }
+  .chk-row{
+    display:flex; gap:10px; align-items:center; min-height:44px;
+    padding:2px; font-size:14.5px;
   }
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-soft); outline-offset:1px; }
 
@@ -110,6 +122,16 @@
   }
   /* 去掉行動瀏覽器點擊後那 300ms 的等待（等雙擊縮放） */
   button, a, label, summary{ touch-action:manipulation; }
+
+  /* 按下去要馬上看得到反應。一律用顏色變化，不動版面，免得畫面跳動。 */
+  .mini:active{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-deep); }
+  .btn:active{ filter:brightness(.92); }
+  .picker-list button:active,
+  .trip-card:active,
+  .daybar button:active{ background:var(--accent-soft); }
+  .sheet-place:active{ background:var(--accent); color:#fff; }
+  .sheet-place:active .pcode{ background:rgba(255,255,255,.3); color:#fff; }
+  .tt-block:active .tt-b-in{ border-color:var(--accent-deep); box-shadow:0 0 0 2px var(--accent-soft); }
 
   @media (prefers-reduced-motion: reduce){
     *, *::before, *::after{
@@ -210,15 +232,22 @@
 
   /* ---------- 貼底面板 ---------- */
   body.sheet-open{ overflow:hidden; }
-  .sheet-mask{ position:fixed; inset:0; background:rgba(58,46,34,.45); z-index:40; }
+  .sheet-mask{ position:fixed; inset:0; background:rgba(58,46,34,.45); z-index:var(--z-mask); }
   .sheet{
-    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    position:fixed; left:0; right:0; bottom:0; z-index:var(--z-sheet);
     background:var(--bg-card); border-top:1px solid var(--line);
     border-radius:18px 18px 0 0; padding:8px 18px 18px;
-    max-height:82vh; overflow-y:auto;
+    /* dvh 才是手機上真正可見的高度，vh 會被瀏覽器工具列灌水 */
+    max-height:82vh; max-height:82dvh; overflow-y:auto;
     padding-bottom:calc(18px + env(safe-area-inset-bottom));
     box-shadow:0 -10px 30px rgba(58,46,34,.18);
   }
+  /* 只有「剛打開」才滑入。按 ±15 分會整頁重繪，不加這個判斷的話
+     每按一次面板就重新滑一次，很煩。 */
+  .sheet.in{ animation:sheet-up .22s cubic-bezier(.2,.8,.25,1); }
+  .sheet-mask.in{ animation:sheet-fade .22s ease-out; }
+  @keyframes sheet-up{ from{ transform:translateY(100%); } }
+  @keyframes sheet-fade{ from{ opacity:0; } }
   .sheet-grip{
     width:40px; height:4px; border-radius:99px; background:var(--line);
     margin:0 auto 14px;
@@ -472,6 +501,7 @@
   let tab = 'timeline';      // timeline | places
   // 貼底面板：null＝沒開，{type:'add', at:分鐘} 或 {type:'item', id:項目 id}
   let sheet = null;
+  let sheetJustOpened = false;
   let pickerQuery = '';
 
   // 只記「上次是誰」，不是憑證。快取已經沒有密碼，離線重開瀏覽器時
@@ -774,7 +804,12 @@
       '</div>';
   }
 
+  let sheetWasOpen = false;
   function render(){
+    // 面板只有第一次出現才滑入。按 ±15 分也會走 render()，
+    // 每次都播動畫的話面板會一直重新滑，很煩。
+    sheetJustOpened = !!sheet && !sheetWasOpen;
+    sheetWasOpen = !!sheet;
     renderView();
     applyReadOnly();
     document.body.classList.toggle('sheet-open', !!sheet);
@@ -938,15 +973,15 @@
     people.forEach(p=>{
       const on = (t.memberIds||[]).indexOf(p.id) >= 0;
       const isMe = p.id === me;
-      h += '<label style="display:flex;gap:9px;align-items:center;padding:7px 2px;font-size:14.5px">' +
-        '<input type="checkbox" style="width:auto" data-mem="' + esc(p.id) + '"' +
+      h += '<label class="chk-row">' +
+        '<input type="checkbox" data-mem="' + esc(p.id) + '"' +
         (on?' checked':'') + (isMe?' disabled':'') + '>' +
         esc(p.name) + (isMe?'<span class="tag soft">你自己</span>':'') + '</label>';
     });
 
     if(!isNew){
-      h += '<label style="display:flex;gap:9px;align-items:center;padding:10px 2px;font-size:14.5px;margin-top:8px">' +
-        '<input type="checkbox" style="width:auto" id="fArch"' + (t.archived?' checked':'') + '> 標記為已結束</label>';
+      h += '<label class="chk-row" style="margin-top:8px">' +
+        '<input type="checkbox" id="fArch"' + (t.archived?' checked':'') + '> 標記為已結束</label>';
     }
 
     h += '<div style="display:flex;gap:8px;margin-top:16px">' +
@@ -1334,8 +1369,11 @@
         ic('trash') + '從這天移除</button>';
     }
 
-    return '<div class="sheet-mask" id="sheetMask"></div>' +
-           '<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grip"></div>' +
+    const anim = sheetJustOpened ? ' in' : '';
+    const title = sheet.type === 'add' ? '加入景點' : '這個行程';
+    return '<div class="sheet-mask' + anim + '" id="sheetMask"></div>' +
+           '<div class="sheet' + anim + '" id="sheetBox" role="dialog" aria-modal="true"' +
+             ' aria-label="' + title + '" tabindex="-1"><div class="sheet-grip"></div>' +
            inner +
            '<button class="btn wide ghost" id="sheetClose" style="margin-top:12px">關閉</button></div>';
   }
@@ -1422,6 +1460,13 @@
   function wireDragOnce(){
     if(dragWired) return;
     dragWired = true;
+    // iOS Safari 只有在元素或 document 有 touch 監聽時才會套用 :active，
+    // 沒有這個空監聽，上面那些「按下變色」在 iPhone 上完全不會出現。
+    document.addEventListener('touchstart', function(){}, { passive: true });
+    // 鍵盤和 Android 返回鍵的使用者要有路可以退出面板
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape' && sheet){ sheet = null; render(); }
+    });
     document.addEventListener('mousemove', pressMove);
     document.addEventListener('mouseup', pressUp);
     document.addEventListener('touchmove', pressMove, { passive: false });
@@ -1552,6 +1597,10 @@
 
     const sheetClose = document.getElementById('sheetClose');
     if(sheetClose) sheetClose.onclick = ()=>{ sheet = null; render(); };
+    // 面板一開就把焦點帶進來，讀螢幕軟體才會開始唸面板內容而不是停在背景。
+    // 加景點那種下面會自己 focus 搜尋框，就不搶它的焦點。
+    const sheetBox = document.getElementById('sheetBox');
+    if(sheetBox && sheetJustOpened && sheet && sheet.type !== 'add') sheetBox.focus();
     const sheetMask = document.getElementById('sheetMask');
     if(sheetMask) sheetMask.onclick = ()=>{ sheet = null; render(); };
 
