@@ -208,12 +208,42 @@
   .tt-block.drag{ z-index:5; cursor:grabbing; }
   .tt-block.drag .tt-b-in{ box-shadow:0 8px 20px rgba(58,46,34,.25); border-color:var(--accent-deep); }
 
-  .tl-item{
-    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:12px 14px; margin-bottom:8px; position:relative;
+  /* ---------- 貼底面板 ---------- */
+  body.sheet-open{ overflow:hidden; }
+  .sheet-mask{ position:fixed; inset:0; background:rgba(58,46,34,.45); z-index:40; }
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    background:var(--bg-card); border-top:1px solid var(--line);
+    border-radius:18px 18px 0 0; padding:8px 18px 18px;
+    max-height:82vh; overflow-y:auto;
+    padding-bottom:calc(18px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 30px rgba(58,46,34,.18);
   }
-  .tl-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .tl-name{ font-size:15px; font-weight:500; flex:1; min-width:0; }
+  .sheet-grip{
+    width:40px; height:4px; border-radius:99px; background:var(--line);
+    margin:0 auto 14px;
+  }
+  .sheet h3{ font-family:'Noto Serif TC',serif; font-size:16px; margin:0 0 12px; }
+  /* 面板最上面那列就是進景點編輯的入口 */
+  .sheet-place{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:var(--accent-soft); border:1px solid var(--accent);
+    border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:14px;
+    color:var(--accent-deep); font-size:15px; font-weight:700; min-height:44px;
+  }
+  .sheet-place .sp-name{ flex:1; min-width:0; }
+  .sheet-place .sp-go{ flex:none; display:flex; }
+  .sheet-row{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:8px 0; border-top:1px solid var(--line-soft);
+  }
+  .sheet-row .lab{ font-size:12.5px; color:var(--ink-soft); }
+  .sheet-row .val{ font-size:14px; font-weight:700; min-width:52px; text-align:center; }
+  .sheet-note{
+    font-size:12.5px; color:var(--ink-soft); line-height:1.6;
+    padding:10px 0 2px; border-top:1px solid var(--line-soft);
+  }
+
   /* width:auto 讓瀏覽器照自己的語系決定寬度。中文 Chrome 會顯示成「上午 09:00」，
      寫死寬度會把分鐘切掉。 */
   input.start-time{
@@ -221,18 +251,8 @@
     font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
     color:var(--accent-deep); background:var(--accent-soft); border-color:var(--accent);
   }
-  /* 景點名本身就是進景點編輯的入口，畫底線讓人看得出可以點 */
-  .tl-name-btn{
-    display:block; width:100%; text-align:left; border:0; background:transparent;
-    padding:0; font:inherit; color:inherit; cursor:pointer;
-    text-decoration:underline dotted; text-decoration-color:var(--ink-soft);
-    text-decoration-thickness:1px; text-underline-offset:4px;
-  }
-  .tl-name-btn:hover{ text-decoration:underline solid; text-decoration-color:var(--accent); color:var(--accent-deep); }
 
-  .tl-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.6; }
 
-  .tl-ctrl{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
   /* 看起來還是小顆，但用 ::after 把可點範圍撐到 44px。
      直接把按鈕做成 44px 高會讓整排控制鈕變得很笨重。
      inset 的 4px 剛好等於 gap 的一半，相鄰按鈕的感應範圍不會疊在一起。 */
@@ -450,7 +470,8 @@
   let items = [];            // 目前旅程的所有行程項目
   let curDate = null;
   let tab = 'timeline';      // timeline | places
-  let pickerOpen = false;
+  // 貼底面板：null＝沒開，{type:'add', at:分鐘} 或 {type:'item', id:項目 id}
+  let sheet = null;
   let pickerQuery = '';
 
   // 只記「上次是誰」，不是憑證。快取已經沒有密碼，離線重開瀏覽器時
@@ -756,6 +777,7 @@
   function render(){
     renderView();
     applyReadOnly();
+    document.body.classList.toggle('sheet-open', !!sheet);
   }
 
   function renderView(){
@@ -1113,7 +1135,7 @@
     document.getElementById('editTrip').onclick = ()=>{ editingTrip = t; view='tripForm'; render(); };
     document.getElementById('back').onclick = ()=>{ view='list'; render(); };
     app.querySelectorAll('[data-tab]').forEach(b=>{
-      b.onclick = ()=>{ tab = b.dataset.tab; pickerOpen = false; render(); };
+      b.onclick = ()=>{ tab = b.dataset.tab; sheet = null; render(); };
     });
 
     if(tab === 'timeline') wireTimeline(t, dates);
@@ -1204,15 +1226,13 @@
     ttLo = range.lo;
     ttHi = range.hi;
 
-    if(!rows.length){
-      h += '<div class="empty">' + dayLabel(curDate) + ' 還沒有行程</div>';
-    }else{
-      h += '<p class="hint">長按格子可以拖到別的時間，點一下進去改景點</p>';
-      h += timetableHtml(rows);
-      h += dayListHtml(t, rows);
-    }
+    h += '<p class="hint">' + (rows.length
+      ? '點空白處加景點，點格子可以改，長按可以拖到別的時間'
+      : '點空白處就可以加景點') + '</p>';
 
-    h += pickerHtml();
+    h += timetableHtml(rows);
+    h += '<button class="btn wide ghost" id="openPicker">' + ic('plus') + '加入景點</button>';
+    h += sheetHtml(t, rows);
     return h;
   }
 
@@ -1253,74 +1273,77 @@
     return h;
   }
 
-  // 課表只負責「擺在哪」，改停留時間、開地圖、刪掉這些放在下面這張清單。
-  function dayListHtml(t, rows){
-    let h = '';
-    rows.forEach((r, i)=>{
-      const p = placeById(r.item.placeId);
-      h += '<div class="tl-item">' +
-           '<div class="tl-head">' +
-             '<input type="time" class="start-time" data-start="' + esc(r.item.id) + '" value="' +
-               esc(toClock(r.start)) + '" aria-label="開始時間">' +
-             '<span class="tl-name">' +
-               (p ? '<button class="tl-name-btn" data-goedit="' + esc(p.id) + '">' + codeTag(p) + esc(p.name) + '</button>'
-                  : '(景點已刪除)') +
-             '</span></div>';
+  // ---------- 貼底面板 ----------
+  // 加景點、改景點都在這裡完成，不用捲到畫面下面去。
+  function sheetHtml(t, rows){
+    if(!sheet) return '';
+    let inner = '';
 
-      let sub = '停留 ' + r.stay + ' 分　→ ' + toClock(r.end);
-      if(p && p.transitNote) sub += '<br>' + ic('note') + ' ' + esc(p.transitNote);
-      h += '<div class="tl-sub">' + sub + '</div>';
-
-      h += '<div class="tl-ctrl">' +
-        '<button class="mini" data-stay="-15" data-id="' + esc(r.item.id) + '">−15</button>' +
-        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '">＋15</button>';
-      if(p){
-        h += '<button class="mini icon-only" data-nav data-copy="' + esc(p.id) + '" title="複製名稱" aria-label="複製名稱">' + ic('copy') + '</button>' +
-             '<button class="mini icon-only" data-nav data-map="' + esc(p.id) + '" title="開地圖" aria-label="開地圖">' + ic('pin') + '</button>';
-        if(i > 0 && rows[i-1].item.placeId){
-          h += '<button class="mini icon-only" data-nav data-route="' + esc(p.id) + '" data-from="' +
-               esc(rows[i-1].item.placeId) + '" title="路線" aria-label="路線">' + ic('route') + '</button>';
-        }
-      }
-      h += '<span class="spacer"></span>' +
-        '<button class="mini warn icon-only" data-del="' + esc(r.item.id) + '" title="從這天移除" aria-label="從這天移除">' + ic('trash') + '</button>' +
-        '</div></div>';
-    });
-    return h;
-  }
-
-  function pickerHtml(){
-    let h = '<div class="card" style="margin-top:14px">';
-    if(!pickerOpen){
-      h += '<button class="btn wide ghost" id="openPicker">' + ic('plus') + '加入景點</button>';
-    }else{
-      h += '<label class="fld"><span>搜尋景點，或直接輸入新名稱</span>' +
-           '<input id="pq" placeholder="編號或名稱，例如 A" value="' + esc(pickerQuery) + '" autocomplete="off"></label>';
+    if(sheet.type === 'add'){
+      inner += '<h3>加到 ' + toClock(sheet.at) + '</h3>' +
+        '<label class="fld"><span>搜尋景點，或直接輸入新名稱</span>' +
+        '<input id="pq" placeholder="編號或名稱，例如 A" value="' + esc(pickerQuery) + '" autocomplete="off"></label>';
       const q = pickerQuery.trim().toLowerCase();
       const hit = places.filter(p=> placeMatches(p, q));
-      h += '<div class="picker-list">';
-      if(hit.length){
-        hit.forEach(p=>{ h += pickerRowHtml(p); });
-      }else{
-        h += '<div class="none">沒有符合的景點</div>';
-      }
-      h += '</div>';
+      inner += '<div class="picker-list">' +
+        (hit.length ? hit.map(pickerRowHtml).join('') : '<div class="none">沒有符合的景點</div>') +
+        '</div>';
       // 這顆鈕一定要先存在，之後打字才有東西可以顯示／更新。
-      // 原本只在 pickerQuery 非空時才產生，但每條開啟 picker 的路徑都先把它清空，
-      // 於是 oninput 裡的 getElementById('quickNew') 永遠是 null，這顆鈕永遠出不來。
-      h += '<button class="btn wide" id="quickNew" style="margin-top:10px;display:' +
-           (pickerQuery.trim() ? 'block' : 'none') + '">' + ic('plus') +
-           '新增「<span id="qnName">' + esc(pickerQuery.trim()) + '</span>」</button>';
-      h += '<button class="btn wide ghost" id="closePicker" style="margin-top:8px">取消</button>';
+      inner += '<button class="btn wide" id="quickNew" style="margin-top:10px;display:' +
+        (pickerQuery.trim() ? 'block' : 'none') + '">' + ic('plus') +
+        '新增「<span id="qnName">' + esc(pickerQuery.trim()) + '</span>」</button>';
+
+    }else{
+      const idx = rows.findIndex(r=>r.item.id === sheet.id);
+      if(idx < 0){ sheet = null; return ''; }
+      const r = rows[idx];
+      const p = placeById(r.item.placeId);
+
+      inner += p
+        ? '<button class="sheet-place" data-goedit="' + esc(p.id) + '">' +
+            '<span class="sp-name">' + codeTag(p) + esc(p.name) + '</span>' +
+            '<span class="sp-go">' + ic('chevR') + '</span></button>'
+        : '<h3>(景點已刪除)</h3>';
+
+      inner += '<div class="sheet-row"><span class="lab">開始</span>' +
+        '<input type="time" class="start-time" data-start="' + esc(r.item.id) + '" aria-label="開始時間" value="' +
+        esc(toClock(r.start)) + '"></div>';
+
+      inner += '<div class="sheet-row"><span class="lab">停留</span>' +
+        '<button class="mini" data-stay="-15" data-id="' + esc(r.item.id) + '" aria-label="減少 15 分">−15</button>' +
+        '<span class="val">' + r.stay + ' 分</span>' +
+        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '" aria-label="增加 15 分">＋15</button>' +
+        '<span class="spacer"></span><span class="lab">到 ' + toClock(r.end) + '</span></div>';
+
+      if(p && p.transitNote){
+        inner += '<div class="sheet-note">' + ic('note') + ' ' + esc(p.transitNote) + '</div>';
+      }
+
+      if(p){
+        inner += '<div class="sheet-row">' +
+          '<button class="mini" data-nav data-copy="' + esc(p.id) + '">' + ic('copy') + '複製名稱</button>' +
+          '<button class="mini" data-nav data-map="' + esc(p.id) + '">' + ic('pin') + '地圖</button>';
+        if(idx > 0 && rows[idx-1].item.placeId){
+          inner += '<button class="mini" data-nav data-route="' + esc(p.id) + '" data-from="' +
+                   esc(rows[idx-1].item.placeId) + '">' + ic('route') + '路線</button>';
+        }
+        inner += '</div>';
+      }
+
+      inner += '<button class="btn wide danger" data-del="' + esc(r.item.id) + '" style="margin-top:14px">' +
+        ic('trash') + '從這天移除</button>';
     }
-    h += '</div>';
-    return h;
+
+    return '<div class="sheet-mask" id="sheetMask"></div>' +
+           '<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grip"></div>' +
+           inner +
+           '<button class="btn wide ghost" id="sheetClose" style="margin-top:12px">關閉</button></div>';
   }
 
   function openPlaceEdit(p){
+    sheet = null;
     editingPlace = Object.assign({}, p);
     tab = 'places';
-    pickerOpen = false;
     render();
     window.scrollTo(0, 0);
   }
@@ -1331,6 +1354,8 @@
   // 改成進入拖曳後才在非 passive 的 touchmove 裡 preventDefault。
   let press = null;
   let dragWired = false;
+  // 拖曳結束時瀏覽器還會補一個 click，不擋掉就會被當成「點了空白處」而跳出加景點面板
+  let suppressClick = false;
 
   function pointOf(e){
     const p = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
@@ -1380,15 +1405,17 @@
 
     if(p.dragging){
       p.el.classList.remove('drag');
+      suppressClick = true;
+      setTimeout(()=>{ suppressClick = false; }, 350);
       if(p.cur == null || p.cur === p.origin){ render(); return; }
       p.it.startTime = toClock(p.cur);
       await putItem(curTripId, p.it.date, p.it);
       render();
       return;
     }
-    // 沒長按也沒移動＝點一下，進去改那個景點
-    const pl = p.el.dataset.place ? placeById(p.el.dataset.place) : null;
-    if(pl) openPlaceEdit(pl);
+    // 沒長按也沒移動＝點一下，開這個行程的面板
+    sheet = { type: 'item', id: p.it.id };
+    render();
   }
 
   // document 上的監聽只掛一次，否則每次 render 都會疊一層。
@@ -1404,7 +1431,7 @@
 
   function wireTimeline(t, dates){
     app.querySelectorAll('[data-day]').forEach(b=>{
-      b.onclick = ()=>{ curDate = b.dataset.day; pickerOpen=false; render(); };
+      b.onclick = ()=>{ curDate = b.dataset.day; sheet = null; render(); };
     });
 
     const findItem = (id)=> items.find(i=>i.id===id);
@@ -1456,6 +1483,7 @@
         if(!window.confirm('把「' + (p?p.name:'這個項目') + '」從 ' + dayLabel(curDate) + ' 移除？景點會留著。')) return;
         await delItem(curTripId, it.date, it.id);
         items = items.filter(x=>x.id!==it.id);
+        sheet = null;
         render();
       };
     });
@@ -1491,11 +1519,41 @@
       };
     });
 
-    // 新增景點到今天
+    // 課表上點空白處＝在那個時間加景點。這是主要入口，下面那顆鈕只是備援，
+    // 免得第一次用的人不知道空白處可以點。
+    const lane = document.getElementById('ttLane');
+    if(lane){
+      lane.addEventListener('click', (e)=>{
+        if(e.target.closest('.tt-block')) return;   // 點在格子上，交給格子自己處理
+        if(suppressClick) return;                   // 剛拖曳完補上來的那個 click
+        const box = lane.getBoundingClientRect();
+        let m = ttLo + (e.clientY - box.top) / PX_PER_MIN;
+        m = Math.round(m / SNAP_MIN) * SNAP_MIN;
+        m = Math.max(ttLo, Math.min(ttHi - SNAP_MIN, m));
+        sheet = { type:'add', at: m };
+        pickerQuery = '';
+        render();
+      });
+    }
+
     const openBtn = document.getElementById('openPicker');
-    if(openBtn) openBtn.onclick = ()=>{ pickerOpen = true; pickerQuery=''; render(); };
-    const closeBtn = document.getElementById('closePicker');
-    if(closeBtn) closeBtn.onclick = ()=>{ pickerOpen = false; render(); };
+    if(openBtn) openBtn.onclick = ()=>{
+      const list = dayItems(curDate);
+      let at = toMin(t.dayStart);
+      if(at == null) at = 9 * 60;
+      if(list.length){
+        const last = list[list.length - 1];
+        at = itemStart(last) + blockLen(last);
+      }
+      sheet = { type:'add', at: Math.min(at, 23 * 60 + 45) };
+      pickerQuery = '';
+      render();
+    };
+
+    const sheetClose = document.getElementById('sheetClose');
+    if(sheetClose) sheetClose.onclick = ()=>{ sheet = null; render(); };
+    const sheetMask = document.getElementById('sheetMask');
+    if(sheetMask) sheetMask.onclick = ()=>{ sheet = null; render(); };
 
     const pq = document.getElementById('pq');
     if(pq){
@@ -1541,15 +1599,18 @@
       };
     }
 
-    // 接在當天最後一個行程後面；那天還沒有東西就從旅程設定的起點時間開始。
+    // 放在面板記下的那個時間——也就是你點課表的位置。
     async function addToDay(placeId){
       const p = placeById(placeId);
       const list = dayItems(curDate);
-      let start = toMin(t.dayStart);
-      if(start == null) start = 9 * 60;
-      if(list.length){
-        const last = list[list.length - 1];
-        start = itemStart(last) + blockLen(last);
+      let start = (sheet && sheet.type === 'add') ? sheet.at : null;
+      if(start == null){
+        start = toMin(t.dayStart);
+        if(start == null) start = 9 * 60;
+        if(list.length){
+          const last = list[list.length - 1];
+          start = itemStart(last) + blockLen(last);
+        }
       }
       if(start > 23 * 60 + 45) start = 23 * 60 + 45;
       const it = {
@@ -1563,7 +1624,7 @@
       const ok = await putItem(curTripId, curDate, it);
       if(!ok){ render(); return; }
       items.push(it);
-      pickerOpen = false;
+      sheet = null;
       pickerQuery = '';
       render();
     }
