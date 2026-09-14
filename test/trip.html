@@ -42,9 +42,10 @@
     --bg: #F6F1E7;
     --bg-card: #FFFDF8;
     --ink: #3A2E22;
-    --ink-soft: #8A7A64;
+    --ink-soft: #796B58;
     --line: #E4D9C4;
-    --line-soft: #F0E8DA;
+    --line-soft: #DFD7C9;
+    --line-hour: #C4B79E;
     --accent: #A9744F;
     --accent-deep: #7C5236;
     --accent-soft: #EFE0CB;
@@ -102,6 +103,21 @@
     border-radius:var(--radius-sm); padding:9px 11px; width:100%;
   }
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-soft); outline-offset:1px; }
+
+  /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳出外框。 */
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:var(--radius-sm);
+  }
+  /* 去掉行動瀏覽器點擊後那 300ms 的等待（等雙擊縮放） */
+  button, a, label, summary{ touch-action:manipulation; }
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+    }
+    .person-btn:active{ transform:none; }
+  }
   label.fld{ display:block; margin-bottom:10px; }
   label.fld > span{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -172,7 +188,7 @@
     background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius-sm);
   }
   .tt-line{ position:absolute; left:0; right:0; height:1px; background:var(--line-soft); }
-  .tt-line.hr{ background:var(--line); }
+  .tt-line.hr{ background:var(--line-hour); }
   .tt-block{
     position:absolute; padding:0 2px; cursor:grab;
     user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
@@ -183,7 +199,7 @@
     border-left:3px solid var(--accent-deep); border-radius:var(--radius-sm);
   }
   .tt-b-name{ font-size:13px; font-weight:700; color:var(--accent-deep); line-height:1.4; }
-  .tt-b-time{ font-size:11px; color:var(--accent-deep); opacity:.8; font-variant-numeric:tabular-nums; }
+  .tt-b-time{ font-size:11px; color:var(--accent-deep); font-variant-numeric:tabular-nums; }
   .tt-b-in.short{ display:flex; align-items:center; gap:8px; padding-top:0; padding-bottom:0; }
   .tt-b-in.short .tt-b-name{
     flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -216,11 +232,18 @@
 
   .tl-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.6; }
 
-  .tl-ctrl{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .tl-ctrl{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  /* 看起來還是小顆，但用 ::after 把可點範圍撐到 44px。
+     直接把按鈕做成 44px 高會讓整排控制鈕變得很笨重。
+     inset 的 4px 剛好等於 gap 的一半，相鄰按鈕的感應範圍不會疊在一起。 */
   .mini{
+    position:relative;
     border:1px solid var(--line); background:#fff; color:var(--ink-soft);
-    border-radius:var(--radius-sm); padding:5px 9px; font-size:12.5px; line-height:1.3;
+    border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px; line-height:1.3;
+    min-height:36px; display:inline-flex; align-items:center; gap:5px;
+    touch-action:manipulation;
   }
+  .mini::after{ content:''; position:absolute; inset:-4px; }
   .mini.on{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
   .mini.warn{ border-color:var(--red); color:var(--red); }
   .mini.grab{ cursor:grab; }
@@ -260,7 +283,7 @@
     border-radius:6px; padding:1px 5px; margin-right:7px;
   }
   .place-card .pc-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; line-height:1.6; }
-  .place-card .pc-btns{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .place-card .pc-btns{ display:flex; gap:8px; flex-wrap:wrap; margin-top:9px; }
 
   .hint{ font-size:12px; color:var(--ink-soft); line-height:1.6; margin-top:8px; }
   .foot{ text-align:center; margin-top:26px; }
@@ -278,6 +301,7 @@
   /* Feather Icons 內嵌用 */
   .ic{ width:1em; height:1em; vertical-align:-0.14em; flex:0 0 auto; }
   .mini .ic, .btn .ic{ margin-right:.3em; }
+  .mini .ic{ margin-right:0; }
   .mini.icon-only .ic, .btn .ic.only{ margin-right:0; }
 
   /* 離線唯讀：所有會改資料的控制項一律停用 */
@@ -1099,14 +1123,21 @@
   // ---------- 課表 ----------
   // 每個項目自己記住 startTime（'HH:MM'），拖到哪就是幾點。
   // 舊資料只有順序＋停留＋移動，第一次打開時用 legacyComputeDay() 推算一次寫回去。
-  const SNAP_MIN = 15;     // 拖拉吸附到 15 分
-  const GRID_MIN = 30;     // 格線每 30 分一條
-  const PX_PER_MIN = 1;    // 1 分鐘 1px，算式最單純
-  const MIN_BLOCK_PX = 30; // 再短的行程也要看得到名字
+  const SNAP_MIN = 15;      // 拖拉吸附到 15 分
+  const GRID_MIN = 30;      // 格線每 30 分一條
+  // 1 分鐘 1.5px，所以最常見的 30 分鐘停留是 45px，本身就超過 44px 的觸控下限，
+  // 不需要靠「最小高度」去撐。之前用 1px/分再硬撐最小高度，等於讓觸控尺寸
+  // 污染了重疊判定：三段連續的 30 分行程明明沒撞在一起，卻會被判成同一組而全部畫成半寬。
+  const PX_PER_MIN = 1.5;
+  // 最矮 44px＝手指點得到的尺寸。這只影響畫出來的高度，不參與重疊判定，
+  // 所以短行程撐高不會再害後面的行程被誤判成撞期。
+  const MIN_DRAW_PX = 44;
+  const SHORT_PX = 48;      // 低於這個高度就把名稱和時間排成一行，否則時間會被裁掉
 
   let ttLo = 9 * 60, ttHi = 21 * 60;   // 目前畫出來的時間範圍，拖拉時要用
 
-  function blockLen(it){ return Math.max(Number(it.stayMin) || 0, SNAP_MIN); }
+  function stayOf(it){ return Math.max(0, Number(it && it.stayMin) || 0); }
+  function blockLen(it){ return Math.max(stayOf(it), SNAP_MIN); } // 接在後面時用
 
   function dayRange(t, rows){
     let lo = toMin(t.dayStart);
@@ -1114,7 +1145,7 @@
     let hi = lo + 10 * 60;
     rows.forEach(r=>{
       if(r.start < lo) lo = r.start;
-      if(r.end > hi) hi = r.end;
+      if(r.drawEnd > hi) hi = r.drawEnd;
     });
     lo = Math.floor(lo / 60) * 60;
     hi = Math.ceil((hi + 60) / 60) * 60;   // 尾巴多留一小時，才有地方往下拖
@@ -1127,14 +1158,22 @@
   function layoutDay(list){
     const rows = list.map(it=>{
       const start = itemStart(it);
-      return { item: it, start, end: start + blockLen(it), stay: Number(it.stayMin) || 0, col: 0, cols: 1 };
+      const end = start + stayOf(it);
+      return {
+        item: it, start, end, stay: stayOf(it),
+        // 判重疊用真實時間。停留 0 分的也給一點寬度，否則永遠不算佔位。
+        edge: Math.max(end, start + SNAP_MIN),
+        // 畫出來的底部：太短的行程撐到看得見名字為止，但這只影響高度，不影響判重疊。
+        drawEnd: Math.max(end, start + MIN_DRAW_PX / PX_PER_MIN),
+        col: 0, cols: 1
+      };
     });
     let i = 0;
     while(i < rows.length){
-      let j = i, groupEnd = rows[i].end;
+      let j = i, groupEnd = rows[i].edge;
       while(j + 1 < rows.length && rows[j + 1].start < groupEnd){
         j++;
-        if(rows[j].end > groupEnd) groupEnd = rows[j].end;
+        if(rows[j].edge > groupEnd) groupEnd = rows[j].edge;
       }
       const group = rows.slice(i, j + 1);
       const colEnds = [];
@@ -1142,7 +1181,7 @@
         let c = 0;
         while(c < colEnds.length && colEnds[c] > r.start) c++;
         r.col = c;
-        colEnds[c] = r.end;
+        colEnds[c] = r.edge;
       });
       group.forEach(r=>{ r.cols = colEnds.length; });
       i = j + 1;
@@ -1197,10 +1236,10 @@
     rows.forEach(r=>{
       const p = placeById(r.item.placeId);
       const top = (r.start - ttLo) * PX_PER_MIN;
-      const hgt = Math.max(MIN_BLOCK_PX, (r.end - r.start) * PX_PER_MIN);
+      const hgt = (r.drawEnd - r.start) * PX_PER_MIN;
       const w = 100 / r.cols;
       // 太矮的格子塞不下兩行，名稱和時間改排同一行，不然時間會被裁掉。
-      const short = hgt < 44;
+      const short = hgt < SHORT_PX;
       h += '<div class="tt-block" data-block="' + esc(r.item.id) + '"' +
              (p ? ' data-place="' + esc(p.id) + '"' : '') +
              ' style="top:' + top + 'px;height:' + hgt + 'px;left:' + (r.col * w) + '%;width:' + w + '%">' +
@@ -1323,7 +1362,7 @@
       press.cur = v;
       press.el.style.top = ((v - ttLo) * PX_PER_MIN) + 'px';
       const lbl = press.el.querySelector('.tt-b-time');
-      if(lbl) lbl.textContent = toClock(v) + '–' + toClock(v + blockLen(press.it));
+      if(lbl) lbl.textContent = toClock(v) + '–' + toClock(v + stayOf(press.it));
       return;
     }
     // 還沒長按就先動了，當成使用者要捲動，放掉這次
