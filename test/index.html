@@ -55,7 +55,7 @@
     --bg: #F6F1E7;
     --bg-card: #FFFDF8;
     --ink: #3A2E22;
-    --ink-soft: #8A7A64;
+    --ink-soft: #796B58;
     --line: #E4D9C4;
     --accent: #A9744F;
     --accent-deep: #7C5236;
@@ -359,6 +359,17 @@
     font-family:inherit; font-size:16px; background:#FFFCF6; color:var(--ink);
   }
 
+  /* ---- 三站共用的基礎規範，見 SPEC.md ---- */
+  /* 可點的東西至少 44px。核取方塊要排除，否則會被撐成大方塊。 */
+  input, select, textarea{ min-height:44px; }
+  input[type="checkbox"], input[type="radio"]{ min-height:0; }
+  /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳框。 */
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:var(--radius-sm);
+  }
+  /* 去掉行動瀏覽器點擊後那 300ms 的等待（等雙擊縮放） */
+  button, a, label, summary{ touch-action:manipulation; }
+
   .announce-box{
     width:100%;
     background:#FFFCF6;
@@ -637,7 +648,12 @@
   }
   .sis-sheet .sub{ font-size:11px; color:var(--ink-soft); margin:2px 0 14px; }
   @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+    }
     .sis-btn, .sis-nav button{ transition:none; }
+    .person-btn:active, .corner-btn:active{ transform:none; }
   }
 </style>
 </head>
@@ -691,6 +707,10 @@
   let renderGen = 0; // 每次渲染都會遞增；用來偵測「這次非同步渲染是不是已經被更新的操作取代了」，避免舊的畫面在新的畫面之後才蓋回去
 
   const app = document.getElementById('app');
+
+  // iOS Safari 只有在 document 有 touch 監聽時才會套用 :active，
+  // 沒有這個空監聽，底下所有「按下變色」在 iPhone 上都不會出現。
+  document.addEventListener('touchstart', function(){}, { passive: true });
   const switchBtn = document.getElementById('switchUserBtn');
   const editProfileBtn = document.getElementById('editProfileBtn');
 
