@@ -131,6 +131,7 @@
   .help ul{ margin:0; padding-left:1.15em; font-size:13.5px; line-height:1.8; color:var(--ink-soft); }
   .help ul li::marker{ color:var(--accent); }
 
+  .list-title{ margin:2px 0 12px; }
   .card{
     background:var(--bg-card); border:1px solid var(--line);
     border-radius:var(--radius); padding:18px; margin-bottom:14px;
@@ -412,7 +413,8 @@
   /* 視窗夠寬時把景點清單搬到右邊當參考，手機完全不受影響 */
   .side{ display:none; }
   @media (min-width:1000px){
-    .wrap{ max-width:1140px; }
+    /* 只有課表需要放右欄才變寬；列表和表單維持 760px，一行才不會長到難讀 */
+    .wrap.wide{ max-width:1140px; }
     .tl-cols{ display:grid; grid-template-columns:1fr 300px; gap:22px; align-items:start; }
     .side{ display:block; position:sticky; top:12px; }
     .side h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0 0 8px; }
@@ -910,6 +912,7 @@
     sheetJustOpened = !!sheet && !sheetWasOpen;
     sheetWasOpen = !!sheet;
     renderView();
+    app.classList.toggle('wide', view === 'trip' && tab === 'timeline');
     if(helpOpen) app.insertAdjacentHTML('beforeend', helpHtml());
     wireHelp();
     applyReadOnly();
@@ -997,8 +1000,7 @@
     const done = mine.filter(t=>t.archived);
 
     let h = flash() + offBar() + switchBar('trip');
-    h += '<div class="card"><h1>我的旅程</h1>' +
-         '<button class="btn wide" id="newTrip">' + ic('plus') + '建立新旅程</button></div>';
+    h += '<h1 class="list-title">我的旅程</h1>';
 
     if(!live.length && !done.length){
       h += '<div class="empty">還沒有旅程</div>';
@@ -1019,6 +1021,7 @@
       h += '<h2 style="margin:22px 0 8px;font-size:14px;color:var(--ink-soft)">已結束</h2>';
       done.forEach(t=>{ h += cardHtml(t); });
     }
+    h += '<button class="btn wide" id="newTrip" style="margin-top:18px">' + ic('plus') + '建立新旅程</button>';
     h += '<div class="foot"><button id="logout" data-nav>回到選擇身份</button></div>';
     app.innerHTML = h;
 
