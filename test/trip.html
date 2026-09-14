@@ -142,7 +142,7 @@
 
   button{ font-family:inherit; cursor:pointer; }
   .btn{
-    display:inline-block; border:1px solid var(--accent); background:var(--accent);
+    display:inline-block; border:1px solid var(--accent-deep); background:var(--accent-deep);
     color:#fff; border-radius:var(--radius-sm); padding:10px 16px;
     font-size:14px; font-weight:500;
   }
@@ -181,7 +181,7 @@
   .picker-list button:active,
   .trip-card:active,
   .daybar button:active{ background:var(--accent-soft); }
-  .sheet-place:active{ background:var(--accent); color:#fff; }
+  .sheet-place:active{ background:var(--accent-deep); color:#fff; }
   .sheet-place:active .pcode{ background:rgba(255,255,255,.3); color:#fff; }
   .tt-block:active .tt-b-in{ border-color:var(--accent-deep); box-shadow:0 0 0 2px var(--accent-soft); }
 
@@ -252,7 +252,7 @@
     border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
     border-radius:99px; padding:7px 14px; font-size:13.5px;
   }
-  .tabs button.on{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:500; }
+  .tabs button.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
 
   /* ---------- 日期列 ---------- */
   .daybar{ display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:14px; }
@@ -261,7 +261,7 @@
     border-radius:var(--radius-sm); padding:7px 12px; font-size:13px; color:var(--ink-soft);
     text-align:center; line-height:1.35;
   }
-  .daybar button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .daybar button.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; }
   .daybar button .d2{ display:block; font-size:11px; opacity:.8; }
   .daybar button.half{ border-style:dashed; }
 
@@ -405,6 +405,67 @@
   .picker-list .pl-sub{ display:block; font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
   .picker-list .none{ padding:12px; font-size:13px; color:var(--ink-soft); }
 
+  /* ---------- 行前 ---------- */
+  .pre-h{
+    font-family:'Noto Serif TC',serif; font-size:16px; margin:0 0 10px;
+  }
+  .pre-row{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 14px; margin-bottom:8px;
+  }
+  .pre-top{ display:flex; align-items:center; gap:8px; }
+  .pre-text{ flex:1; min-width:0; font-size:14.5px; font-weight:500; }
+  .pre-text.note{ font-weight:400; color:var(--ink-soft); }
+  .pre-who{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  /* 名字本身就是勾格。點一下切換，勾起來是實心的，而且帶一個勾的圖示，
+     不是只靠顏色分辨。 */
+  .who-chip{
+    display:inline-flex; align-items:center; gap:5px; min-height:36px;
+    position:relative;
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    border-radius:99px; padding:6px 13px; font-size:13px; line-height:1.3;
+  }
+  .who-chip::after{ content:''; position:absolute; inset:-4px; }
+  .who-chip .ic{ width:13px; height:13px; margin:0; vertical-align:0; }
+  .who-chip.on{
+    background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500;
+  }
+  .who-chip:active{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-deep); }
+  .who-chip.on:active{ filter:brightness(.9); background:var(--accent-deep); color:#fff; }
+
+  .pre-form{
+    background:var(--bg-card); border:1px solid var(--accent); border-radius:var(--radius);
+    padding:14px; margin-bottom:8px;
+  }
+
+  .memo-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-bottom:10px;
+  }
+  .memo-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .memo-head h3{
+    flex:1; min-width:0; margin:0;
+    font-family:'Noto Serif TC',serif; font-size:15px;
+  }
+  .memo-item{
+    display:flex; align-items:center; gap:9px;
+    padding:5px 0; border-top:1px solid var(--line-soft); min-height:44px;
+  }
+  .memo-item:first-of-type{ border-top:0; }
+  .mi-tick{
+    flex:none; position:relative; width:26px; height:26px; padding:0;
+    border:1px solid var(--line); background:#fff; color:#fff;
+    border-radius:8px; display:grid; place-items:center;
+  }
+  .mi-tick::after{ content:''; position:absolute; inset:-9px; }
+  .mi-tick .ic{ width:15px; height:15px; margin:0; vertical-align:0; }
+  .mi-tick.on{ background:var(--accent); border-color:var(--accent); }
+  .mi-tick:active{ background:var(--accent-soft); }
+  .mi-tick.on:active{ filter:brightness(.9); background:var(--accent); }
+  .mi-text{ flex:1; min-width:0; font-size:14px; }
+  .mi-text.done{ color:var(--ink-soft); text-decoration:line-through; }
+  .mi-note{ flex:1; min-width:0; font-size:13.5px; color:var(--ink-soft); line-height:1.6; }
+
   /* ---------- 景點 ---------- */
   .place-card{
     background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
@@ -523,6 +584,7 @@
     chevR:'<polyline points="9 18 15 12 9 6"></polyline>',
     help:'<circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line>',
     close:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
+    check:'<polyline points="20 6 9 17 4 12"></polyline>',
     up:'<polyline points="18 15 12 9 6 15"></polyline>',
     down:'<polyline points="6 9 12 15 18 9"></polyline>'
   };
@@ -615,6 +677,8 @@
   let curTripId = null;
   let places = [];           // 目前旅程的景點
   let items = [];            // 目前旅程的所有行程項目
+  let pres  = [];            // 行前：一起的清單
+  let memo  = null;          // 行前：我自己的備忘錄（只讀自己那一包）
   let curDate = null;
   let tab = 'timeline';      // timeline | places
   // 貼底面板：null＝沒開，{type:'add', at:分鐘} 或 {type:'item', id:項目 id}
@@ -825,8 +889,10 @@
   function loadTripChildren(tripId){
     places = [];
     items = [];
+    pres = [];
     const pPrefix = safeKey('trip-place:' + tripId + ':');
     const iPrefix = safeKey('trip-item:' + tripId + ':');
+    const rPrefix = safeKey('trip-pre:' + tripId + ':');
     Object.keys(allData).forEach(k=>{
       if(k.startsWith(pPrefix)){
         const v = parseVal(allData[k]);
@@ -834,10 +900,17 @@
       }else if(k.startsWith(iPrefix)){
         const v = parseVal(allData[k]);
         if(v && v.id) items.push(v);
+      }else if(k.startsWith(rPrefix)){
+        const v = parseVal(allData[k]);
+        if(v && v.id) pres.push(v);
       }
     });
     sortPlaces();
     items.sort((a,b)=> (a.order||0) - (b.order||0));
+    pres.sort((a,b)=> (a.order||0) - (b.order||0));
+    // 備忘錄只讀自己那一包。別人的資料還在同一個 data 節點裡，
+    // 這是畫面層的過濾，不是資料庫權限。
+    memo = parseVal(allData[safeKey('trip-memo:' + tripId + ':' + me)]) || null;
   }
 
   async function refresh(){
@@ -873,6 +946,26 @@
     if(ok) allData[safeKey('trip-place:' + tripId + ':' + p.id)] = JSON.stringify(p);
     return ok;
   }
+  async function putPre(tripId, r){
+    if(offline){ msg = {type:'err', text:'離線狀態無法儲存。'}; return false; }
+    const ok = await sSet('trip-pre:' + tripId + ':' + r.id, r);
+    if(ok) allData[safeKey('trip-pre:' + tripId + ':' + r.id)] = JSON.stringify(r);
+    return ok;
+  }
+  async function delPre(tripId, id){
+    if(offline) return false;
+    const ok = await sDelete('trip-pre:' + tripId + ':' + id);
+    if(ok) delete allData[safeKey('trip-pre:' + tripId + ':' + id)];
+    return ok;
+  }
+  // 備忘錄一個人一包，整包覆寫
+  async function putMemo(tripId, m){
+    if(offline){ msg = {type:'err', text:'離線狀態無法儲存。'}; return false; }
+    const ok = await sSet('trip-memo:' + tripId + ':' + me, m);
+    if(ok) allData[safeKey('trip-memo:' + tripId + ':' + me)] = JSON.stringify(m);
+    return ok;
+  }
+
   async function delPlace(tripId, placeId){
     if(offline) return false;
     const ok = await sDelete('trip-place:' + tripId + ':' + placeId);
@@ -1282,11 +1375,11 @@
     // 時間軸的分頁列要跟日期列一起釘在上面，所以由 timelineHtml() 自己畫。
     if(tab === 'timeline'){
       h += timelineHtml(t, dates);
+    }else if(tab === 'pre'){
+      h += tabsHtml();
+      h += preHtml(t);
     }else{
-      h += '<div class="tabs">' +
-        '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
-        '<button data-tab="places" data-nav class="' + (tab==='places'?'on':'') + '">景點 ' + places.length + '</button>' +
-        '</div>';
+      h += tabsHtml();
       h += placesHtml(t);
     }
 
@@ -1300,6 +1393,7 @@
     });
 
     if(tab === 'timeline') wireTimeline(t, dates);
+    else if(tab === 'pre') wirePre(t);
     else wirePlaces(t);
   }
 
@@ -1465,6 +1559,7 @@
     let h = '<div class="tt-stick"><div class="tabs">' +
       '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
       '<button data-tab="places" data-nav class="' + (tab==='places'?'on':'') + '">景點 ' + places.length + '</button>' +
+        '<button data-tab="pre" data-nav class="' + (tab==='pre'?'on':'') + '">行前</button>' +
       '</div><div class="daybar">';
     dates.forEach((d,i)=>{
       const n = dayItems(d).length;
@@ -2033,6 +2128,364 @@
       pickerQuery = '';
       render();
     }
+  }
+
+  function tabsHtml(){
+    return '<div class="tabs">' +
+      '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
+      '<button data-tab="places" data-nav class="' + (tab==='places'?'on':'') + '">景點 ' + places.length + '</button>' +
+      '<button data-tab="pre" data-nav class="' + (tab==='pre'?'on':'') + '">行前</button>' +
+      '</div>';
+  }
+
+  // ---------- 行前 ----------
+  // 「一起的」是整趟一份，每個項目下面有每位成員的勾；
+  // 「我自己的」一個人一包，畫面上只顯示自己的。
+  // 兩邊的項目都可以是「勾選型」或「提醒型」（純文字、沒有勾格）。
+
+  const PRE_PRESETS = [
+    { text:'護照效期要滿六個月', kind:'note' },
+    { text:'簽證／KETA', kind:'check' },
+    { text:'旅平險', kind:'check' },
+    { text:'網卡／漫遊', kind:'check' },
+    { text:'換錢', kind:'check' },
+    { text:'行動電源', kind:'check' },
+    { text:'轉接頭', kind:'check' }
+  ];
+
+  // 正在編輯／新增的東西。一次只會有一個，所以用一個物件就夠。
+  // {what:'preNew'|'preEdit'|'topicNew'|'topicEdit'|'memoNew'|'memoEdit', id, topicId}
+  let preForm = null;
+  let preDraft = '';
+  let preKind = 'check';
+
+  function memoData(){
+    return memo && Array.isArray(memo.topics) ? memo : { topics: [] };
+  }
+
+  function preHtml(t){
+    const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
+    let h = '';
+
+    // ---- 一起的 ----
+    h += '<h2 class="pre-h">一起的</h2>';
+
+    if(!pres.length && preForm !== 'preNew'){
+      h += '<div class="empty">還沒有項目</div>' +
+           '<button class="btn wide ghost" id="preSeed" style="margin-top:10px">' +
+           ic('plus') + '帶入常用項目</button>';
+    }
+
+    pres.forEach(r=>{
+      if(preForm && preForm.what === 'preEdit' && preForm.id === r.id){
+        h += preEditRow('pre', r.id);
+        return;
+      }
+      h += '<div class="pre-row">' +
+        '<div class="pre-top">' +
+          '<span class="pre-text' + (r.kind === 'note' ? ' note' : '') + '">' +
+            (r.kind === 'note' ? ic('note') + ' ' : '') + esc(r.text) + '</span>' +
+          '<button class="mini icon-only" data-preedit="' + esc(r.id) + '" title="改文字" aria-label="改文字">' + ic('edit') + '</button>' +
+          '<button class="mini warn icon-only" data-predel="' + esc(r.id) + '" title="刪除" aria-label="刪除">' + ic('trash') + '</button>' +
+        '</div>';
+
+      if(r.kind !== 'note'){
+        const done = r.done || {};
+        const allDone = ids.length > 0 && ids.every(id => done[id]);
+        h += '<div class="pre-who">';
+        ids.forEach(id=>{
+          const on = !!done[id];
+          h += '<button class="who-chip' + (on ? ' on' : '') + '" data-pretick="' + esc(r.id) +
+               '" data-who="' + esc(id) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+               (on ? ic('check') : '') + esc(personName(id)) + '</button>';
+        });
+        h += '<span class="spacer"></span>' +
+             '<button class="mini" data-preall="' + esc(r.id) + '">' +
+             (allDone ? '全部取消' : '全部') + '</button>' +
+             '</div>';
+      }
+      h += '</div>';
+    });
+
+    h += (preForm && preForm.what === 'preNew')
+      ? preEditRow('pre', null)
+      : '<button class="btn wide ghost" id="preAdd" style="margin-top:10px">' + ic('plus') + '新增項目</button>';
+
+    // ---- 我自己的 ----
+    const m = memoData();
+    h += '<h2 class="pre-h" style="margin-top:30px">我自己的</h2>' +
+         '<p class="hint" style="margin-top:-4px">只有你看得到。不要寫真正的秘密——這是畫面上的過濾，不是上鎖。</p>';
+
+    if(!m.topics.length && !(preForm && preForm.what === 'topicNew')){
+      h += '<div class="empty">還沒有主題</div>';
+    }
+
+    m.topics.forEach(tp=>{
+      h += '<div class="memo-card">';
+      if(preForm && preForm.what === 'topicEdit' && preForm.id === tp.id){
+        h += preEditRow('topic', tp.id);
+      }else{
+        h += '<div class="memo-head"><h3>' + esc(tp.title) + '</h3>' +
+          '<button class="mini icon-only" data-tpedit="' + esc(tp.id) + '" title="改名" aria-label="改名">' + ic('edit') + '</button>' +
+          '<button class="mini warn icon-only" data-tpdel="' + esc(tp.id) + '" title="刪除主題" aria-label="刪除主題">' + ic('trash') + '</button>' +
+          '</div>';
+      }
+
+      (tp.items || []).forEach(it=>{
+        if(preForm && preForm.what === 'memoEdit' && preForm.id === it.id){
+          h += preEditRow('memo', it.id, tp.id);
+          return;
+        }
+        h += '<div class="memo-item">';
+        if(it.kind === 'note'){
+          h += '<span class="mi-note">' + ic('note') + ' ' + esc(it.text) + '</span>';
+        }else{
+          h += '<button class="mi-tick' + (it.done ? ' on' : '') + '" data-memotick="' + esc(it.id) +
+               '" data-tp="' + esc(tp.id) + '" aria-pressed="' + (it.done ? 'true' : 'false') + '">' +
+               (it.done ? ic('check') : '') + '</button>' +
+               '<span class="mi-text' + (it.done ? ' done' : '') + '">' + esc(it.text) + '</span>';
+        }
+        h += '<span class="spacer"></span>' +
+          '<button class="mini icon-only" data-miedit="' + esc(it.id) + '" data-tp="' + esc(tp.id) + '" title="改文字" aria-label="改文字">' + ic('edit') + '</button>' +
+          '<button class="mini warn icon-only" data-midel="' + esc(it.id) + '" data-tp="' + esc(tp.id) + '" title="刪除" aria-label="刪除">' + ic('trash') + '</button>' +
+          '</div>';
+      });
+
+      h += (preForm && preForm.what === 'memoNew' && preForm.topicId === tp.id)
+        ? preEditRow('memo', null, tp.id)
+        : '<button class="mini" data-miadd="' + esc(tp.id) + '" style="margin-top:8px">' + ic('plus') + '加一項</button>';
+      h += '</div>';
+    });
+
+    h += (preForm && preForm.what === 'topicNew')
+      ? preEditRow('topic', null)
+      : '<button class="btn wide ghost" id="tpAdd" style="margin-top:10px">' + ic('plus') + '新增主題</button>';
+
+    return h;
+  }
+
+  // 新增與改文字共用同一個表單。scope: 'pre' | 'topic' | 'memo'
+  function preEditRow(scope, id, topicId){
+    const isTopic = scope === 'topic';
+    let h = '<div class="pre-form">' +
+      '<input id="preInput" value="' + esc(preDraft) + '" placeholder="' +
+      (isTopic ? '主題名稱，例如 伴手禮' : '要做什麼') + '" autocomplete="off">';
+
+    if(!isTopic){
+      h += '<div class="tabs" style="margin:10px 0 0">' +
+        '<button data-prekind="check" class="' + (preKind === 'check' ? 'on' : '') + '">可以打勾</button>' +
+        '<button data-prekind="note" class="' + (preKind === 'note' ? 'on' : '') + '">只是提醒</button>' +
+        '</div>';
+    }
+
+    h += '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn" id="preSave" style="flex:1">' + (id ? '儲存' : '加入') + '</button>' +
+      '<button class="btn ghost" id="preCancel">取消</button></div></div>';
+    return h;
+  }
+
+  function wirePre(t){
+    const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
+    const openForm = (what, id, topicId, draft, kind)=>{
+      preForm = { what, id: id || null, topicId: topicId || null };
+      preDraft = draft || '';
+      preKind = kind || 'check';
+      render();
+    };
+    const closeForm = ()=>{ preForm = null; preDraft = ''; preKind = 'check'; render(); };
+
+    const seed = document.getElementById('preSeed');
+    if(seed) seed.onclick = async ()=>{
+      for(let i = 0; i < PRE_PRESETS.length; i++){
+        const r = {
+          id: uid('pr'), text: PRE_PRESETS[i].text, kind: PRE_PRESETS[i].kind,
+          done: {}, order: (i + 1) * 10, createdBy: me, savedAt: new Date().toISOString()
+        };
+        const ok = await putPre(curTripId, r);
+        if(!ok){ render(); return; }
+        pres.push(r);
+      }
+      render();
+    };
+
+    const add = document.getElementById('preAdd');
+    if(add) add.onclick = ()=> openForm('preNew');
+    const tpAdd = document.getElementById('tpAdd');
+    if(tpAdd) tpAdd.onclick = ()=> openForm('topicNew');
+
+    app.querySelectorAll('[data-preedit]').forEach(b=>{
+      b.onclick = ()=>{
+        const r = pres.find(x => x.id === b.dataset.preedit);
+        if(r) openForm('preEdit', r.id, null, r.text, r.kind);
+      };
+    });
+    app.querySelectorAll('[data-tpedit]').forEach(b=>{
+      b.onclick = ()=>{
+        const tp = memoData().topics.find(x => x.id === b.dataset.tpedit);
+        if(tp) openForm('topicEdit', tp.id, null, tp.title);
+      };
+    });
+    app.querySelectorAll('[data-miadd]').forEach(b=>{
+      b.onclick = ()=> openForm('memoNew', null, b.dataset.miadd);
+    });
+    app.querySelectorAll('[data-miedit]').forEach(b=>{
+      b.onclick = ()=>{
+        const tp = memoData().topics.find(x => x.id === b.dataset.tp);
+        const it = tp && (tp.items || []).find(x => x.id === b.dataset.miedit);
+        if(it) openForm('memoEdit', it.id, tp.id, it.text, it.kind);
+      };
+    });
+
+    const input = document.getElementById('preInput');
+    if(input){
+      input.focus();
+      input.value = preDraft;
+      // 打字時只更新草稿，不重繪，否則每敲一個字焦點就被炸掉
+      input.oninput = ()=>{ preDraft = input.value; };
+      input.onkeydown = (e)=>{ if(e.key === 'Enter') savePre(); };
+    }
+    app.querySelectorAll('[data-prekind]').forEach(b=>{
+      b.onclick = ()=>{
+        preDraft = input ? input.value : preDraft;   // 先接住打到一半的字
+        preKind = b.dataset.prekind;
+        render();
+      };
+    });
+    const cancel = document.getElementById('preCancel');
+    if(cancel) cancel.onclick = closeForm;
+    const save = document.getElementById('preSave');
+    if(save) save.onclick = savePre;
+
+    async function savePre(){
+      const el = document.getElementById('preInput');
+      const text = (el ? el.value : preDraft).trim();
+      if(!text){ msg = {type:'err', text:'請先填文字。'}; render(); return; }
+      const f = preForm;
+      if(!f) return;
+
+      if(f.what === 'preNew' || f.what === 'preEdit'){
+        let r = f.id ? pres.find(x => x.id === f.id) : null;
+        if(r){
+          r.text = text;
+          r.kind = preKind;
+          if(preKind === 'note') r.done = {};   // 改成提醒型就不留勾選狀態
+        }else{
+          r = {
+            id: uid('pr'), text, kind: preKind, done: {},
+            order: (pres.length + 1) * 10, createdBy: me, savedAt: new Date().toISOString()
+          };
+          pres.push(r);
+        }
+        r.savedAt = new Date().toISOString();
+        const ok = await putPre(curTripId, r);
+        if(!ok){ render(); return; }
+        closeForm();
+        return;
+      }
+
+      const m = memoData();
+      if(f.what === 'topicNew'){
+        m.topics.push({ id: uid('tp'), title: text, items: [] });
+      }else if(f.what === 'topicEdit'){
+        const tp = m.topics.find(x => x.id === f.id);
+        if(tp) tp.title = text;
+      }else if(f.what === 'memoNew'){
+        const tp = m.topics.find(x => x.id === f.topicId);
+        if(tp){
+          tp.items = tp.items || [];
+          tp.items.push({ id: uid('mi'), text, kind: preKind, done: false });
+        }
+      }else if(f.what === 'memoEdit'){
+        const tp = m.topics.find(x => x.id === f.topicId);
+        const it = tp && (tp.items || []).find(x => x.id === f.id);
+        if(it){
+          it.text = text;
+          it.kind = preKind;
+          if(preKind === 'note') it.done = false;
+        }
+      }
+      await saveMemo(m);
+      closeForm();
+    }
+
+    async function saveMemo(m){
+      m.savedAt = new Date().toISOString();
+      memo = m;
+      return putMemo(curTripId, m);
+    }
+
+    app.querySelectorAll('[data-pretick]').forEach(b=>{
+      b.onclick = async ()=>{
+        const r = pres.find(x => x.id === b.dataset.pretick);
+        if(!r) return;
+        r.done = r.done || {};
+        const who = b.dataset.who;
+        if(r.done[who]) delete r.done[who]; else r.done[who] = true;
+        r.savedAt = new Date().toISOString();
+        await putPre(curTripId, r);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-preall]').forEach(b=>{
+      b.onclick = async ()=>{
+        const r = pres.find(x => x.id === b.dataset.preall);
+        if(!r) return;
+        r.done = r.done || {};
+        const allDone = ids.length > 0 && ids.every(id => r.done[id]);
+        r.done = {};
+        if(!allDone) ids.forEach(id=>{ r.done[id] = true; });
+        r.savedAt = new Date().toISOString();
+        await putPre(curTripId, r);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-predel]').forEach(b=>{
+      b.onclick = async ()=>{
+        const r = pres.find(x => x.id === b.dataset.predel);
+        if(!r) return;
+        if(!window.confirm('刪掉「' + r.text + '」？')) return;
+        await delPre(curTripId, r.id);
+        pres = pres.filter(x => x.id !== r.id);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-memotick]').forEach(b=>{
+      b.onclick = async ()=>{
+        const m = memoData();
+        const tp = m.topics.find(x => x.id === b.dataset.tp);
+        const it = tp && (tp.items || []).find(x => x.id === b.dataset.memotick);
+        if(!it) return;
+        it.done = !it.done;
+        await saveMemo(m);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-midel]').forEach(b=>{
+      b.onclick = async ()=>{
+        const m = memoData();
+        const tp = m.topics.find(x => x.id === b.dataset.tp);
+        if(!tp) return;
+        tp.items = (tp.items || []).filter(x => x.id !== b.dataset.midel);
+        await saveMemo(m);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-tpdel]').forEach(b=>{
+      b.onclick = async ()=>{
+        const m = memoData();
+        const tp = m.topics.find(x => x.id === b.dataset.tpdel);
+        if(!tp) return;
+        if(!window.confirm('刪掉主題「' + tp.title + '」和裡面的項目？')) return;
+        m.topics = m.topics.filter(x => x.id !== tp.id);
+        await saveMemo(m);
+        render();
+      };
+    });
   }
 
   // ---------- 景點 ----------
