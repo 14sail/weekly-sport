@@ -499,7 +499,6 @@
   .mi-tick:active{ background:var(--accent-soft); }
   .mi-tick.on:active{ filter:brightness(.9); background:var(--accent); }
   .mi-text{ flex:1; min-width:0; font-size:14px; }
-  .mi-text.done{ color:var(--ink-soft); text-decoration:line-through; }
   .mi-note{ flex:1; min-width:0; font-size:13.5px; color:var(--ink-soft); line-height:1.6; }
 
   /* ---------- 景點 ---------- */
@@ -2308,7 +2307,7 @@
           h += '<button class="mi-tick' + (it.done ? ' on' : '') + '" data-memotick="' + esc(it.id) +
                '" data-tp="' + esc(tp.id) + '" aria-pressed="' + (it.done ? 'true' : 'false') + '">' +
                (it.done ? ic('check') : '') + '</button>' +
-               '<span class="mi-text' + (it.done ? ' done' : '') + '">' + esc(it.text) + '</span>';
+               '<span class="mi-text">' + esc(it.text) + '</span>';
         }
         h += '<span class="spacer"></span>' +
           '<button class="mini icon-only" data-miedit="' + esc(it.id) + '" data-tp="' + esc(tp.id) + '" title="改文字" aria-label="改文字">' + ic('edit') + '</button>' +
