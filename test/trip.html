@@ -58,6 +58,8 @@
     --radius: 16px;
     --radius-sm: 10px;
     /* 疊層順序集中在這裡，不要在各處自己填數字 */
+    --z-stick: 20;
+    --z-help: 50;
     --z-mask: 40;
     --z-sheet: 41;
   }
@@ -79,6 +81,51 @@
   }
   header.top .seed{ color:var(--accent); }
   header.top .who{ font-size:13px; color:var(--ink-soft); margin-top:4px; }
+
+  /* 右上角的說明鈕，跟運動排程站的角落鈕同一個做法 */
+  .corner-btn{
+    position:fixed; top:12px; right:12px; z-index:var(--z-stick);
+    width:40px; height:40px; padding:0; display:grid; place-items:center;
+    border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
+    border-radius:50%; box-shadow:0 1px 3px rgba(58,46,34,.12);
+  }
+  .corner-btn .ic{ width:19px; height:19px; vertical-align:0; margin:0; }
+  .corner-btn:active{ background:var(--accent-soft); color:var(--accent-deep); }
+
+  /* 說明書：整頁蓋掉，內容長，要能好好捲 */
+  .help{
+    position:fixed; inset:0; z-index:var(--z-help);
+    background:var(--bg); overflow-y:auto;
+    padding:0 18px calc(28px + env(safe-area-inset-bottom));
+  }
+  .help-in{ max-width:620px; margin:0 auto; }
+  .help-top{
+    position:sticky; top:0; background:var(--bg);
+    display:flex; align-items:center; gap:10px;
+    padding:14px 0 10px; margin-bottom:4px;
+    border-bottom:1px solid var(--line);
+  }
+  .help-top h1{ flex:1; min-width:0; margin:0; font-size:18px; }
+  .help h2{
+    font-family:'Noto Serif TC',serif; font-size:13px; letter-spacing:.12em;
+    color:var(--accent); margin:26px 0 10px; font-weight:700;
+  }
+  .help dl{ margin:0; }
+  .help dt{
+    font-size:14.5px; font-weight:700; color:var(--ink); margin-top:14px;
+  }
+  .help dt:first-child{ margin-top:0; }
+  .help dd{
+    margin:3px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.75;
+  }
+  .help .step{
+    display:flex; gap:10px; align-items:baseline;
+    padding:9px 0; border-top:1px solid var(--line-soft); font-size:14px;
+  }
+  .help .step:first-of-type{ border-top:0; }
+  .help .step b{ flex:none; color:var(--accent-deep); }
+  .help ul{ margin:0; padding-left:1.15em; font-size:13.5px; line-height:1.8; color:var(--ink-soft); }
+  .help ul li::marker{ color:var(--accent); }
 
   .card{
     background:var(--bg-card); border:1px solid var(--line);
@@ -199,6 +246,14 @@
   .daybar button.half{ border-style:dashed; }
 
   /* ---------- 課表 ---------- */
+  /* 分頁列＋日期列釘在畫面上緣，往下捲課表時還能直接換天，不用捲回去 */
+  .tt-stick{
+    position:sticky; top:0; z-index:var(--z-stick);
+    background:var(--bg); padding-top:6px; margin:0 -18px; padding-left:18px; padding-right:18px;
+    box-shadow:0 6px 10px -8px rgba(58,46,34,.35);
+  }
+  .tt-bar{ display:flex; align-items:center; gap:8px; margin:10px 0; }
+
   .tt{ position:relative; display:grid; grid-template-columns:44px 1fr; margin-bottom:14px; }
   .tt-gutter{ position:relative; }
   .tt-tick{
@@ -208,6 +263,12 @@
   .tt-lane{
     position:relative; overflow:hidden;
     background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius-sm);
+  }
+  /* 被壓縮的那一段畫上斜紋，提醒這裡的高度不等比 */
+  .tt-sq{
+    position:absolute; left:0; right:0; pointer-events:none;
+    background:repeating-linear-gradient(135deg,
+      transparent 0 7px, var(--line-soft) 7px 8px);
   }
   .tt-line{ position:absolute; left:0; right:0; height:1px; background:var(--line-soft); }
   .tt-line.hr{ background:var(--line-hour); }
@@ -338,6 +399,27 @@
   .foot{ text-align:center; margin-top:26px; }
   .foot button{ background:none; border:0; color:var(--ink-soft); font-size:13px; text-decoration:underline; }
 
+  /* 視窗夠寬時把景點清單搬到右邊當參考，手機完全不受影響 */
+  .side{ display:none; }
+  @media (min-width:1000px){
+    .wrap{ max-width:1140px; }
+    .tl-cols{ display:grid; grid-template-columns:1fr 300px; gap:22px; align-items:start; }
+    .side{ display:block; position:sticky; top:12px; }
+    .side h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0 0 8px; }
+    .side-list{
+      border:1px solid var(--line); border-radius:var(--radius-sm);
+      background:var(--bg-card); max-height:70vh; overflow-y:auto;
+    }
+    .side-list button{
+      display:block; width:100%; text-align:left; border:0; background:transparent;
+      padding:10px 12px; font-size:13.5px; color:inherit; border-bottom:1px solid var(--line-soft);
+      min-height:44px;
+    }
+    .side-list button:last-child{ border-bottom:0; }
+    .side-list button:hover{ background:var(--accent-soft); }
+    .side-list .sl-sub{ display:block; font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  }
+
   .switchbar{ display:flex; gap:8px; margin-bottom:14px; }
   .switchbar a{
     flex:1; text-align:center; text-decoration:none; font-size:13.5px;
@@ -378,6 +460,7 @@
   <div class="brand"><span class="seed">●</span> 旅程行程 <span class="seed">●</span></div>
   <div class="who" id="whoLine"></div>
 </header>
+<button class="corner-btn" id="helpBtn" title="說明書" aria-label="說明書"></button>
 
 <div class="wrap" id="app">
   <div class="card"><p class="desc">載入中…</p></div>
@@ -389,6 +472,7 @@
 
   const app = document.getElementById('app');
   const whoLine = document.getElementById('whoLine');
+  const helpBtn = document.getElementById('helpBtn');
 
   // 圖示：Feather Icons 4.29.2（MIT License, https://feathericons.com）
   // tack 來自 Lucide（Feather 的後繼，同樣 MIT），Feather 本身沒有圖釘。
@@ -406,7 +490,9 @@
     gear:'<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
     back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
     offline:'<path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line>',
-    chevR:'<polyline points="9 18 15 12 9 6"></polyline>'
+    chevR:'<polyline points="9 18 15 12 9 6"></polyline>',
+    help:'<circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line>',
+    close:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>'
   };
   function ic(name){
     return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -811,8 +897,10 @@
     sheetJustOpened = !!sheet && !sheetWasOpen;
     sheetWasOpen = !!sheet;
     renderView();
+    if(helpOpen) app.insertAdjacentHTML('beforeend', helpHtml());
+    wireHelp();
     applyReadOnly();
-    document.body.classList.toggle('sheet-open', !!sheet);
+    document.body.classList.toggle('sheet-open', !!sheet || helpOpen);
   }
 
   function renderView(){
@@ -1156,13 +1244,16 @@
         (t.mapProvider==='naver'?'NAVER':'Google') + '</div></div>' +
       '<button class="mini icon-only" id="editTrip" title="旅程設定" aria-label="旅程設定">' + ic('gear') + '</button></div></div>';
 
-    h += '<div class="tabs">' +
-      '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
-      '<button data-tab="places" data-nav class="' + (tab==='places'?'on':'') + '">景點 ' + places.length + '</button>' +
-      '</div>';
-
-    if(tab === 'timeline') h += timelineHtml(t, dates);
-    else h += placesHtml(t);
+    // 時間軸的分頁列要跟日期列一起釘在上面，所以由 timelineHtml() 自己畫。
+    if(tab === 'timeline'){
+      h += timelineHtml(t, dates);
+    }else{
+      h += '<div class="tabs">' +
+        '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
+        '<button data-tab="places" data-nav class="' + (tab==='places'?'on':'') + '">景點 ' + places.length + '</button>' +
+        '</div>';
+      h += placesHtml(t);
+    }
 
     h += '<div class="foot"><button id="back" data-nav>' + ic('back') + ' 回旅程列表</button></div>';
     app.innerHTML = h;
@@ -1191,23 +1282,43 @@
   const MIN_DRAW_PX = 44;
   const SHORT_PX = 48;      // 低於這個高度就把名稱和時間排成一行，否則時間會被裁掉
 
-  let ttLo = 9 * 60, ttHi = 21 * 60;   // 目前畫出來的時間範圍，拖拉時要用
+  // 課表預設就畫 08:00-21:00 這一段，不管那天有沒有排東西，
+  // 每天長度一致比較好對照。超出這個範圍的行程當然照畫，也可以手動往前後延伸。
+  const WIN_LO = 8 * 60;
+  const WIN_HI = 21 * 60;
+
+  // 壓縮：一段連續的區間（不管是行程還是空檔），前 60 分照原比例畫，
+  // 超過的部分只用 1/5 的比例。三小時的午餐和一整個下午的空檔都會縮短，
+  // 代價是時間軸不再等比，所以做成可以關掉的開關。
+  const SQ_FULL = 60;
+  const SQ_RATE = 0.2;
+  const SQ_KEY = 'trip-squeeze';
+
+  let squeeze = true;
+  try{ squeeze = localStorage.getItem(SQ_KEY) !== '0'; }catch(e){}
+  function setSqueeze(on){
+    squeeze = !!on;
+    try{ localStorage.setItem(SQ_KEY, squeeze ? '1' : '0'); }catch(e){}
+  }
+
+  let ttLo = WIN_LO, ttHi = WIN_HI;   // 目前畫出來的時間範圍
+  let ttExtLo = 0, ttExtHi = 0;       // 使用者按「往前／往後」多要的小時數
+  let ttMap = { segs: [], total: 0 }; // 分鐘↔像素的對應表（壓縮後不是等比）
 
   function stayOf(it){ return Math.max(0, Number(it && it.stayMin) || 0); }
   function blockLen(it){ return Math.max(stayOf(it), SNAP_MIN); } // 接在後面時用
 
   function dayRange(t, rows){
-    let lo = toMin(t.dayStart);
-    if(lo == null) lo = 9 * 60;
-    let hi = lo + 10 * 60;
+    let lo = WIN_LO - ttExtLo * 60;
+    let hi = WIN_HI + ttExtHi * 60;
+    // 排在視窗外的行程一定要畫出來，否則會整筆看不見
     rows.forEach(r=>{
       if(r.start < lo) lo = r.start;
       if(r.drawEnd > hi) hi = r.drawEnd;
     });
-    lo = Math.floor(lo / 60) * 60;
-    hi = Math.ceil((hi + 60) / 60) * 60;   // 尾巴多留一小時，才有地方往下拖
-    if(hi > 24 * 60) hi = 24 * 60;
-    if(hi - lo < 6 * 60) hi = Math.min(24 * 60, lo + 6 * 60);
+    lo = Math.max(0, Math.floor(lo / 60) * 60);
+    hi = Math.min(24 * 60, Math.ceil(hi / 60) * 60);
+    if(hi - lo < 3 * 60) hi = Math.min(24 * 60, lo + 3 * 60);
     return { lo, hi };
   }
 
@@ -1246,58 +1357,172 @@
     return rows;
   }
 
+  // ---------- 分鐘 ↔ 像素 ----------
+  // 把一天沿著「行程開始／結束」切成一段一段，每段各自算高度。
+  // 壓縮開著時，每段前 SQ_FULL 分鐘照原比例，超過的部分用 SQ_RATE。
+  function buildMap(rows, lo, hi){
+    const marks = [lo, hi];
+    rows.forEach(r=>{
+      if(r.start > lo && r.start < hi) marks.push(r.start);
+      if(r.drawEnd > lo && r.drawEnd < hi) marks.push(r.drawEnd);
+    });
+    marks.sort((a,b)=> a - b);
+
+    const segs = [];
+    let y = 0;
+    for(let i = 0; i < marks.length - 1; i++){
+      const m0 = marks[i], m1 = marks[i+1];
+      if(m1 <= m0) continue;
+      const len = m1 - m0;
+      const full = squeeze ? Math.min(len, SQ_FULL) : len;
+      const rest = len - full;
+      const px = full * PX_PER_MIN + rest * PX_PER_MIN * SQ_RATE;
+      segs.push({ m0, m1, len, full, rest, y0: y, y1: y + px });
+      y += px;
+    }
+    return { segs, total: y };
+  }
+
+  function ttY(m){
+    const segs = ttMap.segs;
+    if(!segs.length) return 0;
+    if(m <= segs[0].m0) return 0;
+    for(let i = 0; i < segs.length; i++){
+      const s = segs[i];
+      if(m <= s.m1){
+        const d = m - s.m0;
+        return d <= s.full
+          ? s.y0 + d * PX_PER_MIN
+          : s.y0 + s.full * PX_PER_MIN + (d - s.full) * PX_PER_MIN * SQ_RATE;
+      }
+    }
+    return ttMap.total;
+  }
+
+  function ttMinAt(y){
+    const segs = ttMap.segs;
+    if(!segs.length) return ttLo;
+    if(y <= 0) return segs[0].m0;
+    for(let i = 0; i < segs.length; i++){
+      const s = segs[i];
+      if(y <= s.y1){
+        const d = y - s.y0;
+        const fullPx = s.full * PX_PER_MIN;
+        return d <= fullPx
+          ? s.m0 + d / PX_PER_MIN
+          : s.m0 + s.full + (d - fullPx) / (PX_PER_MIN * SQ_RATE);
+      }
+    }
+    return segs[segs.length - 1].m1;
+  }
+
   function timelineHtml(t, dates){
-    let h = '<div class="daybar">';
+    let h = '<div class="tt-stick"><div class="tabs">' +
+      '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
+      '<button data-tab="places" data-nav class="' + (tab==='places'?'on':'') + '">景點 ' + places.length + '</button>' +
+      '</div><div class="daybar">';
     dates.forEach((d,i)=>{
       const n = dayItems(d).length;
       const half = (i===0 || i===dates.length-1);
       h += '<button data-day="' + d + '" data-nav class="' + (d===curDate?'on':'') + (half?' half':'') + '">' +
            dayLabel(d) + '<span class="d2">' + dayWd(d) + (n?'・'+n:'') + '</span></button>';
     });
-    h += '</div>';
+    h += '</div></div>';
 
     const rows = layoutDay(dayItems(curDate));
     const range = dayRange(t, rows);
     ttLo = range.lo;
     ttHi = range.hi;
+    ttMap = buildMap(rows, ttLo, ttHi);
 
-    h += '<p class="hint">' + (rows.length
-      ? '點空白處加景點，點格子可以改，長按可以拖到別的時間'
-      : '點空白處就可以加景點') + '</p>';
+    // 提示只在空的日子出現，其他時候不佔位置
+    if(!rows.length){
+      h += '<p class="hint">點空白處就可以加景點</p>';
+    }
+
+    h += '<div class="tl-cols"><div>';
+
+    h += '<div class="tt-bar">' +
+      '<button class="mini" id="extUp"' + (ttLo <= 0 ? ' disabled' : '') + '>↑ 往前 1 小時</button>' +
+      '<span class="spacer"></span>' +
+      '<button class="mini' + (squeeze ? ' on' : '') + '" id="sqToggle" aria-pressed="' + (squeeze?'true':'false') + '">' +
+        (squeeze ? '已壓縮空白' : '完整比例') + '</button></div>';
 
     h += timetableHtml(rows);
+
+    h += '<div class="tt-bar">' +
+      '<button class="mini" id="extDown"' + (ttHi >= 24*60 ? ' disabled' : '') + '>↓ 往後 1 小時</button></div>';
+
     h += '<button class="btn wide ghost" id="openPicker">' + ic('plus') + '加入景點</button>';
+    h += '</div>' + sideHtml() + '</div>';
     h += sheetHtml(t, rows);
     return h;
   }
 
-  function timetableHtml(rows){
-    const totalPx = (ttHi - ttLo) * PX_PER_MIN;
-    let h = '<div class="tt" style="height:' + totalPx + 'px">';
+  // 桌機右欄：把景點清單放在旁邊當參考，排行程時不用切分頁。
+  // 手機上 .side 是 display:none，完全不佔位置。
+  function sideHtml(){
+    let h = '<div class="side"><h3>景點 ' + places.length + '</h3>';
+    if(!places.length){
+      h += '<div class="empty">還沒有景點</div></div>';
+      return h;
+    }
+    const used = new Set(items.map(i=>i.placeId));
+    h += '<div class="side-list">';
+    places.forEach(p=>{
+      h += '<button data-goedit="' + esc(p.id) + '">' + codeTag(p) + esc(p.name) +
+           '<span class="sl-sub">' + esc(p.category||'') + '　' + (p.stayMin||60) + ' 分' +
+           (used.has(p.id) ? '' : '　還沒排') + '</span></button>';
+    });
+    h += '</div></div>';
+    return h;
+  }
 
+  function timetableHtml(rows){
+    let h = '<div class="tt" style="height:' + Math.round(ttMap.total) + 'px">';
+
+    // 壓縮區裡整點會擠在一起疊字，太近的就不畫，看得懂比畫得齊重要
     h += '<div class="tt-gutter">';
-    for(let m = ttLo; m < ttHi; m += GRID_MIN){
-      if(m % 60 !== 0) continue;
-      h += '<div class="tt-tick" style="top:' + ((m - ttLo) * PX_PER_MIN) + 'px">' + toClock(m) + '</div>';
+    let lastTick = -99;
+    for(let m = ttLo; m <= ttHi; m += 60){
+      const y = ttY(m);
+      if(m !== ttLo && m !== ttHi && y - lastTick < 20) continue;
+      h += '<div class="tt-tick" style="top:' + Math.round(y) + 'px">' + toClock(m) + '</div>';
+      lastTick = y;
     }
     h += '</div>';
 
     h += '<div class="tt-lane" id="ttLane">';
+
+    // 被壓縮的區段畫上斜線，讓人知道這一段的比例被縮過，不是真的那麼短
+    ttMap.segs.forEach(s=>{
+      if(!s.rest) return;
+      const y0 = ttY(s.m0 + s.full), y1 = s.y1;
+      if(y1 - y0 < 2) return;
+      h += '<div class="tt-sq" style="top:' + Math.round(y0) + 'px;height:' +
+           Math.round(y1 - y0) + 'px"></div>';
+    });
+
+    let lastLine = -99;
     for(let m = ttLo + GRID_MIN; m < ttHi; m += GRID_MIN){
+      const y = ttY(m);
+      if(y - lastLine < 8) continue;   // 壓縮區的格線也會糊成一片
       h += '<div class="tt-line' + ((m % 60 === 0) ? ' hr' : '') + '" style="top:' +
-           ((m - ttLo) * PX_PER_MIN) + 'px"></div>';
+           Math.round(y) + 'px"></div>';
+      lastLine = y;
     }
 
     rows.forEach(r=>{
       const p = placeById(r.item.placeId);
-      const top = (r.start - ttLo) * PX_PER_MIN;
-      const hgt = (r.drawEnd - r.start) * PX_PER_MIN;
+      const top = ttY(r.start);
+      const hgt = Math.max(MIN_DRAW_PX, ttY(r.drawEnd) - top);
       const w = 100 / r.cols;
       // 太矮的格子塞不下兩行，名稱和時間改排同一行，不然時間會被裁掉。
       const short = hgt < SHORT_PX;
       h += '<div class="tt-block" data-block="' + esc(r.item.id) + '"' +
              (p ? ' data-place="' + esc(p.id) + '"' : '') +
-             ' style="top:' + top + 'px;height:' + hgt + 'px;left:' + (r.col * w) + '%;width:' + w + '%">' +
+             ' style="top:' + Math.round(top) + 'px;height:' + Math.round(hgt) +
+             'px;left:' + (r.col * w) + '%;width:' + w + '%">' +
            '<div class="tt-b-in' + (short ? ' short' : '') + '">' +
              '<div class="tt-b-name">' + (p ? codeTag(p) + esc(p.name) : '(景點已刪除)') + '</div>' +
              '<div class="tt-b-time">' + toClock(r.start) + '–' + toClock(r.end) + '</div>' +
@@ -1306,6 +1531,73 @@
 
     h += '</div></div>';
     return h;
+  }
+
+  // ---------- 說明書 ----------
+  // 右上角問號打開。寫法刻意用「名詞＋一句話」，讓人用掃的就找得到，
+  // 不要寫成一段一段的說明文。
+  let helpOpen = false;
+
+  function helpHtml(){
+    if(!helpOpen) return '';
+    const term = (t, d)=> '<dt>' + t + '</dt><dd>' + d + '</dd>';
+    const step = (k, d)=> '<div class="step"><b>' + k + '</b><span>' + d + '</span></div>';
+
+    let h = '<div class="help" id="helpBox" role="dialog" aria-modal="true" aria-label="說明書" tabindex="-1">' +
+      '<div class="help-in">' +
+      '<div class="help-top"><h1>說明書</h1>' +
+      '<button class="mini icon-only" id="helpClose" data-nav title="關閉" aria-label="關閉">' +
+      ic('close') + '</button></div>';
+
+    h += '<h2>課表怎麼用</h2>' +
+      step('點空白處', '在那個時間加一個景點') +
+      step('點格子', '改開始時間、停留多久、看地圖、刪掉') +
+      step('長按格子', '拖到別的時間，會自動對齊 15 分');
+
+    h += '<h2>名詞</h2><dl>' +
+      term('景點', '你存下來的地點。存了不一定要排進行程。') +
+      term('編號 A、B、C', '每個景點的固定代號，建立時就決定，之後不會變。搜尋時打編號最快。') +
+      term('還沒排', '這個景點還沒被放進任何一天。放進去之後標籤就會消失。') +
+      term('課表', '一天的時間表。色塊的高度就是停留時間，時間重疊的會並排。') +
+      term('停留', '在這個景點待多久。新加的預設 60 分。') +
+      term('壓縮空白', '把很長的空檔和很長的行程縮短顯示，一整天才塞得進一個畫面。' +
+           '被縮過的地方會畫斜線提醒你那裡不等比。按右上角的按鈕可以關掉。') +
+      term('備註', '寫在景點裡的自由欄位，交通、要不要訂位都可以寫。會顯示在課表的面板裡。') +
+      '</dl>';
+
+    h += '<h2>其他</h2><ul>' +
+      '<li><b>往前／往後 1 小時</b>：課表預設畫 08:00 到 21:00，不夠用就按這兩顆延伸。</li>' +
+      '<li><b>地圖／路線</b>：韓國的旅程會先複製景點名稱，再開 NAVER 讓你貼上。</li>' +
+      '<li><b>當地語名稱</b>：韓國、日本的店填了之後，「複製名稱」複製的是當地語，搜尋才找得到。</li>' +
+      '<li><b>已結束</b>：旅程結束後在設定裡勾起來，會收到列表下面，資料不會刪掉。</li>' +
+      '</ul>';
+
+    h += '<h2>要知道的事</h2><ul>' +
+      '<li>旅程<b>只有被勾選的成員看得到</b>，建立的時候記得把大家勾上。</li>' +
+      '<li>沒網路時是<b>唯讀</b>，看得到之前載過的內容，但不能新增或修改。</li>' +
+      '<li>同一筆資料大家都能改，要動別人排好的東西前先說一聲。</li>' +
+      '<li>密碼只是防止手滑改到別人的資料，<b>不要用你其他重要網站的密碼</b>。</li>' +
+      '</ul>';
+
+    h += '<div class="foot"><button id="helpClose2" data-nav>關閉說明書</button></div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  // 這顆鈕在 #app 外面，不會被重繪洗掉，所以只接一次。
+  if(helpBtn){
+    helpBtn.innerHTML = ic('help');
+    helpBtn.onclick = ()=>{ helpOpen = true; render(); };
+  }
+
+  function wireHelp(){
+    const close = ()=>{ helpOpen = false; render(); };
+    const a = document.getElementById('helpClose');
+    if(a) a.onclick = close;
+    const b = document.getElementById('helpClose2');
+    if(b) b.onclick = close;
+    const box = document.getElementById('helpBox');
+    if(box) box.focus();
   }
 
   // ---------- 貼底面板 ----------
@@ -1402,8 +1694,13 @@
 
   function pressDown(el, it, e){
     const pt = pointOf(e);
+    const lane = document.getElementById('ttLane');
+    const laneTop = lane ? lane.getBoundingClientRect().top : 0;
     press = {
       el, it, x: pt.x, y: pt.y,
+      laneTop,
+      // 手指抓在格子的哪個位置，拖的時候要維持這個相對位置
+      grabDy: pt.y - el.getBoundingClientRect().top,
       origin: itemStart(it), cur: null, dragging: false, timer: null
     };
     press.timer = setTimeout(()=>{
@@ -1420,10 +1717,12 @@
     const pt = pointOf(e);
     if(press.dragging){
       if(e.cancelable) e.preventDefault();
-      const d = Math.round(((pt.y - press.y) / PX_PER_MIN) / SNAP_MIN) * SNAP_MIN;
-      const v = Math.max(ttLo, Math.min(ttHi - SNAP_MIN, press.origin + d));
+      // 壓縮開著時像素和分鐘不是等比，所以要用絕對位置換算，不能用位移量乘係數
+      let v = ttMinAt((pt.y - press.laneTop) - press.grabDy);
+      v = Math.round(v / SNAP_MIN) * SNAP_MIN;
+      v = Math.max(ttLo, Math.min(ttHi - SNAP_MIN, v));
       press.cur = v;
-      press.el.style.top = ((v - ttLo) * PX_PER_MIN) + 'px';
+      press.el.style.top = Math.round(ttY(v)) + 'px';
       const lbl = press.el.querySelector('.tt-b-time');
       if(lbl) lbl.textContent = toClock(v) + '–' + toClock(v + stayOf(press.it));
       return;
@@ -1465,7 +1764,9 @@
     document.addEventListener('touchstart', function(){}, { passive: true });
     // 鍵盤和 Android 返回鍵的使用者要有路可以退出面板
     document.addEventListener('keydown', (e)=>{
-      if(e.key === 'Escape' && sheet){ sheet = null; render(); }
+      if(e.key !== 'Escape') return;
+      if(helpOpen){ helpOpen = false; render(); return; }
+      if(sheet){ sheet = null; render(); }
     });
     document.addEventListener('mousemove', pressMove);
     document.addEventListener('mouseup', pressUp);
@@ -1476,7 +1777,7 @@
 
   function wireTimeline(t, dates){
     app.querySelectorAll('[data-day]').forEach(b=>{
-      b.onclick = ()=>{ curDate = b.dataset.day; sheet = null; render(); };
+      b.onclick = ()=>{ curDate = b.dataset.day; sheet = null; ttExtLo = 0; ttExtHi = 0; render(); };
     });
 
     const findItem = (id)=> items.find(i=>i.id===id);
@@ -1566,13 +1867,20 @@
 
     // 課表上點空白處＝在那個時間加景點。這是主要入口，下面那顆鈕只是備援，
     // 免得第一次用的人不知道空白處可以點。
+    const extUp = document.getElementById('extUp');
+    if(extUp) extUp.onclick = ()=>{ ttExtLo += 1; render(); };
+    const extDown = document.getElementById('extDown');
+    if(extDown) extDown.onclick = ()=>{ ttExtHi += 1; render(); };
+    const sqBtn = document.getElementById('sqToggle');
+    if(sqBtn) sqBtn.onclick = ()=>{ setSqueeze(!squeeze); render(); };
+
     const lane = document.getElementById('ttLane');
     if(lane){
       lane.addEventListener('click', (e)=>{
         if(e.target.closest('.tt-block')) return;   // 點在格子上，交給格子自己處理
         if(suppressClick) return;                   // 剛拖曳完補上來的那個 click
         const box = lane.getBoundingClientRect();
-        let m = ttLo + (e.clientY - box.top) / PX_PER_MIN;
+        let m = ttMinAt(e.clientY - box.top);
         m = Math.round(m / SNAP_MIN) * SNAP_MIN;
         m = Math.max(ttLo, Math.min(ttHi - SNAP_MIN, m));
         sheet = { type:'add', at: m };
@@ -1724,7 +2032,7 @@
       h += '<div class="place-card">' +
         '<div class="pc-name">' + codeTag(p) + esc(p.name) +
           '<span class="tag">' + esc(p.category||'景點') + '</span>' +
-          (inUse ? '' : '<span class="tag soft">口袋名單</span>') + '</div>';
+          (inUse ? '' : '<span class="tag soft">還沒排</span>') + '</div>';
       let sub = '停留 ' + (p.stayMin||60) + ' 分';
       if(p.localName) sub += '　' + esc(p.localName);
       if(p.transitNote) sub += '<br>' + ic('note') + ' ' + esc(p.transitNote);
