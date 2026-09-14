@@ -44,6 +44,7 @@
     --ink: #3A2E22;
     --ink-soft: #8A7A64;
     --line: #E4D9C4;
+    --line-soft: #F0E8DA;
     --accent: #A9744F;
     --accent-deep: #7C5236;
     --accent-soft: #EFE0CB;
@@ -159,21 +160,51 @@
   .daybar button .d2{ display:block; font-size:11px; opacity:.8; }
   .daybar button.half{ border-style:dashed; }
 
-  /* ---------- 時間軸 ---------- */
+  /* ---------- 課表 ---------- */
+  .tt{ position:relative; display:grid; grid-template-columns:44px 1fr; margin-bottom:14px; }
+  .tt-gutter{ position:relative; }
+  .tt-tick{
+    position:absolute; right:8px; transform:translateY(-50%);
+    font-size:11px; color:var(--ink-soft); font-variant-numeric:tabular-nums;
+  }
+  .tt-lane{
+    position:relative; overflow:hidden;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius-sm);
+  }
+  .tt-line{ position:absolute; left:0; right:0; height:1px; background:var(--line-soft); }
+  .tt-line.hr{ background:var(--line); }
+  .tt-block{
+    position:absolute; padding:0 2px; cursor:grab;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+  }
+  .tt-b-in{
+    height:100%; overflow:hidden; padding:4px 8px;
+    background:var(--accent-soft); border:1px solid var(--accent);
+    border-left:3px solid var(--accent-deep); border-radius:var(--radius-sm);
+  }
+  .tt-b-name{ font-size:13px; font-weight:700; color:var(--accent-deep); line-height:1.4; }
+  .tt-b-time{ font-size:11px; color:var(--accent-deep); opacity:.8; font-variant-numeric:tabular-nums; }
+  .tt-b-in.short{ display:flex; align-items:center; gap:8px; padding-top:0; padding-bottom:0; }
+  .tt-b-in.short .tt-b-name{
+    flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .tt-b-in.short .tt-b-time{ flex:none; }
+  .tt-block.drag{ z-index:5; cursor:grabbing; }
+  .tt-block.drag .tt-b-in{ box-shadow:0 8px 20px rgba(58,46,34,.25); border-color:var(--accent-deep); }
+
   .tl-item{
     background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
     padding:12px 14px; margin-bottom:8px; position:relative;
   }
-  .tl-item.pinned{ border-left:4px solid var(--amber); }
-  .tl-item.conflict{ border-color:var(--red); background:var(--red-soft); }
-  .tl-item.after-conflict{ border-left:4px solid var(--red); }
-  .tl-item.dragging{ opacity:.4; }
-  .tl-item.drop-target{ box-shadow:0 -3px 0 var(--accent); }
-
   .tl-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .tl-time{ font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; letter-spacing:.02em; }
-  .tl-item.conflict .tl-time{ color:var(--red); }
   .tl-name{ font-size:15px; font-weight:500; flex:1; min-width:0; }
+  /* width:auto 讓瀏覽器照自己的語系決定寬度。中文 Chrome 會顯示成「上午 09:00」，
+     寫死寬度會把分鐘切掉。 */
+  input.start-time{
+    width:auto; min-width:0; flex:none; padding:4px 7px;
+    font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
+    color:var(--accent-deep); background:var(--accent-soft); border-color:var(--accent);
+  }
   /* 景點名本身就是進景點編輯的入口，畫底線讓人看得出可以點 */
   .tl-name-btn{
     display:block; width:100%; text-align:left; border:0; background:transparent;
@@ -183,24 +214,7 @@
   }
   .tl-name-btn:hover{ text-decoration:underline solid; text-decoration-color:var(--accent); color:var(--accent-deep); }
 
-  /* 釘選：右上角小圖示＋直接可改的時間欄，不跳視窗 */
-  .tl-pin{ display:flex; align-items:center; gap:6px; flex:none; margin-left:auto; }
-  .pin-btn{
-    flex:none; width:30px; height:30px; padding:0; border-radius:50%;
-    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
-    display:grid; place-items:center; cursor:pointer;
-  }
-  .pin-btn .ic{ width:15px; height:15px; vertical-align:0; }
-  .pin-btn.on{ border-color:var(--amber); background:var(--amber-soft); color:var(--amber); }
-  /* width:auto 讓瀏覽器照自己的語系決定寬度。中文 Chrome 會顯示成「下午 07:00」，
-     寫死寬度會把分鐘切掉。 */
-  input.pin-time{
-    width:auto; min-width:0; padding:4px 7px; font-size:13px; font-weight:700;
-    color:var(--amber); background:var(--amber-soft); border-color:var(--amber);
-    font-variant-numeric:tabular-nums;
-  }
   .tl-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.6; }
-  .tl-late{ font-size:12px; color:var(--red); font-weight:700; }
 
   .tl-ctrl{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; align-items:center; }
   .mini{
@@ -211,13 +225,6 @@
   .mini.warn{ border-color:var(--red); color:var(--red); }
   .mini.grab{ cursor:grab; }
   .spacer{ flex:1; }
-
-  .move-row{
-    display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft);
-    padding:2px 14px 10px; margin-top:-4px;
-  }
-  .move-row input{ width:62px; padding:4px 7px; font-size:13px; text-align:center; }
-  .move-row .line{ flex:1; height:1px; background:var(--line); }
 
   .empty{
     border:1px dashed var(--line); border-radius:var(--radius);
@@ -319,21 +326,13 @@
     copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
     pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
     route:'<polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>',
-    tack:'<line x1="12" y1="17" x2="12" y2="22"></line><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path>',
     note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>',
-    warn:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
     plus:'<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
-    up:'<polyline points="18 15 12 9 6 15"></polyline>',
-    down:'<polyline points="6 9 12 15 18 9"></polyline>',
-    grip:'<circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>',
     trash:'<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
     edit:'<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>',
     gear:'<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
     back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
     offline:'<path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line>',
-    check:'<polyline points="20 6 9 17 4 12"></polyline>',
-    link:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>',
-    arrowR:'<line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>',
     chevR:'<polyline points="9 18 15 12 9 6"></polyline>'
   };
   function ic(name){
@@ -572,9 +571,10 @@
   }
 
   // ================= 時間軸推算 =================
-  // 核心規則：抵達時間永不存進資料庫，一律即時算。
-  // 每個項目只存 stayMin（停留）與 moveMin（到下一站）；pinTime 有值就是釘選。
-  function computeDay(dayItems, defaultStart){
+  // 舊版的推算方式：只存順序＋停留＋移動，抵達時間即時算出來。
+  // 改成課表之後每個項目自己存 startTime，這個函式只剩下 ensureItemTimes()
+  // 轉換舊資料時會用到——把當初畫面上顯示的時間原封不動寫回去。
+  function legacyComputeDay(dayItems, defaultStart){
     const rows = [];
     let cur = null;
     let conflicted = false;
@@ -850,8 +850,9 @@
         tab = 'timeline';
         view = 'trip';
         render();
-        // 舊景點補編號；補完再畫一次，不擋住第一次進畫面的速度。
+        // 舊景點補編號、舊行程補開始時間；補完再畫一次，不擋住第一次進畫面的速度。
         await ensurePlaceCodes(curTripId);
+        await ensureItemTimes(curTripId, t);
         render();
       };
     });
@@ -962,8 +963,14 @@
   // ---------- 旅程內頁 ----------
   function curTrip(){ return trips.find(t=>t.id===curTripId); }
 
+  // 課表時代：順序由開始時間決定，order 只在同時間時當個穩定的排序依據。
+  function itemStart(it){
+    const m = toMin(it && it.startTime);
+    return m == null ? 9 * 60 : m;
+  }
   function dayItems(date){
-    return items.filter(i=>i.date===date).sort((a,b)=>(a.order||0)-(b.order||0));
+    return items.filter(i=>i.date===date)
+                .sort((a,b)=> (itemStart(a) - itemStart(b)) || ((a.order||0) - (b.order||0)));
   }
   function placeById(id){ return places.find(p=>p.id===id); }
 
@@ -1031,6 +1038,28 @@
     sortPlaces();
   }
 
+  // 課表化之前的行程只有順序＋停留＋移動，沒有自己的開始時間。
+  // 用舊的推算方式算一次，把當時畫面上顯示的時間直接寫成 startTime，
+  // 姊妹們原本排好的行程才不會因為改版整個跑掉。
+  async function ensureItemTimes(tripId, trip){
+    if(offline) return;
+    const missing = items.filter(it=>!it.startTime);
+    if(!missing.length) return;
+    const dates = [];
+    missing.forEach(it=>{ if(dates.indexOf(it.date) < 0) dates.push(it.date); });
+    for(let d = 0; d < dates.length; d++){
+      const list = items.filter(i=>i.date===dates[d]).sort((a,b)=>(a.order||0)-(b.order||0));
+      const rows = legacyComputeDay(list, trip.dayStart);
+      for(let r = 0; r < rows.length; r++){
+        if(rows[r].item.startTime) continue;
+        // 舊的推算允許跨午夜（會算出 25:00 這種），但 toClock() 會把它繞回 01:00，
+        // 那筆就會跳到當天最前面。轉換時一律壓在 23:45，寧可擠在晚上也不要亂序。
+        rows[r].item.startTime = toClock(Math.min(rows[r].arrive, 23 * 60 + 45));
+        await putItem(tripId, rows[r].item.date, rows[r].item);
+      }
+    }
+  }
+
   function renderTrip(){
     const t = curTrip();
     if(!t){ view='list'; render(); return; }
@@ -1067,7 +1096,60 @@
     else wirePlaces(t);
   }
 
-  // ---------- 時間軸 ----------
+  // ---------- 課表 ----------
+  // 每個項目自己記住 startTime（'HH:MM'），拖到哪就是幾點。
+  // 舊資料只有順序＋停留＋移動，第一次打開時用 legacyComputeDay() 推算一次寫回去。
+  const SNAP_MIN = 15;     // 拖拉吸附到 15 分
+  const GRID_MIN = 30;     // 格線每 30 分一條
+  const PX_PER_MIN = 1;    // 1 分鐘 1px，算式最單純
+  const MIN_BLOCK_PX = 30; // 再短的行程也要看得到名字
+
+  let ttLo = 9 * 60, ttHi = 21 * 60;   // 目前畫出來的時間範圍，拖拉時要用
+
+  function blockLen(it){ return Math.max(Number(it.stayMin) || 0, SNAP_MIN); }
+
+  function dayRange(t, rows){
+    let lo = toMin(t.dayStart);
+    if(lo == null) lo = 9 * 60;
+    let hi = lo + 10 * 60;
+    rows.forEach(r=>{
+      if(r.start < lo) lo = r.start;
+      if(r.end > hi) hi = r.end;
+    });
+    lo = Math.floor(lo / 60) * 60;
+    hi = Math.ceil((hi + 60) / 60) * 60;   // 尾巴多留一小時，才有地方往下拖
+    if(hi > 24 * 60) hi = 24 * 60;
+    if(hi - lo < 6 * 60) hi = Math.min(24 * 60, lo + 6 * 60);
+    return { lo, hi };
+  }
+
+  // 時間重疊的並排顯示。一群互相重疊的算一組，組內每個找第一個放得下的欄位。
+  function layoutDay(list){
+    const rows = list.map(it=>{
+      const start = itemStart(it);
+      return { item: it, start, end: start + blockLen(it), stay: Number(it.stayMin) || 0, col: 0, cols: 1 };
+    });
+    let i = 0;
+    while(i < rows.length){
+      let j = i, groupEnd = rows[i].end;
+      while(j + 1 < rows.length && rows[j + 1].start < groupEnd){
+        j++;
+        if(rows[j].end > groupEnd) groupEnd = rows[j].end;
+      }
+      const group = rows.slice(i, j + 1);
+      const colEnds = [];
+      group.forEach(r=>{
+        let c = 0;
+        while(c < colEnds.length && colEnds[c] > r.start) c++;
+        r.col = c;
+        colEnds[c] = r.end;
+      });
+      group.forEach(r=>{ r.cols = colEnds.length; });
+      i = j + 1;
+    }
+    return rows;
+  }
+
   function timelineHtml(t, dates){
     let h = '<div class="daybar">';
     dates.forEach((d,i)=>{
@@ -1078,82 +1160,98 @@
     });
     h += '</div>';
 
-    const rows = computeDay(dayItems(curDate), t.dayStart);
+    const rows = layoutDay(dayItems(curDate));
+    const range = dayRange(t, rows);
+    ttLo = range.lo;
+    ttHi = range.hi;
 
     if(!rows.length){
       h += '<div class="empty">' + dayLabel(curDate) + ' 還沒有行程</div>';
     }else{
-      h += '<p class="hint">停留和移動都預設 60 分，記得改成大概的實際時間喔</p>';
+      h += '<p class="hint">長按格子可以拖到別的時間，點一下進去改景點</p>';
+      h += timetableHtml(rows);
+      h += dayListHtml(t, rows);
     }
 
+    h += pickerHtml();
+    return h;
+  }
+
+  function timetableHtml(rows){
+    const totalPx = (ttHi - ttLo) * PX_PER_MIN;
+    let h = '<div class="tt" style="height:' + totalPx + 'px">';
+
+    h += '<div class="tt-gutter">';
+    for(let m = ttLo; m < ttHi; m += GRID_MIN){
+      if(m % 60 !== 0) continue;
+      h += '<div class="tt-tick" style="top:' + ((m - ttLo) * PX_PER_MIN) + 'px">' + toClock(m) + '</div>';
+    }
+    h += '</div>';
+
+    h += '<div class="tt-lane" id="ttLane">';
+    for(let m = ttLo + GRID_MIN; m < ttHi; m += GRID_MIN){
+      h += '<div class="tt-line' + ((m % 60 === 0) ? ' hr' : '') + '" style="top:' +
+           ((m - ttLo) * PX_PER_MIN) + 'px"></div>';
+    }
+
+    rows.forEach(r=>{
+      const p = placeById(r.item.placeId);
+      const top = (r.start - ttLo) * PX_PER_MIN;
+      const hgt = Math.max(MIN_BLOCK_PX, (r.end - r.start) * PX_PER_MIN);
+      const w = 100 / r.cols;
+      // 太矮的格子塞不下兩行，名稱和時間改排同一行，不然時間會被裁掉。
+      const short = hgt < 44;
+      h += '<div class="tt-block" data-block="' + esc(r.item.id) + '"' +
+             (p ? ' data-place="' + esc(p.id) + '"' : '') +
+             ' style="top:' + top + 'px;height:' + hgt + 'px;left:' + (r.col * w) + '%;width:' + w + '%">' +
+           '<div class="tt-b-in' + (short ? ' short' : '') + '">' +
+             '<div class="tt-b-name">' + (p ? codeTag(p) + esc(p.name) : '(景點已刪除)') + '</div>' +
+             '<div class="tt-b-time">' + toClock(r.start) + '–' + toClock(r.end) + '</div>' +
+           '</div></div>';
+    });
+
+    h += '</div></div>';
+    return h;
+  }
+
+  // 課表只負責「擺在哪」，改停留時間、開地圖、刪掉這些放在下面這張清單。
+  function dayListHtml(t, rows){
+    let h = '';
     rows.forEach((r, i)=>{
       const p = placeById(r.item.placeId);
-      const name = p ? p.name : '(景點已刪除)';
-      const cls = ['tl-item'];
-      if(r.pinned) cls.push('pinned');
-      if(r.lateBy > 0) cls.push('conflict');
-      else if(r.afterConflict) cls.push('after-conflict');
+      h += '<div class="tl-item">' +
+           '<div class="tl-head">' +
+             '<input type="time" class="start-time" data-start="' + esc(r.item.id) + '" value="' +
+               esc(toClock(r.start)) + '" aria-label="開始時間">' +
+             '<span class="tl-name">' +
+               (p ? '<button class="tl-name-btn" data-goedit="' + esc(p.id) + '">' + codeTag(p) + esc(p.name) + '</button>'
+                  : '(景點已刪除)') +
+             '</span></div>';
 
-      h += '<div class="' + cls.join(' ') + '" data-item="' + esc(r.item.id) + '" data-idx="' + i + '"' +
-           (isMobile?'':' draggable="true"') + '>';
-      h += '<div class="tl-head">' +
-           '<span class="tl-time">' + toHHMM(r.arrive) + '</span>' +
-           '<span class="tl-name">' +
-             (p ? '<button class="tl-name-btn" data-goedit="' + esc(p.id) + '">' + codeTag(p) + esc(name) + '</button>'
-                : esc(name)) +
-           '</span>' +
-           '<span class="tl-pin">' +
-             (r.pinned
-               ? '<input type="time" class="pin-time" data-pintime="' + esc(r.item.id) + '" value="' +
-                 esc(r.item.pinTime) + '" aria-label="釘選時間">'
-               : '') +
-             '<button class="pin-btn' + (r.pinned?' on':'') + '" data-pin="' + esc(r.item.id) + '"' +
-               ' title="' + (r.pinned?'取消釘選':'釘選時間') + '"' +
-               ' aria-label="' + (r.pinned?'取消釘選':'釘選時間') + '">' + ic('tack') + '</button>' +
-           '</span></div>';
-
-      let sub = '停留 ' + r.stay + ' 分　→ ' + toHHMM(r.depart);
+      let sub = '停留 ' + r.stay + ' 分　→ ' + toClock(r.end);
       if(p && p.transitNote) sub += '<br>' + ic('note') + ' ' + esc(p.transitNote);
       h += '<div class="tl-sub">' + sub + '</div>';
-
-      if(r.lateBy > 0){
-        h += '<div class="tl-sub tl-late">' + ic('warn') + ' 比釘選時間晚 ' + r.lateBy + ' 分</div>';
-      }else if(r.pinned && r.slack != null && r.slack > 0){
-        h += '<div class="tl-sub">空檔 ' + r.slack + ' 分</div>';
-      }
 
       h += '<div class="tl-ctrl">' +
         '<button class="mini" data-stay="-15" data-id="' + esc(r.item.id) + '">−15</button>' +
         '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '">＋15</button>';
-
       if(p){
         h += '<button class="mini icon-only" data-nav data-copy="' + esc(p.id) + '" title="複製名稱" aria-label="複製名稱">' + ic('copy') + '</button>' +
              '<button class="mini icon-only" data-nav data-map="' + esc(p.id) + '" title="開地圖" aria-label="開地圖">' + ic('pin') + '</button>';
-        if(i > 0){
+        if(i > 0 && rows[i-1].item.placeId){
           h += '<button class="mini icon-only" data-nav data-route="' + esc(p.id) + '" data-from="' +
                esc(rows[i-1].item.placeId) + '" title="路線" aria-label="路線">' + ic('route') + '</button>';
         }
       }
-
-      h += '<span class="spacer"></span>';
-      if(isMobile){
-        h += '<button class="mini icon-only" data-mv="up" data-id="' + esc(r.item.id) + '"' + (i===0?' disabled':'') + ' aria-label="往前移">' + ic('up') + '</button>' +
-             '<button class="mini icon-only" data-mv="down" data-id="' + esc(r.item.id) + '"' + (i===rows.length-1?' disabled':'') + ' aria-label="往後移">' + ic('down') + '</button>';
-      }else{
-        h += '<span class="mini grab icon-only" title="拖我換順序">' + ic('grip') + '</span>';
-      }
-      h += '<button class="mini warn icon-only" data-del="' + esc(r.item.id) + '" title="從這天移除" aria-label="從這天移除">' + ic('trash') + '</button>';
-      h += '</div></div>';
-
-      if(i < rows.length-1){
-        h += '<div class="move-row"><span class="line"></span>移動 ' +
-             '<input type="number" min="0" step="5" value="' + r.move + '" data-move="' + esc(r.item.id) + '"> 分' +
-             '<span class="line"></span></div>';
-      }
+      h += '<span class="spacer"></span>' +
+        '<button class="mini warn icon-only" data-del="' + esc(r.item.id) + '" title="從這天移除" aria-label="從這天移除">' + ic('trash') + '</button>' +
+        '</div></div>';
     });
+    return h;
+  }
 
-    // 新增：帶搜尋框的下拉
-    h += '<div class="card" style="margin-top:14px">';
+  function pickerHtml(){
+    let h = '<div class="card" style="margin-top:14px">';
     if(!pickerOpen){
       h += '<button class="btn wide ghost" id="openPicker">' + ic('plus') + '加入景點</button>';
     }else{
@@ -1177,11 +1275,92 @@
       h += '<button class="btn wide ghost" id="closePicker" style="margin-top:8px">取消</button>';
     }
     h += '</div>';
-
-    if(!isMobile && rows.length > 1){
-      h += '<p class="hint desktop-only">可以直接拖拉換順序</p>';
-    }
     return h;
+  }
+
+  function openPlaceEdit(p){
+    editingPlace = Object.assign({}, p);
+    tab = 'places';
+    pickerOpen = false;
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- 課表拖拉 ----------
+  // 手機優先：長按 300ms 才進入拖曳，之前照常捲動頁面。
+  // 不用 HTML5 drag（iOS Safari 不支援），也不寫 touch-action:none（會整個擋掉捲動）；
+  // 改成進入拖曳後才在非 passive 的 touchmove 裡 preventDefault。
+  let press = null;
+  let dragWired = false;
+
+  function pointOf(e){
+    const p = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    return { x: p.clientX, y: p.clientY };
+  }
+
+  function pressDown(el, it, e){
+    const pt = pointOf(e);
+    press = {
+      el, it, x: pt.x, y: pt.y,
+      origin: itemStart(it), cur: null, dragging: false, timer: null
+    };
+    press.timer = setTimeout(()=>{
+      if(!press) return;
+      press.timer = null;
+      press.dragging = true;
+      press.el.classList.add('drag');
+      if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(err){} }
+    }, 300);
+  }
+
+  function pressMove(e){
+    if(!press) return;
+    const pt = pointOf(e);
+    if(press.dragging){
+      if(e.cancelable) e.preventDefault();
+      const d = Math.round(((pt.y - press.y) / PX_PER_MIN) / SNAP_MIN) * SNAP_MIN;
+      const v = Math.max(ttLo, Math.min(ttHi - SNAP_MIN, press.origin + d));
+      press.cur = v;
+      press.el.style.top = ((v - ttLo) * PX_PER_MIN) + 'px';
+      const lbl = press.el.querySelector('.tt-b-time');
+      if(lbl) lbl.textContent = toClock(v) + '–' + toClock(v + blockLen(press.it));
+      return;
+    }
+    // 還沒長按就先動了，當成使用者要捲動，放掉這次
+    if(Math.abs(pt.y - press.y) > 8 || Math.abs(pt.x - press.x) > 8){
+      clearTimeout(press.timer);
+      press = null;
+    }
+  }
+
+  async function pressUp(){
+    if(!press) return;
+    const p = press;
+    press = null;
+    if(p.timer) clearTimeout(p.timer);
+
+    if(p.dragging){
+      p.el.classList.remove('drag');
+      if(p.cur == null || p.cur === p.origin){ render(); return; }
+      p.it.startTime = toClock(p.cur);
+      await putItem(curTripId, p.it.date, p.it);
+      render();
+      return;
+    }
+    // 沒長按也沒移動＝點一下，進去改那個景點
+    const pl = p.el.dataset.place ? placeById(p.el.dataset.place) : null;
+    if(pl) openPlaceEdit(pl);
+  }
+
+  // document 上的監聽只掛一次，否則每次 render 都會疊一層。
+  function wireDragOnce(){
+    if(dragWired) return;
+    dragWired = true;
+    document.addEventListener('mousemove', pressMove);
+    document.addEventListener('mouseup', pressUp);
+    document.addEventListener('touchmove', pressMove, { passive: false });
+    document.addEventListener('touchend', pressUp);
+    document.addEventListener('touchcancel', pressUp);
   }
 
   function wireTimeline(t, dates){
@@ -1190,6 +1369,28 @@
     });
 
     const findItem = (id)=> items.find(i=>i.id===id);
+
+    wireDragOnce();
+    if(!offline){
+      app.querySelectorAll('[data-block]').forEach(el=>{
+        const it = findItem(el.dataset.block);
+        if(!it) return;
+        el.addEventListener('mousedown', (e)=>{ if(e.button === 0) pressDown(el, it, e); });
+        el.addEventListener('touchstart', (e)=>{ pressDown(el, it, e); }, { passive: true });
+      });
+    }
+
+    app.querySelectorAll('[data-start]').forEach(inp=>{
+      inp.onchange = async ()=>{
+        const it = findItem(inp.dataset.start);
+        if(!it) return;
+        const v = inp.value.trim();
+        if(toMin(v) == null){ render(); return; }   // 被清空就當沒改
+        it.startTime = v;
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
 
     app.querySelectorAll('[data-stay]').forEach(b=>{
       b.onclick = async ()=>{
@@ -1201,78 +1402,10 @@
       };
     });
 
-    app.querySelectorAll('[data-move]').forEach(inp=>{
-      inp.onchange = async ()=>{
-        const it = findItem(inp.dataset.move);
-        if(!it) return;
-        it.moveMin = Math.max(0, Number(inp.value)||0);
-        await putItem(curTripId, it.date, it);
-        render();
-      };
-    });
-
-    // 釘選＝右上角小錨點。開啟時直接拿目前推算到的時間當預設值，
-    // 旁邊就跳出可以改的時間欄，不再跳 prompt 視窗。
-    app.querySelectorAll('[data-pin]').forEach(b=>{
-      b.onclick = async ()=>{
-        const it = findItem(b.dataset.pin);
-        if(!it) return;
-        if(it.pinTime){
-          it.pinTime = null;
-        }else{
-          const rows = computeDay(dayItems(curDate), t.dayStart);
-          const r = rows.find(x=>x.item.id===it.id);
-          it.pinTime = toClock(r ? r.arrive : null);
-        }
-        await putItem(curTripId, it.date, it);
-        render();
-      };
-    });
-
-    app.querySelectorAll('[data-pintime]').forEach(inp=>{
-      inp.onchange = async ()=>{
-        const it = findItem(inp.dataset.pintime);
-        if(!it) return;
-        // 時間欄被清空（手機上按「清除」）＝取消釘選，不要存成空字串。
-        const v = inp.value.trim();
-        it.pinTime = (toMin(v) == null) ? null : v;
-        await putItem(curTripId, it.date, it);
-        render();
-      };
-    });
-
-    // 點景點名＝切到景點分頁並直接打開那個景點的編輯表單。
     app.querySelectorAll('[data-goedit]').forEach(b=>{
       b.onclick = ()=>{
         const p = placeById(b.dataset.goedit);
-        if(!p) return;
-        editingPlace = Object.assign({}, p);
-        tab = 'places';
-        pickerOpen = false;
-        render();
-        window.scrollTo(0, 0);
-      };
-    });
-
-    app.querySelectorAll('[data-mv]').forEach(b=>{
-      b.onclick = async ()=>{
-        const list = dayItems(curDate);
-        const i = list.findIndex(x=>x.id===b.dataset.id);
-        const j = b.dataset.mv === 'up' ? i-1 : i+1;
-        if(i<0 || j<0 || j>=list.length) return;
-        // 兩個人同時新增會算出一樣的 order，這時互換等於沒換、按鈕看起來壞掉。
-        // 先把當天重新編號成 10/20/30…，再交換，才保證一定動得了。
-        for(let k=0; k<list.length; k++){
-          if(list[k].order !== (k+1)*10){
-            list[k].order = (k+1)*10;
-            await putItem(curTripId, list[k].date, list[k]);
-          }
-        }
-        const a = list[i], c = list[j];
-        const tmp = a.order; a.order = c.order; c.order = tmp;
-        await putItem(curTripId, a.date, a);
-        await putItem(curTripId, c.date, c);
-        render();
+        if(p) openPlaceEdit(p);
       };
     });
 
@@ -1369,15 +1502,23 @@
       };
     }
 
+    // 接在當天最後一個行程後面；那天還沒有東西就從旅程設定的起點時間開始。
     async function addToDay(placeId){
       const p = placeById(placeId);
       const list = dayItems(curDate);
+      let start = toMin(t.dayStart);
+      if(start == null) start = 9 * 60;
+      if(list.length){
+        const last = list[list.length - 1];
+        start = itemStart(last) + blockLen(last);
+      }
+      if(start > 23 * 60 + 45) start = 23 * 60 + 45;
       const it = {
         id: uid('ti'), date: curDate, placeId,
-        order: list.length ? (list[list.length-1].order||0) + 10 : 10,
+        startTime: toClock(start),
+        order: (list.length + 1) * 10,
         stayMin: p ? (p.stayMin||60) : 60,
-        moveMin: 60,
-        pinTime: null, note:'',
+        note:'',
         createdBy: me, savedAt:new Date().toISOString()
       };
       const ok = await putItem(curTripId, curDate, it);
@@ -1386,49 +1527,6 @@
       pickerOpen = false;
       pickerQuery = '';
       render();
-    }
-
-    // 電腦版拖拉排序
-    if(!isMobile){
-      let dragId = null;
-      app.querySelectorAll('.tl-item').forEach(el=>{
-        el.addEventListener('dragstart', (e)=>{
-          dragId = el.dataset.item;
-          el.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-          try{ e.dataTransfer.setData('text/plain', dragId); }catch(err){}
-        });
-        el.addEventListener('dragend', ()=>{
-          el.classList.remove('dragging');
-          app.querySelectorAll('.tl-item').forEach(x=>x.classList.remove('drop-target'));
-        });
-        el.addEventListener('dragover', (e)=>{
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          if(el.dataset.item !== dragId) el.classList.add('drop-target');
-        });
-        el.addEventListener('dragleave', ()=>{ el.classList.remove('drop-target'); });
-        el.addEventListener('drop', async (e)=>{
-          e.preventDefault();
-          el.classList.remove('drop-target');
-          const targetId = el.dataset.item;
-          if(!dragId || dragId === targetId) return;
-          const list = dayItems(curDate);
-          const from = list.findIndex(x=>x.id===dragId);
-          const to = list.findIndex(x=>x.id===targetId);
-          if(from<0 || to<0) return;
-          const moved = list.splice(from,1)[0];
-          list.splice(to,0,moved);
-          // 重新發號，一次寫回所有受影響的項目
-          for(let i=0;i<list.length;i++){
-            if(list[i].order !== (i+1)*10){
-              list[i].order = (i+1)*10;
-              await putItem(curTripId, list[i].date, list[i]);
-            }
-          }
-          render();
-        });
-      });
     }
   }
 
