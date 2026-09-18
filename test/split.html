@@ -54,6 +54,12 @@
     --red-soft: #F3E2DC;
     --amber: #C08A34;
     --amber-soft: #F5EAD3;
+    /* 語意色疊在自己的淺底上要另外一組。--red/--green/--amber 是照「放在 --bg-card
+       上」調的（4.59／4.55／2.98），一放到同色淺底就掉到 3.72／3.81／2.54，小字過不了
+       4.5:1。文字疊在 -soft 底色上一律用這三個，實心按鈕和框線維持用原本的。 */
+    --red-ink: #A04E3D;     /* 4.58 on --red-soft */
+    --green-ink: #5E6B46;   /* 4.72 on --green-soft */
+    --amber-ink: #8A6220;   /* 4.57 on --amber-soft */
     --radius: 16px;
     --radius-sm: 10px;
     /* 疊層順序集中在這裡，不要在各處自己填數字 */
@@ -146,7 +152,9 @@
   /* 核取方塊不適用上面的最小高度，會被撐成一個 44px 的大方塊。
      觸控範圍改由包住它的整列 .split-row 提供。 */
   input[type="checkbox"], input[type="radio"]{ width:auto; min-height:0; }
-  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-soft); outline-offset:1px; }
+  /* --accent-soft 對卡片底只有 1.28:1，等於把瀏覽器原本看得見的外框換成看不見的。
+     焦點指示要 3:1，改用跟 button:focus-visible 同一個 --accent-deep（6.63:1）。 */
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-deep); outline-offset:1px; }
 
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳出外框。 */
   button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
@@ -183,9 +191,9 @@
   .row-amt{ display:grid; grid-template-columns:1fr 100px; gap:10px; }
 
   .msg{ font-size:13px; padding:9px 12px; border-radius:var(--radius-sm); margin-bottom:12px; line-height:1.6; }
-  .msg.err{ background:var(--red-soft); color:var(--red); }
-  .msg.ok{ background:var(--green-soft); color:var(--green); }
-  .msg.warn{ background:var(--amber-soft); color:#8a6220; }
+  .msg.err{ background:var(--red-soft); color:var(--red-ink); }
+  .msg.ok{ background:var(--green-soft); color:var(--green-ink); }
+  .msg.warn{ background:var(--amber-soft); color:var(--amber-ink); }
 
   .book-card{
     background:var(--bg-card); border:1px solid var(--line);
@@ -207,7 +215,7 @@
   .tag{ display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px;
         border:1px solid var(--line); color:var(--ink-soft); background:#fff; margin-left:6px; }
   .tag.soft{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
-  .tag.hot{ border-color:var(--red); color:var(--red); background:var(--red-soft); }
+  .tag.hot{ border-color:var(--red); color:var(--red-ink); background:var(--red-soft); }
 
   .tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
   .tabs button{ border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
@@ -562,6 +570,23 @@
   }
 
   // ================= 載入 =================
+  // 一份名單、分站開放。旅程與記帳共用 canTrip；沒有這個欄位的是改版前就存在的
+  // 成員，一律當作全開，不要讓誰突然消失。運動排程站的 canSport 同一套寫法。
+  function inTrip(p){ return p && p.canTrip !== false; }
+  // people 本身永遠是完整名單（依 id 查名字、既有旅程／帳本的成員都要用），
+  // 選人與挑成員的畫面才走 tripPeople()。
+  function tripPeople(){ return people.filter(inTrip); }
+
+  // 挑成員的清單＝現在開放旅遊記帳的人，再補上已經被選進來的舊成員。
+  function memberChoices(ids){
+    const roster = tripPeople();
+    const extra = (ids || [])
+      .filter(id => !roster.some(p => p.id === id))
+      .map(id => people.find(p => p.id === id))
+      .filter(Boolean);
+    return roster.concat(extra);
+  }
+
   function hydrate(all){
     allData = all;
     people = parseVal(all['people-list']) || [];
@@ -633,7 +658,8 @@
   // ================= 畫面 =================
   function flash(){
     if(!msg) return '';
-    const h = '<div class="msg ' + msg.type + '">' + esc(msg.text) + '</div>';
+    // role="alert" 讀螢幕才會把錯誤念出來，畫面上看不出差別
+    const h = '<div class="msg ' + msg.type + '" role="alert">' + esc(msg.text) + '</div>';
     msg = null;
     return h;
   }
@@ -754,15 +780,16 @@
   let pendingPersonId = null;
 
   function renderPick(){
-    if(!people.length){
+    const roster = tripPeople();
+    if(!roster.length){
       app.innerHTML = flash() + '<div class="card"><h1>還沒有成員資料</h1>' +
-        '<p class="desc">這個頁面共用運動排程站的成員清單，請先到 <a href="index.html">主站</a> 建立成員。</p></div>';
+        '<p class="desc">請先到 <a href="index.html">主站</a> 建立成員，並開放「旅遊記帳」。</p></div>';
       return;
     }
     let h = flash() + '<div class="card"><h1>你是哪位快樂姊妹？</h1>' +
       '<p class="desc">選擇你的名字，密碼跟運動排程站是同一組。</p>' +
       '<div class="people-grid">';
-    people.forEach(p=>{
+    roster.forEach(p=>{
       h += '<button class="person-btn" data-pick="' + esc(p.id) + '" data-nav>' +
            esc(p.name) + '</button>';
     });
@@ -906,7 +933,9 @@
     h += '<div id="rateBox"></div>';
 
     h += '<label class="fld" style="margin-top:14px"><span>成員</span></label>';
-    people.forEach(p=>{
+    // 已經在這本帳裡、但後來被關掉「旅遊記帳」的人也要列出來（勾著），
+    // 否則一存檔就被靜靜地踢出帳本，分攤全部要重算。
+    memberChoices(b.memberIds).forEach(p=>{
       const on = (b.memberIds||[]).indexOf(p.id) >= 0;
       const isMe = p.id === me;
       h += '<div class="split-row">' +
@@ -1431,7 +1460,7 @@
     await waitForFirebase();
     await refresh();
     const saved = recallMe();
-    if(saved && people.some(p=>p.id===saved)){ me = saved; view='list'; }
+    if(saved && tripPeople().some(p=>p.id===saved)){ me = saved; view='list'; }
     else{
       view = 'pick';
       if(offline) msg = {type:'warn', text:'離線中而且這台裝置還沒登入過。請先連上網路登入一次，之後沒網路也進得來。'};

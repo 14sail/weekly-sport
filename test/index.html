@@ -66,6 +66,12 @@
     --red-soft: #F3E2DC;
     --amber: #C08A34;
     --amber-soft: #F5EAD3;
+    /* 語意色疊在自己的淺底上要另外一組。--red/--green/--amber 是照「放在 --bg-card
+       上」調的（4.59／4.55／2.98），一放到同色淺底就掉到 3.72／3.81／2.54，小字過不了
+       4.5:1。文字疊在 -soft 底色上一律用這三個，實心按鈕和框線維持用原本的。 */
+    --red-ink: #A04E3D;     /* 4.58 on --red-soft */
+    --green-ink: #5E6B46;   /* 4.72 on --green-soft */
+    --amber-ink: #8A6220;   /* 4.57 on --amber-soft */
     --radius: 16px;
     --radius-sm: 10px;
   }
@@ -191,7 +197,7 @@
     color:var(--accent-deep);
     cursor:pointer;
   }
-  .person-btn.teacher{ background:var(--green-soft); color:var(--green); border-color:#D3DCC3; }
+  .person-btn.teacher{ background:var(--green-soft); color:var(--green-ink); border-color:#D3DCC3; }
   .person-btn:active{ transform:scale(0.97); }
 
   /* ---- 週卡片 ---- */
@@ -223,9 +229,9 @@
     cursor:pointer;
     white-space:nowrap;
   }
-  .status-btn[data-v="free"].active{ background:var(--green-soft); color:var(--green); border-color:#B9C79E; font-weight:700;}
-  .status-btn[data-v="busy"].active{ background:var(--red-soft); color:var(--red); border-color:#DDB2A4; font-weight:700;}
-  .status-btn[data-v="maybe"].active{ background:var(--amber-soft); color:var(--amber); border-color:#E7C989; font-weight:700;}
+  .status-btn[data-v="free"].active{ background:var(--green-soft); color:var(--green-ink); border-color:#B9C79E; font-weight:700;}
+  .status-btn[data-v="busy"].active{ background:var(--red-soft); color:var(--red-ink); border-color:#DDB2A4; font-weight:700;}
+  .status-btn[data-v="maybe"].active{ background:var(--amber-soft); color:var(--amber-ink); border-color:#E7C989; font-weight:700;}
   .status-options.readonly .status-btn{ pointer-events:none; opacity:.65; }
 
   textarea.note{
@@ -330,9 +336,9 @@
   .summary-head .badge{
     font-size:11px; padding:3px 9px; border-radius:12px; font-weight:700;
   }
-  .badge.best{ background:var(--green-soft); color:var(--green); }
+  .badge.best{ background:var(--green-soft); color:var(--green-ink); }
   .badge.normal{ background:var(--line); color:var(--ink-soft); }
-  .badge.noteacher{ background:var(--red-soft); color:var(--red); }
+  .badge.noteacher{ background:var(--red-soft); color:var(--red-ink); }
   .summary-names{ font-size:12px; color:var(--ink-soft); margin-top:8px; line-height:1.6; }
   .summary-names b{ color:var(--ink); }
   .name-tag{ display:inline-block; margin:2px 4px 2px 0; padding:2px 7px; border-radius:10px; font-size:11px; }
@@ -347,9 +353,9 @@
   .sport-comments{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
   .sport-comments .note-line{ margin-top:0; margin-bottom:4px; }
   .sport-comments .add-row{ margin-top:8px; margin-bottom:0; }
-  .name-tag.free{ background:var(--green-soft); color:var(--green); }
-  .name-tag.busy{ background:var(--red-soft); color:var(--red); }
-  .name-tag.maybe{ background:var(--amber-soft); color:var(--amber); }
+  .name-tag.free{ background:var(--green-soft); color:var(--green-ink); }
+  .name-tag.busy{ background:var(--red-soft); color:var(--red-ink); }
+  .name-tag.maybe{ background:var(--amber-soft); color:var(--amber-ink); }
   .note-line{ font-size:11px; color:var(--ink-soft); margin-top:4px; font-style:italic; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
 
   .field{ margin-bottom:14px; }
@@ -363,6 +369,9 @@
   /* 可點的東西至少 44px。核取方塊要排除，否則會被撐成大方塊。 */
   input, select, textarea{ min-height:44px; }
   input[type="checkbox"], input[type="radio"]{ min-height:0; }
+  /* --accent-soft 對卡片底只有 1.28:1，等於把瀏覽器原本看得見的外框換成看不見的。
+     焦點指示要 3:1，改用跟 button:focus-visible 同一個 --accent-deep（6.63:1）。 */
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-deep); outline-offset:1px; }
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳框。 */
   button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
     outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:var(--radius-sm);
@@ -415,11 +424,25 @@
   /* ---- admin ---- */
   .admin-lock{ text-align:center; padding-top:12px; padding-bottom:12px; }
   .admin-row{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:10px 0; border-top:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:stretch; gap:8px;
+    padding:12px 0; border-top:1px solid var(--line);
   }
   .admin-row:first-of-type{ border-top:none; }
-  .pill{ font-size:11px; padding:3px 9px; border-radius:10px; background:var(--green-soft); color:var(--green); font-weight:700; }
+  .admin-who{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .admin-pw{ font-size:11px; color:var(--ink-soft); }
+  /* 開放哪幾站：一排分站開關，按著就是開。gap 8px＝感應範圍外擴值的兩倍 */
+  .admin-acc{ display:flex; gap:8px; }
+  .acc-btn{
+    flex:1; min-height:44px; padding:0 8px; font-family:inherit; font-size:12px; font-weight:700;
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--bg-card); color:var(--ink); cursor:pointer;
+  }
+  .acc-btn.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; }
+  .acc-btn:active{ background:var(--accent-soft); }
+  .acc-btn.on:active{ background:var(--accent-deep); filter:brightness(.9); }
+  .admin-ops{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  .admin-ops .del-btn{ min-height:44px; padding:0 4px; }
+  .pill{ font-size:11px; padding:3px 9px; border-radius:10px; background:var(--green-soft); color:var(--green-ink); font-weight:700; }
   .del-btn{ background:none; border:none; color:var(--red); font-size:12px; cursor:pointer; }
   .add-row{ display:flex; gap:8px; margin-top:14px; margin-bottom:16px; }
   .add-row input{ flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-sm); font-family:inherit; }
@@ -699,7 +722,16 @@
   // 哪天要開回來把這裡改成 true 就好，不用重寫。
   const SHOW_ANNOUNCE_GENERATOR = false;
 
-  let people = [];       // [{id, name, isTeacher, password}]
+  let people = [];       // [{id, name, isTeacher, password, canSport, canTrip, canSis}]
+
+  // 一份名單、分站開放。canSport 管運動排程站，canTrip 管旅程與記帳兩站。
+  // 沒有這兩個欄位的是改版前就存在的成員，一律當作全開，不要讓誰突然消失。
+  // 三站都用同一組判斷，改了這裡就要三站一起改（SPEC 第 6 節）。
+  function inSport(p){ return p && p.canSport !== false; }
+  function inTrip(p){ return p && p.canTrip !== false; }
+  // people 本身永遠是完整名單（管理面板、依 id 查名字都要用），
+  // 畫給運動排程站看的地方一律走 sportPeople()。
+  function sportPeople(){ return people.filter(inSport); }
   let currentPersonId = null;
   let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | teacherPeek | sisters | admin
   let teacherTab = 'summary'; // summary | fill | announce | sports (老師視角內部切換用)
@@ -796,9 +828,9 @@
     else{
       // 預設種子資料
       people = [
-        {id:'p1', name:'老師', isTeacher:true, password:''},
-        {id:'p2', name:'同學A', isTeacher:false, password:''},
-        {id:'p3', name:'同學B', isTeacher:false, password:''}
+        {id:'p1', name:'老師', isTeacher:true, password:'', canSport:true, canTrip:false},
+        {id:'p2', name:'同學A', isTeacher:false, password:'', canSport:true, canTrip:false},
+        {id:'p3', name:'同學B', isTeacher:false, password:'', canSport:true, canTrip:false}
       ];
       await sSet('people-list', people, true);
     }
@@ -898,8 +930,9 @@
 
   // ---------- 畫面：選擇使用者 ----------
   async function renderPickPerson(){
-    const teacher = people.find(p=>p.isTeacher);
-    const students = people.filter(p=>!p.isTeacher);
+    const roster = sportPeople();
+    const teacher = roster.find(p=>p.isTeacher);
+    const students = roster.filter(p=>!p.isTeacher);
     const lobbyAnnounce = await sGet('lobby-announce', true);
     const lobbyHtml = (lobbyAnnounce && lobbyAnnounce.text && lobbyAnnounce.text.trim())
       ? `<div class="card"><div class="notice-card">${escapeHtml(lobbyAnnounce.text)}<span class="notice-time">更新於 ${fmtDateTime(lobbyAnnounce.updatedAt)}</span></div></div>`
@@ -982,7 +1015,7 @@
           <input type="password" id="pw2" placeholder="確認密碼">
         </div>
         <button class="save-btn" id="setPwBtn">完成設定並進入</button>
-        <div class="save-flash" id="setPwFlash"></div>
+        <div class="save-flash" role="alert" id="setPwFlash"></div>
       </div>
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
     `;
@@ -1030,7 +1063,7 @@
           <input type="password" id="pwInput" placeholder="輸入你的密碼">
         </div>
         <button class="save-btn" id="pwSubmit">進入</button>
-        <div class="save-flash" id="pwFlash"></div>
+        <div class="save-flash" role="alert" id="pwFlash"></div>
         <div class="hint-text">忘記密碼請洽管理員重設</div>
       </div>
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
@@ -1090,7 +1123,7 @@
           <input type="password" id="newPw2" placeholder="不改密碼請留空">
         </div>
         <button class="save-btn" id="editSubmit">儲存修改</button>
-        <div class="save-flash" id="editFlash"></div>
+        <div class="save-flash" role="alert" id="editFlash"></div>
       </div>
       <div class="footer-link"><a href="#" id="backLink">返回</a></div>
     `;
@@ -1188,7 +1221,7 @@
         <div class="note-label">給老師的備註（選填）</div>
         <textarea class="note" id="noteInput" placeholder="例如：這週想打羽球、或身體微恙先觀望…">${escapeHtml(existing.note||'')}</textarea>
         <button class="save-btn" id="saveBtn">儲存這週的回覆</button>
-        <div class="save-flash" id="saveFlash"></div>
+        <div class="save-flash" role="alert" id="saveFlash"></div>
       `;
     } else {
       sportsList = await loadSportsList();
@@ -1302,7 +1335,7 @@
 
     // 撈這週所有人的回覆
     const allResp = {};
-    for(const p of people){
+    for(const p of sportPeople()){
       const key = 'resp:'+week.weekKey+':'+p.id;
       const r = await sGet(key, true);
       if(r) allResp[p.id] = r;
@@ -1317,7 +1350,7 @@
     // 計算每天統計
     const dayStats = week.days.map(d=>{
       const freeList=[], busyList=[], maybeList=[], noAnswerList=[];
-      people.forEach(p=>{
+      sportPeople().forEach(p=>{
         if(p.isTeacher) return;
         const st = allResp[p.id] ? allResp[p.id].statuses[d.key] : null;
         if(st==='free') freeList.push(p);
@@ -1414,7 +1447,7 @@
         `;
       });
       // 備註彙整
-      const notes = people.filter(p=>!p.isTeacher).map(p=>{
+      const notes = sportPeople().filter(p=>!p.isTeacher).map(p=>{
         const r = allResp[p.id];
         return (r && r.note) ? {name:p.name, note:r.note} : null;
       }).filter(Boolean);
@@ -1445,7 +1478,7 @@
       bodyHtml += `<textarea class="note" id="teacherNoteInput" placeholder="例如：這週想打羽球、或身體微恙先觀望…" ${readOnly?'readonly':''}>${escapeHtml(teacherResp.note||'')}</textarea>`;
       if(!readOnly){
         bodyHtml += `<button class="save-btn" id="teacherSaveBtn">儲存這週的回覆</button>`;
-        bodyHtml += `<div class="save-flash" id="teacherSaveFlash"></div>`;
+        bodyHtml += `<div class="save-flash" role="alert" id="teacherSaveFlash"></div>`;
       }
     } else if(tab==='announce'){
       // 兩種公告收在同一個分頁，先「這一週的」再「常設的」——
@@ -1455,13 +1488,13 @@
         bodyHtml += `<p class="desc">只屬於 ${fmtShort(week.monday)} - ${fmtShort(week.days[4].date)} 這一週。所有人（含老師）打開本週頁面時，會顯示在最上方。</p>`;
         bodyHtml += `<textarea class="note" id="noticeInput" placeholder="例如：這週場地臨時更換，請留意 LINE 群組通知…">${escapeHtml(weekNotice ? weekNotice.text||'' : '')}</textarea>`;
         bodyHtml += `<button class="save-btn" id="noticeSaveBtn">儲存本週注意事項</button>`;
-        bodyHtml += `<div class="save-flash" id="noticeSaveFlash"></div>`;
+        bodyHtml += `<div class="save-flash" role="alert" id="noticeSaveFlash"></div>`;
 
         bodyHtml += `<h2 style="margin-top:28px;">大廳公告</h2>`;
         bodyHtml += `<p class="desc">不分週的常設訊息，改一次就一直掛著。所有人在「選擇身份」畫面的最上方都看得到，不用登入。</p>`;
         bodyHtml += `<textarea class="note" id="lobbyAnnounceInput" placeholder="例如：下次運動時間是6/30 18:00 打籃球">${escapeHtml(lobbyAnnounce ? lobbyAnnounce.text||'' : '')}</textarea>`;
         bodyHtml += `<button class="save-btn" id="lobbySaveBtn">儲存大廳公告</button>`;
-        bodyHtml += `<div class="save-flash" id="lobbySaveFlash"></div>`;
+        bodyHtml += `<div class="save-flash" role="alert" id="lobbySaveFlash"></div>`;
       }
       // 公告產生
       if(SHOW_ANNOUNCE_GENERATOR){
@@ -1483,7 +1516,7 @@
         bodyHtml += `<div class="note-label">公告文字${readOnly?'':'（可自行編輯後再複製）'}</div>`;
         bodyHtml += `<textarea class="announce-box" id="announceBox" ${readOnly?'readonly':''}>${savedAnnounce ? buildAnnounceText(savedAnnounce, dayStats) : '尚未產生公告，選好日期與運動後按上方按鈕。'}</textarea>`;
         bodyHtml += `<button class="copy-btn" id="copyBtn">複製公告(貼上line)</button>`;
-        bodyHtml += `<div class="save-flash" id="copyFlash"></div>`;
+        bodyHtml += `<div class="save-flash" role="alert" id="copyFlash"></div>`;
       } else {
         bodyHtml += `<div class="empty">老師尚未產生公告</div>`;
       }
@@ -2214,7 +2247,7 @@
       </div>
     `).join('') : '<div class="empty">還沒有組合。</div>';
 
-    const others = people.filter(p=>p.id !== currentPersonId);
+    const others = sportPeople().filter(p=>p.id !== currentPersonId);
     const pickHtml = others.map(p=>`
       <div class="sis-opt ${sisNewSel.indexOf(p.id)>=0?'on':''}" data-pick="${p.id}">${sisNewSel.indexOf(p.id)>=0?'✓ ':''}${escapeHtml(p.name)}</div>
     `).join('');
@@ -2243,7 +2276,7 @@
         <div class="sis-lab">顏色</div>
         <div class="sis-swatches">${swatchHtml}</div>
         <button class="sis-btn" id="sisCreateGroup" style="margin-top:16px">建立組合</button>
-        <div class="save-flash" id="sisGroupFlash"></div>
+        <div class="save-flash" role="alert" id="sisGroupFlash"></div>
       </div>
     `;
   }
@@ -2444,7 +2477,7 @@
             <button class="sis-btn" id="sisSaveGroup">儲存</button>
           </div>
           <button class="sis-btn danger" id="sisDeleteGroup" style="margin-top:9px">刪除這個組合</button>
-          <div class="save-flash" id="sisSheetFlash"></div>
+          <div class="save-flash" role="alert" id="sisSheetFlash"></div>
         </div>
       `;
     }
@@ -2488,7 +2521,7 @@
           <button class="sis-btn" id="sisSaveMeet">儲存</button>
         </div>
         ${editing ? '<button class="sis-btn danger" id="sisDeleteMeet" style="margin-top:9px">刪除這筆紀錄</button>' : ''}
-        <div class="save-flash" id="sisSheetFlash"></div>
+        <div class="save-flash" role="alert" id="sisSheetFlash"></div>
       </div>
     `;
   }
@@ -2774,7 +2807,7 @@
           <input type="password" id="pwInput" placeholder="密碼">
         </div>
         <button class="save-btn" id="pwSubmit">進入管理</button>
-        <div class="save-flash" id="pwFlash"></div>
+        <div class="save-flash" role="alert" id="pwFlash"></div>
       </div>
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
     `;
@@ -2795,14 +2828,22 @@
   }
 
   function renderAdminPanel(){
+    const accBtn = (id, action, label, on) =>
+      `<button class="acc-btn${on?' on':''}" data-action="${action}" data-id="${id}" aria-pressed="${on?'true':'false'}">${label}</button>`;
     let rowsHtml = people.map(p=>`
       <div class="admin-row">
-        <div>${escapeHtml(p.name)} ${p.isTeacher?'<span class="pill">老師</span>':''}${p.canSis?'<span class="pill" style="background:var(--accent-soft); color:var(--accent-deep); margin-left:4px;">行事曆</span>':''}
-          <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${p.password ? '已設定密碼' : '尚未設定密碼'}</div>
+        <div class="admin-who">
+          <span>${escapeHtml(p.name)}</span>
+          ${p.isTeacher?'<span class="pill">老師</span>':''}
+          <span class="admin-pw">${p.password ? '已設定密碼' : '尚未設定密碼'}</span>
         </div>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+        <div class="admin-acc">
+          ${accBtn(p.id, 'toggleSport', '運動', inSport(p))}
+          ${accBtn(p.id, 'toggleTrip', '旅遊記帳', inTrip(p))}
+          ${accBtn(p.id, 'toggleSis', '行事曆', !!p.canSis)}
+        </div>
+        <div class="admin-ops">
           <button class="del-btn" data-action="setTeacher" data-id="${p.id}">${p.isTeacher?'取消老師':'設為老師'}</button>
-          <button class="del-btn" data-action="setSis" data-id="${p.id}">${p.canSis?'關閉行事曆':'開放行事曆'}</button>
           ${p.password ? `<button class="del-btn" data-action="resetPw" data-id="${p.id}">重設密碼</button>` : ''}
           <button class="del-btn" data-action="delete" data-id="${p.id}">刪除</button>
         </div>
@@ -2816,7 +2857,7 @@
       </header>
       <div class="card">
         <h1>人員管理</h1>
-        <p class="desc">新增成員、指定老師。老師的空閒時間會作為排定運動的依據。<br>「開放行事曆」會讓該成員登入後多一個「姊妹行事曆」分頁，沒開放的人連入口都看不到。</p>
+        <p class="desc">按著的分站＝看得到。運動、旅遊記帳是兩份獨立的名單，行事曆是運動站裡的分頁。<br>新成員預設只開運動。老師的空閒時間會作為排定運動的依據。</p>
         ${rowsHtml || '<div class="empty">尚無人員</div>'}
         <div class="add-row">
           <input type="text" id="newName" placeholder="輸入新成員姓名">
@@ -2842,13 +2883,27 @@
         renderAdminPanel();
       });
     });
-    // 姊妹行事曆：被開放的人登入後才會看到入口，其他人連按鈕都沒有
-    app.querySelectorAll('[data-action="setSis"]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const id = btn.dataset.id;
-        people = people.map(p=> p.id===id ? {...p, canSis: !p.canSis} : p);
-        await savePeople();
-        renderAdminPanel();
+    // 分站開放：關掉的人在那一站連名字都不會出現，登不進去。
+    // 行事曆是運動站裡的分頁，沒開放的人連入口都看不到。
+    const accToggles = {
+      toggleSport: p => ({...p, canSport: !inSport(p)}),
+      toggleTrip:  p => ({...p, canTrip:  !inTrip(p)}),
+      toggleSis:   p => ({...p, canSis:   !p.canSis})
+    };
+    Object.keys(accToggles).forEach(action=>{
+      app.querySelectorAll(`[data-action="${action}"]`).forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.dataset.id;
+          const p = people.find(x=>x.id===id);
+          // 密碼只有運動排程站設得了。還沒設過密碼的人一旦被關掉運動，
+          // 就進不去設定畫面，旅遊記帳也跟著登不進去——先攔一下。
+          if(action==='toggleSport' && p && inSport(p) && !p.password){
+            if(!confirm(`${p.name} 還沒設定密碼。密碼只能在運動排程站設，關掉運動就設不了，旅遊記帳也會登不進去。確定要關嗎？`)) return;
+          }
+          people = people.map(x=> x.id===id ? accToggles[action](x) : x);
+          await savePeople();
+          renderAdminPanel();
+        });
       });
     });
     app.querySelectorAll('[data-action="resetPw"]').forEach(btn=>{
@@ -2866,7 +2921,7 @@
       const name = input.value.trim();
       if(!name) return;
       const id = 'p' + Date.now();
-      people.push({id, name, isTeacher:false, password:''});
+      people.push({id, name, isTeacher:false, password:'', canSport:true, canTrip:false});
       await savePeople();
       renderAdminPanel();
     });
