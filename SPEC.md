@@ -154,6 +154,20 @@ test/<檔案>  →  驗證  →  <檔案>（正式站）
 版面：.people-grid 三欄 × .person-btn 64px 小方塊
 ```
 
+### 三站切換列
+
+```
+.switchbar → 三顆膠囊：運動（bike）／行程（pin）／記帳（dollar）
+目前所在的那一顆用 --accent-deep 實心白字，並加 aria-current="page"
+```
+
+- **圖示不跟著字級走。** `.switchbar svg` 固定 `17px`。Feather 是照 24px 畫的，
+  用 `1em`（13.5px）線寬只剩約 1.1px，細節會糊成一團。
+- `<a>` 用 `inline-flex` 置中，靠 `vertical-align` 對不準 17px 配 13.5px 的組合。
+- **沒開放的站不要放連結。** 名單分站之後每個人不一定三站都看得到，連過去只會看到
+  選人畫面裡沒有自己的名字。判斷用 `inSport()` / `inTrip()`，剩不到兩站就整條不畫。
+- 只出現在**登入後**的畫面，選人與設定密碼的畫面沒有。
+
 ### 右上角說明鈕與說明書
 
 - `.corner-btn` 固定右上角，44×44，`z-index: var(--z-corner)`，含 safe-area
