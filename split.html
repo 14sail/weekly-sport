@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>團體記帳</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C5236' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>">
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -54,6 +55,12 @@
     --red-soft: #F3E2DC;
     --amber: #C08A34;
     --amber-soft: #F5EAD3;
+    /* 語意色疊在自己的淺底上要另外一組。--red/--green/--amber 是照「放在 --bg-card
+       上」調的（4.59／4.55／2.98），一放到同色淺底就掉到 3.72／3.81／2.54，小字過不了
+       4.5:1。文字疊在 -soft 底色上一律用這三個，實心按鈕和框線維持用原本的。 */
+    --red-ink: #A04E3D;     /* 4.58 on --red-soft */
+    --green-ink: #5E6B46;   /* 4.72 on --green-soft */
+    --amber-ink: #8A6220;   /* 4.57 on --amber-soft */
     --radius: 16px;
     --radius-sm: 10px;
     /* 疊層順序集中在這裡，不要在各處自己填數字 */
@@ -146,7 +153,9 @@
   /* 核取方塊不適用上面的最小高度，會被撐成一個 44px 的大方塊。
      觸控範圍改由包住它的整列 .split-row 提供。 */
   input[type="checkbox"], input[type="radio"]{ width:auto; min-height:0; }
-  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-soft); outline-offset:1px; }
+  /* --accent-soft 對卡片底只有 1.28:1，等於把瀏覽器原本看得見的外框換成看不見的。
+     焦點指示要 3:1，改用跟 button:focus-visible 同一個 --accent-deep（6.63:1）。 */
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-deep); outline-offset:1px; }
 
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳出外框。 */
   button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
@@ -183,9 +192,9 @@
   .row-amt{ display:grid; grid-template-columns:1fr 100px; gap:10px; }
 
   .msg{ font-size:13px; padding:9px 12px; border-radius:var(--radius-sm); margin-bottom:12px; line-height:1.6; }
-  .msg.err{ background:var(--red-soft); color:var(--red); }
-  .msg.ok{ background:var(--green-soft); color:var(--green); }
-  .msg.warn{ background:var(--amber-soft); color:#8a6220; }
+  .msg.err{ background:var(--red-soft); color:var(--red-ink); }
+  .msg.ok{ background:var(--green-soft); color:var(--green-ink); }
+  .msg.warn{ background:var(--amber-soft); color:var(--amber-ink); }
 
   .book-card{
     background:var(--bg-card); border:1px solid var(--line);
@@ -207,7 +216,7 @@
   .tag{ display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px;
         border:1px solid var(--line); color:var(--ink-soft); background:#fff; margin-left:6px; }
   .tag.soft{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
-  .tag.hot{ border-color:var(--red); color:var(--red); background:var(--red-soft); }
+  .tag.hot{ border-color:var(--red); color:var(--red-ink); background:var(--red-soft); }
 
   .tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
   .tabs button{ border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
@@ -283,11 +292,16 @@
 
   .switchbar{ display:flex; gap:8px; margin-bottom:14px; }
   .switchbar a{
-    flex:1; text-align:center; text-decoration:none; font-size:13.5px;
+    flex:1; text-decoration:none; font-size:13.5px;
     border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
     border-radius:99px; padding:8px 10px;
+    /* 用 flex 置中，17px 的圖示配 13.5px 的字才對得準；靠 vertical-align 會歪 */
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
   }
   .switchbar a.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
+  /* 切換列的圖示不跟著 1em（13.5px）走。Feather 是照 24px 畫的，縮到 13.5px
+     線寬只剩約 1.1px，細節會糊在一起。17px 才看得出形狀。 */
+  .switchbar .ic{ width:17px; height:17px; }
 
   .sumline{
     display:flex; justify-content:space-between; align-items:baseline;
@@ -337,8 +351,7 @@
   // 圖示：Feather Icons 4.29.2（MIT License, https://feathericons.com）
   // 直接內嵌 SVG path，不連 CDN，離線一樣顯示得出來。
   const ICONS = {
-    map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line>',
-    wallet:'<rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>',
+    dollar:'<line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>',
     copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
     pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
     route:'<polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>',
@@ -562,6 +575,23 @@
   }
 
   // ================= 載入 =================
+  // 一份名單、分站開放。旅程與記帳共用 canTrip；沒有這個欄位的是改版前就存在的
+  // 成員，一律當作全開，不要讓誰突然消失。運動排程站的 canSport 同一套寫法。
+  function inTrip(p){ return p && p.canTrip !== false; }
+  // people 本身永遠是完整名單（依 id 查名字、既有旅程／帳本的成員都要用），
+  // 選人與挑成員的畫面才走 tripPeople()。
+  function tripPeople(){ return people.filter(inTrip); }
+
+  // 挑成員的清單＝現在開放旅遊記帳的人，再補上已經被選進來的舊成員。
+  function memberChoices(ids){
+    const roster = tripPeople();
+    const extra = (ids || [])
+      .filter(id => !roster.some(p => p.id === id))
+      .map(id => people.find(p => p.id === id))
+      .filter(Boolean);
+    return roster.concat(extra);
+  }
+
   function hydrate(all){
     allData = all;
     people = parseVal(all['people-list']) || [];
@@ -633,7 +663,8 @@
   // ================= 畫面 =================
   function flash(){
     if(!msg) return '';
-    const h = '<div class="msg ' + msg.type + '">' + esc(msg.text) + '</div>';
+    // role="alert" 讀螢幕才會把錯誤念出來，畫面上看不出差別
+    const h = '<div class="msg ' + msg.type + '" role="alert">' + esc(msg.text) + '</div>';
     msg = null;
     return h;
   }
@@ -651,10 +682,16 @@
       '<span>離線中，目前是唯讀模式。看得到快取的帳，但不能新增或修改。</span></div>';
   }
 
+  // 行程與記帳的切換。這兩站是一組（名單上也是同一個 canTrip 開關在管），
+  // 運動排程站跟它們沒有功能上的關係、只是共用同一份名單，所以不放進這一排。
+  // 這是共用元件，兩站要長得一樣（SPEC 第 4 節）。
   function switchBar(active){
+    const link = (href, key, icon, label) =>
+      '<a class="' + (active === key ? 'on' : '') + '" href="' + href + '"' +
+      (active === key ? ' aria-current="page"' : '') + '>' + ic(icon) + label + '</a>';
     return '<div class="switchbar">' +
-      '<a class="' + (active==='trip'?'on':'') + '" href="trip.html">' + ic('map') + ' 行程</a>' +
-      '<a class="' + (active==='split'?'on':'') + '" href="split.html">' + ic('wallet') + ' 記帳</a>' +
+      link('trip.html', 'trip', 'pin', '行程') +
+      link('split.html', 'split', 'dollar', '記帳') +
       '</div>';
   }
 
@@ -718,6 +755,7 @@
 
     h += '<h2>要知道的事</h2><ul>' +
       '<li>帳本<b>只有被勾選的成員看得到</b>，建立的時候記得把大家勾上。</li>' +
+      '<li>成員清單只會列出在主站<b>開放「旅遊記帳」</b>的人。少了誰就到主站的管理入口開一下。</li>' +
       '<li>沒網路時是<b>唯讀</b>，看得到之前載過的內容，但不能新增或修改。</li>' +
       '<li>同一筆資料大家都能改，要動別人記的帳前先說一聲。</li>' +
       '<li>密碼只是防止手滑改到別人的資料，<b>不要用你其他重要網站的密碼</b>。</li>' +
@@ -754,15 +792,16 @@
   let pendingPersonId = null;
 
   function renderPick(){
-    if(!people.length){
+    const roster = tripPeople();
+    if(!roster.length){
       app.innerHTML = flash() + '<div class="card"><h1>還沒有成員資料</h1>' +
-        '<p class="desc">這個頁面共用運動排程站的成員清單，請先到 <a href="index.html">主站</a> 建立成員。</p></div>';
+        '<p class="desc">請先到 <a href="index.html">主站</a> 建立成員，並開放「旅遊記帳」。</p></div>';
       return;
     }
     let h = flash() + '<div class="card"><h1>你是哪位快樂姊妹？</h1>' +
       '<p class="desc">選擇你的名字，密碼跟運動排程站是同一組。</p>' +
       '<div class="people-grid">';
-    people.forEach(p=>{
+    roster.forEach(p=>{
       h += '<button class="person-btn" data-pick="' + esc(p.id) + '" data-nav>' +
            esc(p.name) + '</button>';
     });
@@ -829,7 +868,7 @@
       return '<button class="book-card' + (b.archived?' done':'') + '" data-book="' + esc(b.id) + '" data-nav>' +
         '<div class="bc-main"><div class="bc-name">' + esc(b.name) +
           (b.archived?'<span class="tag">已結束</span>':'') +
-          (t?'<span class="tag soft">' + ic('map') + ' ' + esc(t.name) + '</span>':'') + '</div>' +
+          (t?'<span class="tag soft">' + ic('pin') + ' ' + esc(t.name) + '</span>':'') + '</div>' +
         '<div class="bc-meta">' + list.length + ' 筆　合計 ' + fmt(total, b.baseCurrency) +
           '　' + (b.memberIds||[]).length + ' 人</div></div>' +
         '<div class="bc-go">' + ic('chevR') + '</div></button>';
@@ -906,7 +945,9 @@
     h += '<div id="rateBox"></div>';
 
     h += '<label class="fld" style="margin-top:14px"><span>成員</span></label>';
-    people.forEach(p=>{
+    // 已經在這本帳裡、但後來被關掉「旅遊記帳」的人也要列出來（勾著），
+    // 否則一存檔就被靜靜地踢出帳本，分攤全部要重算。
+    memberChoices(b.memberIds).forEach(p=>{
       const on = (b.memberIds||[]).indexOf(p.id) >= 0;
       const isMe = p.id === me;
       h += '<div class="split-row">' +
@@ -1431,7 +1472,7 @@
     await waitForFirebase();
     await refresh();
     const saved = recallMe();
-    if(saved && people.some(p=>p.id===saved)){ me = saved; view='list'; }
+    if(saved && tripPeople().some(p=>p.id===saved)){ me = saved; view='list'; }
     else{
       view = 'pick';
       if(offline) msg = {type:'warn', text:'離線中而且這台裝置還沒登入過。請先連上網路登入一次，之後沒網路也進得來。'};

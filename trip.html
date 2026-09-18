@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>旅程行程</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C5236' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'/><circle cx='12' cy='10' r='3'/></svg>">
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -55,6 +56,12 @@
     --red-soft: #F3E2DC;
     --amber: #C08A34;
     --amber-soft: #F5EAD3;
+    /* 語意色疊在自己的淺底上要另外一組。--red/--green/--amber 是照「放在 --bg-card
+       上」調的（4.59／4.55／2.98），一放到同色淺底就掉到 3.72／3.81／2.54，小字過不了
+       4.5:1。文字疊在 -soft 底色上一律用這三個，實心按鈕和框線維持用原本的。 */
+    --red-ink: #A04E3D;     /* 4.58 on --red-soft */
+    --green-ink: #5E6B46;   /* 4.72 on --green-soft */
+    --amber-ink: #8A6220;   /* 4.57 on --amber-soft */
     --radius: 16px;
     --radius-sm: 10px;
     /* 疊層順序集中在這裡，不要在各處自己填數字 */
@@ -166,7 +173,9 @@
     display:flex; gap:10px; align-items:center; min-height:44px;
     padding:2px; font-size:14.5px;
   }
-  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-soft); outline-offset:1px; }
+  /* --accent-soft 對卡片底只有 1.28:1，等於把瀏覽器原本看得見的外框換成看不見的。
+     焦點指示要 3:1，改用跟 button:focus-visible 同一個 --accent-deep（6.63:1）。 */
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-deep); outline-offset:1px; }
 
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳出外框。 */
   button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
@@ -206,9 +215,9 @@
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
   .msg{ font-size:13px; padding:9px 12px; border-radius:var(--radius-sm); margin-bottom:12px; }
-  .msg.err{ background:var(--red-soft); color:var(--red); }
-  .msg.ok{ background:var(--green-soft); color:var(--green); }
-  .msg.warn{ background:var(--amber-soft); color:#8a6220; }
+  .msg.err{ background:var(--red-soft); color:var(--red-ink); }
+  .msg.ok{ background:var(--green-soft); color:var(--green-ink); }
+  .msg.warn{ background:var(--amber-soft); color:var(--amber-ink); }
 
   /* ---------- 旅程卡 ---------- */
   .trip-card{
@@ -243,7 +252,7 @@
     display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px;
     border:1px solid var(--line); color:var(--ink-soft); background:#fff; margin-left:6px;
   }
-  .tag.hot{ border-color:var(--red); color:var(--red); background:var(--red-soft); }
+  .tag.hot{ border-color:var(--red); color:var(--red-ink); background:var(--red-soft); }
   .tag.soft{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
 
   /* ---------- 分頁 ---------- */
@@ -280,16 +289,23 @@
     position:absolute; right:8px; transform:translateY(-50%);
     font-size:11px; color:var(--ink-soft); font-variant-numeric:tabular-nums;
   }
+  /* 車道是「表面」不是卡片，所以用頁面底色，行程方塊才浮得起來。
+     本來這裡是 --bg-card，跟交通分類的方塊同一個色票，那些白卡片只剩一條
+     1px 框線撐著，等於看不見。其他分類是靠色相（紅綠琥珀咖啡）在區分，
+     不是靠明暗——五種底色對車道都只有 1.06～1.15，交通連色相都沒有。
+     這也讓時間軸跟全站一致：白卡片浮在米色頁面上。 */
   .tt-lane{
     position:relative; overflow:hidden;
-    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--bg); border:1px solid var(--line); border-radius:var(--radius-sm);
   }
   /* 被壓縮的區段：它代表「這裡什麼都沒有」，所以要是整頁最安靜的地方。
-     原本畫滿斜紋反而變成最吵的東西，改成一塊比課表底色略沉的色塊，
-     裡面的格線改成虛線就夠了。 */
+     原本畫滿斜紋反而變成最吵的東西，改成一塊比車道略沉的色塊，
+     裡面的格線改成虛線就夠了。
+     車道改成 --bg 之後這裡不能再用 --bg（會同色消失），換成 --line-soft，
+     對車道是 1.27，比原本的 1.11 還清楚一點。 */
   .tt-sq{
     position:absolute; left:0; right:0; pointer-events:none;
-    background:var(--bg);
+    background:var(--line-soft);
   }
   .tt-line{
     position:absolute; left:0; right:0; height:0;
@@ -297,25 +313,79 @@
   }
   .tt-line.hr{ border-top-color:var(--line-hour); }
   .tt-line.sq{ border-top-style:dashed; }
-  .tt-line.hr.sq{ border-top-color:var(--line); }
+  /* 壓縮區的整點線要比外面淡，但底色換成 --line-soft 之後 --line 只剩 1.02，
+     整條線等於不見了。--line-hour 對壓縮底是 1.39，對照一般區的 1.76，
+     一樣是「比外面安靜」但看得到。 */
+  .tt-line.hr.sq{ border-top-color:var(--line-hour); }
   .tt-block{
     position:absolute; padding:0 2px; cursor:grab;
     user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+    /* 預設＝交通／沒有分類。分類 class 掛在這一層而不是 .tt-b-in 上，
+       因為 .tt-grip 是 .tt-b-in 的兄弟節點，自訂屬性只往下繼承，
+       掛在裡面的話把手讀不到 --tint-ink，編號 chip 的字會沒有顏色。 */
+    --tint-bg:var(--bg-card);
+    --tint-ink:var(--ink-soft);    /* 次要文字：時間、第二行、編號 */
   }
+  /* 分類底色。六個分類、四組淺底加白底，所以交通與其他共用中性的白。
+     次要文字疊在有色底上一定要換成該色的 -ink：--ink-soft 在這四種淺底上
+     只有 3.99～4.34，過不了小字的 4.5:1。
+     五組都算過：名稱（--ink）≥10.1、次要（--tint-ink）≥4.57、編號 chip 在白底上 ≥5.09。 */
+  .tt-block.c-move{ --tint-bg:var(--bg-card);     --tint-ink:var(--ink-soft); }
+  .tt-block.c-eat{  --tint-bg:var(--red-soft);    --tint-ink:var(--red-ink); }
+  .tt-block.c-see{  --tint-bg:var(--accent-soft); --tint-ink:var(--accent-deep); }
+  .tt-block.c-stay{ --tint-bg:var(--green-soft);  --tint-ink:var(--green-ink); }
+  .tt-block.c-shop{ --tint-bg:var(--amber-soft);  --tint-ink:var(--amber-ink); }
   .tt-b-in{
-    height:100%; overflow:hidden; padding:4px 8px;
-    background:var(--accent-soft); border:1px solid var(--accent);
+    height:100%; overflow:hidden; padding:6px 10px;
+    background:var(--tint-bg); border:1px solid var(--line);
     border-radius:var(--radius-sm);
+    display:flex; flex-direction:column; gap:2px;
   }
-  .tt-b-name{ font-size:13px; font-weight:700; color:var(--accent-deep); line-height:1.4; }
-  .tt-b-time{ font-size:11px; color:var(--accent-deep); font-variant-numeric:tabular-nums; }
-  .tt-b-in.short{ display:flex; align-items:center; gap:8px; padding-top:0; padding-bottom:0; }
-  .tt-b-in.short .tt-b-name{
-    flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+
+  /* 標題一行到底：編號、名稱（過長省略號）、時間靠右。不分方塊高矮都一樣。 */
+  .tt-b-hd{ display:flex; align-items:center; gap:7px; }
+  .tt-b-hd .pcode{
+    flex:none; margin-right:0; min-width:20px; padding:0 4px;
+    font-size:11px; line-height:16px;
+    background:var(--bg-card); border:1px solid var(--line); color:var(--tint-ink);
   }
-  .tt-b-in.short .tt-b-time{ flex:none; }
+  .tt-b-name{
+    flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--ink); line-height:1.4;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .tt-b-time{ flex:none; font-size:11px; color:var(--tint-ink); font-variant-numeric:tabular-nums; }
+  .tt-b-sub{
+    font-size:11.5px; line-height:1.5; color:var(--tint-ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  /* 上下邊帶＝拉時間，中間＝整塊移動。邊帶只在方塊夠高時才畫，見 GRIP_MIN_PX。
+     高度是行內樣式給的（依方塊高度算），這裡只管定位和長相。 */
+  .tt-grip{ position:absolute; left:2px; right:2px; cursor:ns-resize; }
+  .tt-grip.top{ top:0; }
+  .tt-grip.bot{ bottom:0; }
+  /* 一段細線當提示。原本是 26x3px 實心浮在邊緣內側，看起來像卡片裂了一條縫；
+     改成 34x2px、貼著邊。把手是操作元件不是分類標示，所以不跟著分類變色——
+     --accent 在五種方塊底色上都是 3.06～3.90，過得了非文字 3:1 而且夠輕；
+     --ink-soft 會到 3.99～5.09，在白色的交通卡片上太搶戲。 */
+  .tt-grip::after{
+    content:''; position:absolute; left:50%; transform:translateX(-50%);
+    width:34px; height:2px; border-radius:99px; background:var(--accent);
+  }
+  .tt-grip.top::after{ top:2px; }
+  .tt-grip.bot::after{ bottom:2px; }
+  .tt-grip:active::after{ background:var(--ink); height:3px; }
   .tt-block.drag{ z-index:5; cursor:grabbing; }
   .tt-block.drag .tt-b-in{ box-shadow:0 8px 20px rgba(58,46,34,.25); border-color:var(--accent-deep); }
+  /* 拖曳中的落點時間。方塊矮的時候名稱和時間會擠成一行，正好被手指蓋住，
+     所以另外釘一個在畫面上緣。白字配 --accent-deep 是 6.74:1。 */
+  .tt-hud{
+    display:none; position:fixed; z-index:var(--z-sheet); pointer-events:none;
+    top:calc(env(safe-area-inset-top) + 10px); left:50%; transform:translateX(-50%);
+    background:var(--accent-deep); color:#fff; border-radius:99px;
+    padding:8px 16px; font-size:14px; font-weight:700; white-space:nowrap;
+    font-variant-numeric:tabular-nums; box-shadow:0 6px 18px rgba(58,46,34,.3);
+  }
+  .tt-hud.on{ display:block; }
 
   /* ---------- 貼底面板 ---------- */
   body.sheet-open{ overflow:hidden; }
@@ -515,6 +585,7 @@
     border-radius:6px; padding:1px 5px; margin-right:7px;
   }
   .place-card .pc-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; line-height:1.6; }
+  .place-card .pc-note:empty{ display:none; }
   .place-card .pc-btns{ display:flex; gap:8px; flex-wrap:wrap; margin-top:9px; }
 
   .hint{ font-size:12px; color:var(--ink-soft); line-height:1.6; margin-top:8px; }
@@ -529,6 +600,16 @@
     .tl-cols{ display:grid; grid-template-columns:1fr 300px; gap:22px; align-items:start; }
     /* 景點分頁沒有右欄，用兩欄把多出來的寬度吃掉，卡片才不會被拉成長條 */
     .place-list{ display:grid; grid-template-columns:1fr 1fr; gap:0 10px; align-items:start; }
+    /* 兩欄並排時高度一長一短會很亂。桌機把每張卡片鎖成一樣高：名稱一行、
+       停留一行、備註一行，超出的用省略號（全文在編輯畫面，滑鼠停著也看得到）。
+       手機是單欄、上下沒得比，維持完整顯示，這整段只在桌機生效。 */
+    .place-list .pc-name{ display:flex; align-items:center; flex-wrap:nowrap; min-width:0; }
+    .place-list .pc-nm{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .place-list .pc-name .pcode, .place-list .pc-name .tag{ flex:none; }
+    .place-list .pc-line{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* 沒備註的卡片也要留著那一行，不然它會比隔壁矮一行 */
+    /* 12.5px x 1.6 line-height = 20px，剛好一行的高度 */
+    .place-list .pc-note:empty{ display:block; min-height:20px; }
     .side{ display:block; position:sticky; top:12px; }
     .side h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0 0 8px; }
     .side-list{
@@ -548,11 +629,16 @@
 
   .switchbar{ display:flex; gap:8px; margin-bottom:14px; }
   .switchbar a{
-    flex:1; text-align:center; text-decoration:none; font-size:13.5px;
+    flex:1; text-decoration:none; font-size:13.5px;
     border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
     border-radius:99px; padding:8px 10px;
+    /* 用 flex 置中，17px 的圖示配 13.5px 的字才對得準；靠 vertical-align 會歪 */
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
   }
   .switchbar a.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
+  /* 切換列的圖示不跟著 1em（13.5px）走。Feather 是照 24px 畫的，縮到 13.5px
+     線寬只剩約 1.1px，細節會糊在一起。17px 才看得出形狀。 */
+  .switchbar .ic{ width:17px; height:17px; }
 
 
   /* Feather Icons 內嵌用 */
@@ -604,8 +690,7 @@
   // tack 來自 Lucide（Feather 的後繼，同樣 MIT），Feather 本身沒有圖釘。
   // 直接內嵌 SVG path，不連 CDN，離線一樣顯示得出來。
   const ICONS = {
-    map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line>',
-    wallet:'<rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>',
+    dollar:'<line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>',
     copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
     pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
     route:'<polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>',
@@ -907,6 +992,23 @@
   }
 
   // ================= 資料載入 =================
+  // 一份名單、分站開放。旅程與記帳共用 canTrip；沒有這個欄位的是改版前就存在的
+  // 成員，一律當作全開，不要讓誰突然消失。運動排程站的 canSport 同一套寫法。
+  function inTrip(p){ return p && p.canTrip !== false; }
+  // people 本身永遠是完整名單（依 id 查名字、既有旅程／帳本的成員都要用），
+  // 選人與挑成員的畫面才走 tripPeople()。
+  function tripPeople(){ return people.filter(inTrip); }
+
+  // 挑成員的清單＝現在開放旅遊記帳的人，再補上已經被選進來的舊成員。
+  function memberChoices(ids){
+    const roster = tripPeople();
+    const extra = (ids || [])
+      .filter(id => !roster.some(p => p.id === id))
+      .map(id => people.find(p => p.id === id))
+      .filter(Boolean);
+    return roster.concat(extra);
+  }
+
   function hydrate(all){
     allData = all;
     people = parseVal(all['people-list']) || [];
@@ -1023,7 +1125,8 @@
   // ================= 畫面 =================
   function flash(){
     if(!msg) return '';
-    const h = '<div class="msg ' + msg.type + '">' + esc(msg.text) + '</div>';
+    // role="alert" 讀螢幕才會把錯誤念出來，畫面上看不出差別
+    const h = '<div class="msg ' + msg.type + '" role="alert">' + esc(msg.text) + '</div>';
     msg = null;
     return h;
   }
@@ -1043,10 +1146,16 @@
       '<span>離線中，唯讀模式</span></div>';
   }
 
+  // 行程與記帳的切換。這兩站是一組（名單上也是同一個 canTrip 開關在管），
+  // 運動排程站跟它們沒有功能上的關係、只是共用同一份名單，所以不放進這一排。
+  // 這是共用元件，兩站要長得一樣（SPEC 第 4 節）。
   function switchBar(active){
+    const link = (href, key, icon, label) =>
+      '<a class="' + (active === key ? 'on' : '') + '" href="' + href + '"' +
+      (active === key ? ' aria-current="page"' : '') + '>' + ic(icon) + label + '</a>';
     return '<div class="switchbar">' +
-      '<a class="' + (active==='trip'?'on':'') + '" href="trip.html">' + ic('map') + ' 行程</a>' +
-      '<a class="' + (active==='split'?'on':'') + '" href="split.html">' + ic('wallet') + ' 記帳</a>' +
+      link('trip.html', 'trip', 'pin', '行程') +
+      link('split.html', 'split', 'dollar', '記帳') +
       '</div>';
   }
 
@@ -1080,15 +1189,16 @@
   let pendingPersonId = null;
 
   function renderPick(){
-    if(!people.length){
+    const roster = tripPeople();
+    if(!roster.length){
       app.innerHTML = flash() + '<div class="card"><h1>還沒有成員資料</h1>' +
-        '<p class="desc">請先到 <a href="index.html">主站</a> 建立成員。</p></div>';
+        '<p class="desc">請先到 <a href="index.html">主站</a> 建立成員，並開放「旅遊記帳」。</p></div>';
       return;
     }
     let h = flash() + '<div class="card"><h1>你是哪位快樂姊妹？</h1>' +
       '<p class="desc">選擇你的名字，密碼跟運動排程站是同一組。</p>' +
       '<div class="people-grid">';
-    people.forEach(p=>{
+    roster.forEach(p=>{
       h += '<button class="person-btn" data-pick="' + esc(p.id) + '" data-nav>' +
            esc(p.name) + '</button>';
     });
@@ -1221,7 +1331,9 @@
       '</select></label>';
 
     h += '<label class="fld" style="margin-top:14px"><span>同行成員</span></label>';
-    people.forEach(p=>{
+    // 已經在這趟旅程裡、但後來被關掉「旅遊記帳」的人也要列出來（勾著），
+    // 否則一存檔就被靜靜地踢出旅程。
+    memberChoices(t.memberIds).forEach(p=>{
       const on = (t.memberIds||[]).indexOf(p.id) >= 0;
       const isMe = p.id === me;
       h += '<label class="chk-row">' +
@@ -1338,7 +1450,7 @@
   }
   function pickerRowHtml(p){
     return '<button data-add="' + esc(p.id) + '">' + codeTag(p) + esc(p.name) +
-           '<span class="pl-sub">' + esc(p.category||'') +
+           '<span class="pl-sub">' + esc(catOf(p)) +
            (p.localName?'　'+esc(p.localName):'') + '　' + (p.stayMin||60) + ' 分</span></button>';
   }
 
@@ -1444,7 +1556,36 @@
   // 最矮 44px＝手指點得到的尺寸。這只影響畫出來的高度，不參與重疊判定，
   // 所以短行程撐高不會再害後面的行程被誤判成撞期。
   const MIN_DRAW_PX = 44;
-  const SHORT_PX = 48;      // 低於這個高度就把名稱和時間排成一行，否則時間會被裁掉
+  // 方塊至少這麼高才放第二行（備註，或「停留 X 分　分類」）。
+  // 標題列約 18px＋上下 padding 12px＝30px，第二行約 17px，62 留一點呼吸空間。
+  const SUB_MIN_PX = 62;
+  const CATS = ['飯店', '餐廳', '景點', '購物', '交通', '其他'];
+  // 六個分類對到五組底色：能用的淺底只有四組加白底，所以交通與其他共用中性的白。
+  // 兩個都是「不是目的地」的類型，共用剛好。
+  const CAT_CLASS = {
+    '飯店':'c-stay', '餐廳':'c-eat', '景點':'c-see',
+    '購物':'c-shop', '交通':'c-move', '其他':'c-move'
+  };
+  // 「場館」這個分類拿掉了。舊資料裡還留著的一律當成「其他」顯示，
+  // 不去動資料庫——那個景點下次被編輯存檔時自然就更新了。
+  function catOf(p){
+    const c = (p && p.category) || '景點';
+    return CATS.indexOf(c) >= 0 ? c : '其他';
+  }
+  // 上下邊帶（拉時間）的尺寸看指標種類。
+  // 只要這台機器「有」粗指標（觸控螢幕）就一律用手指的尺寸——寧可大不要小。
+  // 用 any-pointer 不用 pointer：觸控筆電的主要指標是滑鼠，但手還是會去摸螢幕。
+  const COARSE = !!(window.matchMedia && window.matchMedia('(any-pointer:coarse)').matches);
+  // 方塊至少這麼高才畫邊帶。
+  // 手指：邊帶各佔高度的 1/4，中間留給「整塊移動」的一定是 h/2，88px 剛好讓它
+  //       等於 44px 的觸控下限。想調低之前先算一次，低於 88 中間就不到 44px 了。
+  // 滑鼠：MIN_DRAW_PX 是 44，所以 40 等於「每個方塊都有邊帶」。
+  const GRIP_MIN_PX = COARSE ? 88 : 40;
+  function gripPx(h){
+    if(h < GRIP_MIN_PX) return 0;
+    // 滑鼠固定 10px 就夠抓，不用吃掉移動區
+    return Math.min(COARSE ? 44 : 10, Math.round(h / 4));
+  }
 
   // 課表預設就畫 08:00-21:00 這一段，不管那天有沒有排東西，
   // 每天長度一致比較好對照。超出這個範圍的行程當然照畫，也可以手動往前後延伸。
@@ -1646,18 +1787,16 @@
     h += '<div class="side-list">';
     places.forEach(p=>{
       h += '<button data-goedit="' + esc(p.id) + '">' + codeTag(p) + esc(p.name) +
-           '<span class="sl-sub">' + esc(p.category||'') + '　' + (p.stayMin||60) + ' 分' +
+           '<span class="sl-sub">' + esc(catOf(p)) + '　' + (p.stayMin||60) + ' 分' +
            (used.has(p.id) ? '' : '　還沒排') + '</span></button>';
     });
     h += '</div></div>';
     return h;
   }
 
-  function timetableHtml(rows){
-    let h = '<div class="tt" style="height:' + Math.round(ttMap.total) + 'px">';
-
-    // 壓縮區裡整點會擠在一起疊字，太近的就不畫，看得懂比畫得齊重要
-    h += '<div class="tt-gutter">';
+  // 左側的整點刻度。壓縮區裡整點會擠在一起疊字，太近的就不畫，看得懂比畫得齊重要。
+  function ttTicksHtml(){
+    let h = '';
     let lastTick = -99;
     for(let m = ttLo; m <= ttHi; m += 60){
       const y = ttY(m);
@@ -1665,11 +1804,13 @@
       h += '<div class="tt-tick" style="top:' + Math.round(y) + 'px">' + toClock(m) + '</div>';
       lastTick = y;
     }
-    h += '</div>';
+    return h;
+  }
 
-    h += '<div class="tt-lane" id="ttLane">';
-
-    // 被壓縮的區段畫上斜線，讓人知道這一段的比例被縮過，不是真的那麼短
+  // 車道的裝飾層：壓縮區色塊與格線。沒有人會按在這上面，所以重建它是安全的。
+  function ttDecorHtml(){
+    let h = '';
+    // 被壓縮的區段鋪一塊比車道略沉的底色，讓人知道這一段的比例被縮過，不是真的那麼短
     ttMap.segs.forEach(s=>{
       if(!s.rest) return;
       const y0 = ttY(s.m0 + s.full), y1 = s.y1;
@@ -1689,22 +1830,89 @@
            (sq ? ' sq' : '') + '" style="top:' + Math.round(y) + 'px"></div>';
       lastLine = y;
     }
+    return h;
+  }
+
+  // 依現在的 ttMap 重排車道，但**絕對不換掉方塊節點**。
+  // 手指按著的節點一旦離開文件，瀏覽器就會送出 touchcancel，拖曳當場中斷，
+  // 放開手只剩下「點一下＝開面板」的結果。所以這裡只重建刻度與格線（純裝飾），
+  // 方塊一律只改 style。拖曳中要換比例就走這裡，不要呼叫 render()。
+  function relayoutLane(){
+    const lane = document.getElementById('ttLane');
+    const tt = lane && lane.closest('.tt');
+    const gutter = tt && tt.querySelector('.tt-gutter');
+    if(!lane || !tt || !gutter) return false;
+
+    const rows = layoutDay(dayItems(curDate));
+    ttMap = buildMap(rows, ttLo, ttHi);
+    tt.style.height = Math.round(ttMap.total) + 'px';
+
+    gutter.innerHTML = ttTicksHtml();
+    lane.querySelectorAll('.tt-sq, .tt-line').forEach(el=>el.remove());
+    lane.insertAdjacentHTML('afterbegin', ttDecorHtml());
+
+    rows.forEach(r=>{
+      const el = lane.querySelector('[data-block="' + r.item.id + '"]');
+      if(!el) return;
+      const top = ttY(r.start);
+      const hgt = Math.max(MIN_DRAW_PX, ttY(r.drawEnd) - top);
+      el.style.top = Math.round(top) + 'px';
+      el.style.height = Math.round(hgt) + 'px';
+      const subEl = el.querySelector('.tt-b-sub');
+      if(subEl) subEl.style.display = hgt >= SUB_MIN_PX ? '' : 'none';
+      // 方塊變高了邊帶跟著長大。拖到一半不新增也不移除邊帶，只調現有的尺寸。
+      const g = offline ? 0 : gripPx(hgt);
+      if(g) el.querySelectorAll('.tt-grip').forEach(x=>{ x.style.height = g + 'px'; });
+    });
+    return true;
+  }
+
+  function timetableHtml(rows){
+    let h = '<div class="tt" style="height:' + Math.round(ttMap.total) + 'px">';
+    h += '<div class="tt-gutter">' + ttTicksHtml() + '</div>';
+    h += '<div class="tt-lane" id="ttLane">' + ttDecorHtml();
 
     rows.forEach(r=>{
       const p = placeById(r.item.placeId);
       const top = ttY(r.start);
       const hgt = Math.max(MIN_DRAW_PX, ttY(r.drawEnd) - top);
       const w = 100 / r.cols;
-      // 太矮的格子塞不下兩行，名稱和時間改排同一行，不然時間會被裁掉。
-      const short = hgt < SHORT_PX;
-      h += '<div class="tt-block" data-block="' + esc(r.item.id) + '"' +
+      const cat = catOf(p);
+      // 第二行：備註是自己寫的、資訊量最高，有就放備註；沒有才退回停留與分類。
+      const sub = (p && p.transitNote)
+        ? ic('note') + ' ' + esc(p.transitNote)
+        : ('停留 ' + r.stay + ' 分' + (p ? '\u3000' + esc(cat) : ''));
+      // 離線是唯讀，邊帶畫出來也拉不動，乾脆不要畫
+      const grip = offline ? 0 : gripPx(hgt);
+      const nm = p ? p.name : '(景點已刪除)';
+      // 方塊是可以操作的東西，不能只是一個 div：沒有 tabindex 就完全按不到，
+      // 而開始／結束／停留／移除全部都在點下去才出現的面板裡，等於用鍵盤的人
+      // 看不到也改不了任何已排的行程。離線是唯讀、點了也沒反應，就不要讓它可聚焦。
+      const aria = nm + ' ' + toClock(r.start) + ' 到 ' + toClock(r.end) +
+                   '，停留 ' + r.stay + ' 分，' + cat;
+      h += '<div data-block="' + esc(r.item.id) + '"' +
              (p ? ' data-place="' + esc(p.id) + '"' : '') +
+             ' class="tt-block ' + (CAT_CLASS[cat] || 'c-see') + '"' +
+             (offline ? '' : ' tabindex="0" role="button"') +
+             ' aria-label="' + esc(aria) + '"' +
              ' style="top:' + Math.round(top) + 'px;height:' + Math.round(hgt) +
              'px;left:' + (r.col * w) + '%;width:' + w + '%">' +
-           '<div class="tt-b-in' + (short ? ' short' : '') + '">' +
-             '<div class="tt-b-name">' + (p ? codeTag(p) + esc(p.name) : '(景點已刪除)') + '</div>' +
-             '<div class="tt-b-time">' + toClock(r.start) + '–' + toClock(r.end) + '</div>' +
-           '</div></div>';
+           '<div class="tt-b-in">' +
+             '<div class="tt-b-hd">' +
+               (p ? codeTag(p) : '') +
+               // 名稱一定會被截斷，滑鼠停著要看得到全文；讀螢幕的走上面的 aria-label
+               '<span class="tt-b-name" title="' + esc(nm) + '">' + esc(nm) + '</span>' +
+               '<span class="tt-b-time">' + toClock(r.start) + '–' + toClock(r.end) + '</span>' +
+             '</div>' +
+             (hgt >= SUB_MIN_PX ? '<div class="tt-b-sub">' + sub + '</div>' : '') +
+           '</div>' +
+           (grip
+             // 讀螢幕的人走面板裡的「開始 ±15」「停留 ±15／常用」，那邊有完整標籤，
+             // 這兩條純粹是滑鼠與手指的把手，不要再念一次
+             ? '<div class="tt-grip top" data-grip="top" aria-hidden="true" title="拉動改開始時間" style="height:' + grip + 'px"></div>' +
+               '<div class="tt-grip bot" data-grip="bot" aria-hidden="true" title="拉動改停留" style="height:' + grip + 'px"></div>'
+             : '') +
+           '</div>';
     });
 
     h += '</div></div>';
@@ -1729,8 +1937,11 @@
 
     h += '<h2>課表怎麼用</h2>' +
       step('點空白處', '在那個時間加一個景點') +
-      step('點格子', '改開始時間、停留多久、看地圖、刪掉') +
-      step('長按格子', '拖到別的時間，會自動對齊 15 分');
+      step('點格子', '開面板：開始、結束、停留都能改，也能看地圖或刪掉') +
+      step('拖格子中間', '整塊換時間，停留不變') +
+      step('拖上下邊', '上邊改開始、下邊改停留，另一端不動。看得到那條短橫線就能拉') +
+      step('手機要先長按', '手指按著不動一下再拖。直接拖會變成捲動頁面') +
+      step('對齊 15 分', '拖的時候會自動吸。要非整刻的時間就在面板裡打字');
 
     h += '<h2>行前</h2>' +
       step('一起的', '一個項目一列，每個人一個勾格。點名字可以改文字或刪掉') +
@@ -1744,8 +1955,11 @@
       term('還沒排', '這個景點還沒被放進任何一天。放進去之後標籤就會消失。') +
       term('課表', '一天的時間表。色塊的高度就是停留時間，時間重疊的會並排。') +
       term('停留', '在這個景點待多久。新加的預設 60 分。') +
+      term('分類', '飯店、餐廳、景點、購物、交通、其他。課表上用底色分，' +
+           '其中交通和其他共用同一個底色。') +
       term('壓縮空白', '把很長的空檔和很長的行程縮短顯示，一整天才塞得進一個畫面。' +
-           '被縮過的地方會畫斜線提醒你那裡不等比。按右上角的按鈕可以關掉。') +
+           '被縮過的地方底色會沉一點。拖曳的時候會自動恢復成真實比例，放開再縮回去。' +
+           '按右上角的按鈕可以關掉。') +
       term('備註', '寫在景點裡的自由欄位，交通、要不要訂位都可以寫。會顯示在課表的面板裡。') +
       '</dl>';
 
@@ -1754,10 +1968,15 @@
       '<li><b>地圖／路線</b>：韓國的旅程會先複製景點名稱，再開 NAVER 讓你貼上。</li>' +
       '<li><b>當地語名稱</b>：韓國、日本的店填了之後，「複製名稱」複製的是當地語，搜尋才找得到。</li>' +
       '<li><b>已結束</b>：旅程結束後在設定裡勾起來，會收到列表下面，資料不會刪掉。</li>' +
+      '<li><b>面板的「開始」</b>：打字改它是<b>整塊移動</b>，停留不變。拖上邊則是結束不動，' +
+        '兩個不一樣。要固定結束就改「結束」或「停留」。</li>' +
+      '<li><b>短的行程沒有邊</b>：手機上一小時以下的格子太矮，塞不下上下邊，改時間請用面板。' +
+        '電腦上每個格子都有邊。</li>' +
       '</ul>';
 
     h += '<h2>要知道的事</h2><ul>' +
       '<li>旅程<b>只有被勾選的成員看得到</b>，建立的時候記得把大家勾上。</li>' +
+      '<li>成員清單只會列出在主站<b>開放「旅遊記帳」</b>的人。少了誰就到主站的管理入口開一下。</li>' +
       '<li>沒網路時是<b>唯讀</b>，看得到之前載過的內容，但不能新增或修改。</li>' +
       '<li>同一筆資料大家都能改，要動別人排好的東西前先說一聲。</li>' +
       '<li>密碼只是防止手滑改到別人的資料，<b>不要用你其他重要網站的密碼</b>。</li>' +
@@ -1817,14 +2036,31 @@
         : '<h3>(景點已刪除)</h3>';
 
       inner += '<div class="sheet-row"><span class="lab">開始</span>' +
+        '<button class="mini" data-shift="-15" data-id="' + esc(r.item.id) + '" aria-label="提早 15 分">−15</button>' +
         '<input type="time" class="start-time" data-start="' + esc(r.item.id) + '" aria-label="開始時間" value="' +
-        esc(toClock(r.start)) + '"></div>';
+        esc(toClock(r.start)) + '">' +
+        '<button class="mini" data-shift="15" data-id="' + esc(r.item.id) + '" aria-label="延後 15 分">＋15</button></div>';
+
+      // 結束時間自己一列（開始不動）。有了開始與結束兩個欄位，鍵盤就能排出任何
+      // 起訖組合——包括「往前開始、結束不動」，那是上緣拉動的效果，本來只能用拖的。
+      inner += '<div class="sheet-row"><span class="lab">結束</span>' +
+        '<button class="mini" data-endshift="-15" data-id="' + esc(r.item.id) + '" aria-label="結束提早 15 分">−15</button>' +
+        '<input type="time" class="start-time" data-end="' + esc(r.item.id) + '" aria-label="結束時間" value="' +
+        esc(toClock(r.end)) + '">' +
+        '<button class="mini" data-endshift="15" data-id="' + esc(r.item.id) + '" aria-label="結束延後 15 分">＋15</button></div>';
 
       inner += '<div class="sheet-row"><span class="lab">停留</span>' +
         '<button class="mini" data-stay="-15" data-id="' + esc(r.item.id) + '" aria-label="減少 15 分">−15</button>' +
         '<span class="val">' + r.stay + ' 分</span>' +
-        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '" aria-label="增加 15 分">＋15</button>' +
-        '<span class="spacer"></span><span class="lab">到 ' + toClock(r.end) + '</span></div>';
+        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '" aria-label="增加 15 分">＋15</button></div>';
+
+      // 常用長度：三小時改成一小時本來要按八下 −15
+      inner += '<div class="sheet-row"><span class="lab">常用</span>' +
+        [30, 60, 90, 120].map(n =>
+          '<button class="mini' + (r.stay === n ? ' on' : '') + '" data-setstay="' + n +
+          '" data-id="' + esc(r.item.id) + '" aria-pressed="' + (r.stay === n ? 'true' : 'false') +
+          '">' + n + ' 分</button>'
+        ).join('') + '</div>';
 
       if(p && p.transitNote){
         inner += '<div class="sheet-note">' + ic('note') + ' ' + esc(p.transitNote) + '</div>';
@@ -1863,78 +2099,226 @@
   }
 
   // ---------- 課表拖拉 ----------
-  // 手機優先：長按 300ms 才進入拖曳，之前照常捲動頁面。
+  // 手機優先：長按 300ms 才進入拖曳，長按成立之前照常捲動頁面。
+  // 滑鼠沒有誤觸捲動的問題，移動超過 4px 就直接開始拖；沒移動就還是「點一下開面板」。
   // 不用 HTML5 drag（iOS Safari 不支援），也不寫 touch-action:none（會整個擋掉捲動）；
   // 改成進入拖曳後才在非 passive 的 touchmove 裡 preventDefault。
   let press = null;
   let dragWired = false;
   // 拖曳結束時瀏覽器還會補一個 click，不擋掉就會被當成「點了空白處」而跳出加景點面板
   let suppressClick = false;
+  const MOUSE_SLOP = 4;   // 滑鼠移動超過這麼多 px 就當成要拖
+  const TOUCH_SLOP = 8;   // 手指在長按成立前移動超過這麼多 px 就當成要捲頁面
+
+  // touch 事件一輩子都送到「手指按下去的那個元素」，而 enterDragScale() 會 render()
+  // 把它換掉——元素一離開文件就不再冒泡到 document，掛在 document 上的 touchmove／
+  // touchend 會收不到，拖到一半整個斷掉。所以觸控的監聽要掛在那個元素自己身上。
+  // 滑鼠沒有這個問題（事件跟著游標下面的東西走），維持掛在 document。
+  let touchHost = null;
+  function holdTouchHost(el){
+    dropTouchHost();
+    touchHost = el;
+    el.addEventListener('touchmove', pressMove, { passive: false });
+    el.addEventListener('touchend', pressUp);
+    el.addEventListener('touchcancel', pressUp);
+  }
+  function dropTouchHost(){
+    if(!touchHost) return;
+    touchHost.removeEventListener('touchmove', pressMove);
+    touchHost.removeEventListener('touchend', pressUp);
+    touchHost.removeEventListener('touchcancel', pressUp);
+    touchHost = null;
+  }
 
   function pointOf(e){
     const p = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
     return { x: p.clientX, y: p.clientY };
   }
 
-  function pressDown(el, it, e){
+  // 拖曳中的落點時間。方塊矮的時候名稱和時間會擠成一行，時間正好被手指蓋住，
+  // 所以另外釘一個在畫面上緣。掛在 body 底下，render() 重畫 app 不會把它清掉。
+  function showHud(text){
+    let el = document.getElementById('ttHud');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'ttHud';
+      el.className = 'tt-hud';
+      el.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.add('on');
+  }
+  function hideHud(){
+    const el = document.getElementById('ttHud');
+    if(el) el.classList.remove('on');
+  }
+
+  // 壓縮開著時像素和分鐘不是等比：空檔裡 1px 約等於 3.3 分、行程區 1px 約等於 0.67 分，
+  // 同樣的手指移動距離時間跳動差五倍，吸附的 15 分在空檔裡只有 4.5px，根本對不準。
+  // 而且 buildMap() 的分段是拿各行程的起訖時間切的，放開手之後空檔重算、整頁跟著位移。
+  // 所以一進入拖曳就把比例攤平，放開再收回去——只改變數不寫 localStorage，
+  // 使用者自己的「壓縮空白」開關不受影響。
+  // 用鍵盤開面板的人，面板關掉之後要把焦點送回原本那個行程
+  let refocusBlockId = null;
+  let squeezeBeforeDrag = null;
+  function enterDragScale(){
+    if(!squeeze) return;
+    const el = press.el;
+    // 節點已經不在文件裡就別動了，量出來的位置是 0，捲動補償會亂跳
+    if(!el.isConnected) return;
+    // 捲動補償要錨在「手指抓著的那一邊」。攤平會把方塊變高（120 分從 108px 變成
+    // 180px），錨在頂端的話下緣會往下跑掉快 60px，拉下緣時方塊會先瞬間縮一截。
+    const edge = (e)=> press.mode === 'bot' ? e.bottom : e.top;
+    const before = edge(el.getBoundingClientRect());
+    squeeze = false;
+    // relayoutLane() 不會換掉 el，所以底下繼續用同一個節點
+    if(!relayoutLane()){ squeeze = true; return; }
+    squeezeBeforeDrag = true;
+    window.scrollBy(0, edge(el.getBoundingClientRect()) - before);
+    // 捲不動（已經到頁底）時補償會不完全，而且方塊變高之後下緣也會跑掉，
+    // 所以抓取位置重算一次。拉邊帶時夾在邊帶寬度之內（免得變成離參考邊很遠的怪值），
+    // 整塊移動時可用範圍是整個方塊。
+    const r2 = el.getBoundingClientRect();
+    press.grabDy = press.mode === 'bot'
+      ? Math.max(-press.band, Math.min(0, press.y - r2.bottom))
+      : press.mode === 'top'
+        ? Math.max(0, Math.min(press.band, press.y - r2.top))
+        : Math.max(0, Math.min(r2.height, press.y - r2.top));
+    const lane = document.getElementById('ttLane');
+    if(lane) press.laneTop = lane.getBoundingClientRect().top;
+  }
+  function exitDragScale(){
+    if(squeezeBeforeDrag === null) return;
+    squeeze = squeezeBeforeDrag;
+    squeezeBeforeDrag = null;
+  }
+
+  function startDrag(){
+    if(!press || press.dragging) return;
+    if(press.timer){ clearTimeout(press.timer); press.timer = null; }
+    press.dragging = true;
+    enterDragScale();
+    press.el.classList.add('drag');
+    showHud(hudText(press.mode === 'bot' ? press.endOrigin : press.origin));
+    if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(err){} }
+  }
+
+  // 按在哪一段：上下邊帶是拉時間，其他地方是整塊移動
+  function modeOf(target){
+    const g = target && target.closest ? target.closest('.tt-grip') : null;
+    return g ? g.dataset.grip : 'move';
+  }
+
+  function pressDown(el, it, e, mouse){
     const pt = pointOf(e);
     const lane = document.getElementById('ttLane');
     const laneTop = lane ? lane.getBoundingClientRect().top : 0;
+    const mode = modeOf(e.target);
+    const rect = el.getBoundingClientRect();
+    const start = itemStart(it);
     press = {
       el, it, x: pt.x, y: pt.y,
-      laneTop,
-      // 手指抓在格子的哪個位置，拖的時候要維持這個相對位置
-      grabDy: pt.y - el.getBoundingClientRect().top,
-      origin: itemStart(it), cur: null, dragging: false, timer: null
+      laneTop, mouse: !!mouse, mode,
+      band: gripPx(rect.height) || 44,
+      // 手指抓在參考邊的哪個位置，拖的時候要維持這個相對位置。
+      // 拉下緣時參考邊是底部，其他時候是頂部。
+      grabDy: pt.y - (mode === 'bot' ? rect.bottom : rect.top),
+      origin: start, endOrigin: start + stayOf(it),
+      cur: null, dragging: false, timer: null
     };
-    press.timer = setTimeout(()=>{
-      if(!press) return;
-      press.timer = null;
-      press.dragging = true;
-      press.el.classList.add('drag');
-      if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(err){} }
-    }, 300);
+    // 滑鼠等它移動就好，只有手指需要把長按跟捲頁面區分開
+    if(!mouse){
+      holdTouchHost(el);
+      press.timer = setTimeout(startDrag, 300);
+    }
   }
 
   function pressMove(e){
     if(!press) return;
     const pt = pointOf(e);
-    if(press.dragging){
-      if(e.cancelable) e.preventDefault();
-      // 壓縮開著時像素和分鐘不是等比，所以要用絕對位置換算，不能用位移量乘係數
-      let v = ttMinAt((pt.y - press.laneTop) - press.grabDy);
-      v = Math.round(v / SNAP_MIN) * SNAP_MIN;
+
+    if(!press.dragging){
+      const slop = press.mouse ? MOUSE_SLOP : TOUCH_SLOP;
+      if(Math.abs(pt.y - press.y) <= slop && Math.abs(pt.x - press.x) <= slop) return;
+      // 手指還沒長按就先動了，當成使用者要捲動，放掉這次
+      if(!press.mouse){ clearTimeout(press.timer); press = null; dropTouchHost(); return; }
+      startDrag();
+    }
+
+    if(e.cancelable) e.preventDefault();
+    // 拖曳中比例是攤平的，但還是用絕對位置換算，才跟畫面上的格線對得起來
+    let v = ttMinAt((pt.y - press.laneTop) - press.grabDy);
+    v = Math.round(v / SNAP_MIN) * SNAP_MIN;
+    if(press.mode === 'bot'){
+      // 結束時間：最短留 SNAP_MIN，開始時間不動
+      v = Math.max(press.origin + SNAP_MIN, Math.min(ttHi, v));
+    }else if(press.mode === 'top'){
+      // 開始時間：結束時間不動，所以不能越過它
+      v = Math.max(ttLo, Math.min(press.endOrigin - SNAP_MIN, v));
+    }else{
       v = Math.max(ttLo, Math.min(ttHi - SNAP_MIN, v));
-      press.cur = v;
-      press.el.style.top = Math.round(ttY(v)) + 'px';
-      const lbl = press.el.querySelector('.tt-b-time');
-      if(lbl) lbl.textContent = toClock(v) + '–' + toClock(v + stayOf(press.it));
-      return;
     }
-    // 還沒長按就先動了，當成使用者要捲動，放掉這次
-    if(Math.abs(pt.y - press.y) > 8 || Math.abs(pt.x - press.x) > 8){
-      clearTimeout(press.timer);
-      press = null;
+    press.cur = v;
+
+    const top = press.mode === 'bot' ? ttY(press.origin) : ttY(v);
+    press.el.style.top = Math.round(top) + 'px';
+    if(press.mode !== 'move'){
+      const bottom = press.mode === 'bot' ? ttY(v) : ttY(press.endOrigin);
+      const hgt = Math.max(MIN_DRAW_PX, bottom - top);
+      press.el.style.height = Math.round(hgt) + 'px';
+      // 拉短到塞不下第二行時就把它收起來，不然會被裁一半
+      const subEl = press.el.querySelector('.tt-b-sub');
+      if(subEl) subEl.style.display = hgt >= SUB_MIN_PX ? '' : 'none';
     }
+
+    // 方塊裡只放時間（窄的時候會被裁），停留幾分交給上緣那個提示
+    const lbl = press.el.querySelector('.tt-b-time');
+    if(lbl) lbl.textContent = spanText(v);
+    showHud(hudText(v));
+  }
+
+  function spanText(v){
+    if(press.mode === 'bot') return toClock(press.origin) + '–' + toClock(v);
+    if(press.mode === 'top') return toClock(v) + '–' + toClock(press.endOrigin);
+    return toClock(v) + '–' + toClock(v + stayOf(press.it));
+  }
+  // 拉長短的時候一起報停留幾分，不然要自己心算
+  function hudText(v){
+    if(press.mode === 'bot') return spanText(v) + '　' + (v - press.origin) + ' 分';
+    if(press.mode === 'top') return spanText(v) + '　' + (press.endOrigin - v) + ' 分';
+    return spanText(v);
   }
 
   async function pressUp(){
     if(!press) return;
     const p = press;
     press = null;
+    dropTouchHost();
     if(p.timer) clearTimeout(p.timer);
 
     if(p.dragging){
       p.el.classList.remove('drag');
+      hideHud();
+      exitDragScale();
       suppressClick = true;
       setTimeout(()=>{ suppressClick = false; }, 350);
-      if(p.cur == null || p.cur === p.origin){ render(); return; }
-      p.it.startTime = toClock(p.cur);
+      const was = p.mode === 'bot' ? p.endOrigin : p.origin;
+      if(p.cur == null || p.cur === was){ render(); return; }
+      if(p.mode === 'bot'){
+        p.it.stayMin = p.cur - p.origin;
+      }else if(p.mode === 'top'){
+        p.it.startTime = toClock(p.cur);
+        p.it.stayMin = p.endOrigin - p.cur;
+      }else{
+        p.it.startTime = toClock(p.cur);
+      }
       await putItem(curTripId, p.it.date, p.it);
       render();
       return;
     }
     // 沒長按也沒移動＝點一下，開這個行程的面板
+    refocusBlockId = null;
     sheet = { type: 'item', id: p.it.id };
     render();
   }
@@ -1954,9 +2338,7 @@
     });
     document.addEventListener('mousemove', pressMove);
     document.addEventListener('mouseup', pressUp);
-    document.addEventListener('touchmove', pressMove, { passive: false });
-    document.addEventListener('touchend', pressUp);
-    document.addEventListener('touchcancel', pressUp);
+    // 觸控的 touchmove／touchend 不掛在這裡，見 holdTouchHost() 的說明
   }
 
   function wireTimeline(t, dates){
@@ -1971,9 +2353,24 @@
       app.querySelectorAll('[data-block]').forEach(el=>{
         const it = findItem(el.dataset.block);
         if(!it) return;
-        el.addEventListener('mousedown', (e)=>{ if(e.button === 0) pressDown(el, it, e); });
+        el.addEventListener('mousedown', (e)=>{ if(e.button === 0) pressDown(el, it, e, true); });
         el.addEventListener('touchstart', (e)=>{ pressDown(el, it, e); }, { passive: true });
+        // 拖曳是滑鼠和手指的事，鍵盤走面板——那裡面開始、結束、停留、移除都有。
+        el.addEventListener('keydown', (e)=>{
+          if(e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+          e.preventDefault();            // 空白鍵預設會捲動頁面
+          refocusBlockId = it.id;        // 關掉面板之後把焦點送回這個行程
+          sheet = { type: 'item', id: it.id };
+          render();
+        });
       });
+    }
+
+    // 面板關掉之後焦點會掉到 body，用鍵盤的人就迷路了。送回原本那個行程。
+    if(!sheet && refocusBlockId){
+      const back = app.querySelector('[data-block="' + refocusBlockId + '"]');
+      refocusBlockId = null;
+      if(back) back.focus();
     }
 
     app.querySelectorAll('[data-start]').forEach(inp=>{
@@ -1993,6 +2390,53 @@
         const it = findItem(b.dataset.id);
         if(!it) return;
         it.stayMin = Math.max(0, (Number(it.stayMin)||0) + Number(b.dataset.stay));
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-setstay]').forEach(b=>{
+      b.onclick = async ()=>{
+        const it = findItem(b.dataset.id);
+        if(!it) return;
+        it.stayMin = Number(b.dataset.setstay);
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
+
+    // 結束時間：開始不動，改的其實是停留。這是下緣拉動的按鈕版。
+    app.querySelectorAll('[data-end]').forEach(inp=>{
+      inp.onchange = async ()=>{
+        const it = findItem(inp.dataset.end);
+        if(!it) return;
+        const end = toMin(inp.value.trim());
+        const start = toMin(it.startTime);
+        if(end == null || start == null){ render(); return; }   // 被清空就當沒改
+        it.stayMin = Math.max(0, end - start);                  // 結束早於開始就當 0 分
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
+
+    app.querySelectorAll('[data-endshift]').forEach(b=>{
+      b.onclick = async ()=>{
+        const it = findItem(b.dataset.id);
+        if(!it) return;
+        it.stayMin = Math.max(0, (Number(it.stayMin)||0) + Number(b.dataset.endshift));
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
+
+    // 開始時間的 ±15，跟停留同一套手勢。不讓它跨過午夜，否則會掉到前一天去。
+    app.querySelectorAll('[data-shift]').forEach(b=>{
+      b.onclick = async ()=>{
+        const it = findItem(b.dataset.id);
+        if(!it) return;
+        const cur = toMin(it.startTime);
+        if(cur == null) return;
+        it.startTime = toClock(Math.max(0, Math.min(23 * 60 + 45, cur + Number(b.dataset.shift))));
         await putItem(curTripId, it.date, it);
         render();
       };
@@ -2578,8 +3022,8 @@
 
       h += '<div class="row2">' +
         '<label class="fld"><span>分類</span><select id="qCat">' +
-          ['飯店','場館','餐廳','景點','購物','交通'].map(c=>
-            '<option' + ((p.category||'景點')===c?' selected':'') + '>' + c + '</option>').join('') +
+          CATS.map(c=>
+            '<option' + (catOf(p)===c?' selected':'') + '>' + c + '</option>').join('') +
         '</select></label>' +
         '<label class="fld"><span>停留（分）</span><input id="qStay" type="number" min="0" step="15" value="' + (p.stayMin||60) + '"></label>' +
       '</div>';
@@ -2602,13 +3046,16 @@
     places.forEach(p=>{
       const inUse = used.has(p.id);
       h += '<div class="place-card">' +
-        '<div class="pc-name">' + codeTag(p) + esc(p.name) +
-          '<span class="tag">' + esc(p.category||'景點') + '</span>' +
+        '<div class="pc-name">' + codeTag(p) +
+          '<span class="pc-nm" title="' + esc(p.name) + '">' + esc(p.name) + '</span>' +
+          '<span class="tag">' + esc(catOf(p)) + '</span>' +
           (inUse ? '' : '<span class="tag soft">還沒排</span>') + '</div>';
       let sub = '停留 ' + (p.stayMin||60) + ' 分';
       if(p.localName) sub += '　' + esc(p.localName);
-      if(p.transitNote) sub += '<br>' + ic('note') + ' ' + esc(p.transitNote);
-      h += '<div class="pc-sub">' + sub + '</div>';
+      // 備註獨立一行（桌機會被截成一行並鎖高，所以即使沒備註也要留著這個元素）
+      h += '<div class="pc-sub"><div class="pc-line">' + sub + '</div>' +
+        '<div class="pc-line pc-note"' + (p.transitNote ? ' title="' + esc(p.transitNote) + '"' : '') + '>' +
+        (p.transitNote ? ic('note') + ' ' + esc(p.transitNote) : '') + '</div></div>';
       h += '<div class="pc-btns">' +
         '<button class="mini icon-only" data-nav data-pcopy="' + esc(p.id) + '" title="複製名稱" aria-label="複製名稱">' + ic('copy') + '</button>' +
         '<button class="mini icon-only" data-nav data-pmap="' + esc(p.id) + '" title="開地圖" aria-label="開地圖">' + ic('pin') + '</button>' +
@@ -2707,7 +3154,7 @@
     await refresh();
 
     const saved = recallMe();
-    if(saved && people.some(p=>p.id===saved)){
+    if(saved && tripPeople().some(p=>p.id===saved)){
       me = saved;
       view = 'list';
     }else{
