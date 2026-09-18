@@ -421,6 +421,26 @@
   .comment-time{ font-size:11px; color:var(--ink-soft); font-style:normal; white-space:nowrap; }
   .note-line-meta{ display:flex; align-items:baseline; gap:6px; flex-shrink:0; white-space:nowrap; }
 
+  /* ---- 三站切換（共用元件，三站要長得一樣，見 SPEC 第 4 節） ---- */
+  .switchbar{ display:flex; gap:8px; margin-bottom:14px; }
+  .switchbar a{
+    flex:1; text-decoration:none; font-size:13.5px;
+    border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
+    border-radius:99px; padding:8px 10px;
+    /* 用 flex 置中，17px 的圖示配 13.5px 的字才對得準；靠 vertical-align 會歪 */
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    touch-action:manipulation;
+  }
+  .switchbar a.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
+  .switchbar a:active{ background:var(--accent-soft); }
+  .switchbar a.on:active{ background:var(--accent-deep); filter:brightness(.9); }
+  /* Feather 是照 24px 畫的，縮到 1em（13.5px）線寬只剩約 1.1px，細節會糊在一起 */
+  .switchbar svg{
+    width:17px; height:17px; flex:0 0 auto;
+    fill:none; stroke:currentColor; stroke-width:2;
+    stroke-linecap:round; stroke-linejoin:round;
+  }
+
   /* ---- admin ---- */
   .admin-lock{ text-align:center; padding-top:12px; padding-bottom:12px; }
   .admin-row{
@@ -731,6 +751,34 @@
   function inTrip(p){ return p && p.canTrip !== false; }
   // people 本身永遠是完整名單（管理面板、依 id 查名字都要用），
   // 畫給運動排程站看的地方一律走 sportPeople()。
+  // 三站切換。這是共用元件，三站要長得一樣（SPEC 第 4 節）。
+  // 名單分站之後每個人不一定三站都看得到，沒開放的站不要放連結——
+  // 點過去只會看到選人畫面裡沒有自己的名字，是條死路。
+  const NAV_ICONS = {
+    bike:'<circle cx="18.5" cy="17.5" r="3.5"></circle><circle cx="5.5" cy="17.5" r="3.5"></circle>' +
+         '<circle cx="15" cy="5" r="1"></circle><path d="M12 17.5V14l-3-3 4-3 2 3h2"></path>',
+    pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
+    dollar:'<line x1="12" y1="1" x2="12" y2="23"></line>' +
+           '<path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>'
+  };
+  function navIcon(name){
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (NAV_ICONS[name] || '') + '</svg>';
+  }
+  function switchBar(active, person){
+    const links = [];
+    if(!person || inSport(person)) links.push(['index.html', 'sport', 'bike', '運動']);
+    if(!person || inTrip(person)){
+      links.push(['trip.html', 'trip', 'pin', '行程']);
+      links.push(['split.html', 'split', 'dollar', '記帳']);
+    }
+    if(links.length < 2) return '';   // 只剩自己這一站就不用畫了
+    return '<div class="switchbar">' + links.map(function(l){
+      const on = active === l[1];
+      return '<a class="' + (on ? 'on' : '') + '" href="' + l[0] + '"' +
+        (on ? ' aria-current="page"' : '') + '>' + navIcon(l[2]) + l[3] + '</a>';
+    }).join('') + '</div>';
+  }
+
   function sportPeople(){ return people.filter(inSport); }
   let currentPersonId = null;
   let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | teacherPeek | sisters | admin
@@ -1235,6 +1283,7 @@
         <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">${escapeHtml(person.name)}</div>
       </header>
+      ${switchBar('sport', person)}
       <div class="card">
         ${mainTabsHtml}
         ${bodyHtml}
@@ -1535,6 +1584,7 @@
         <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
         <div class="sub">${subtitle}</div>
       </header>
+      ${switchBar('sport', person)}
       <div class="card">
         ${subTabsHtml}
         ${showWeekPicker ? tabsHtml : ''}
@@ -2104,6 +2154,7 @@
         <div class="brand"><span class="seed">●</span> 姊妹行事曆 <span class="seed">●</span></div>
         <div class="sub">${escapeHtml(person.name)}</div>
       </header>
+      ${switchBar('sport', person)}
       <div class="sis">
         <div class="sis-who"><span class="dot"></span>目前是 ${escapeHtml(person.name)} 的視角，只顯示有你的組合與行程</div>
         <div class="sis-tabs">
