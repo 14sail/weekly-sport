@@ -18,7 +18,10 @@ test/<檔案>  →  驗證  →  <檔案>（正式站）
 - 搬移時**只有 `firebaseConfig` 那一段不能覆蓋**（正式站指向 `weekly-sport`，
   測試站指向 `weekly-sport-test`）。搬完必須確認：
   - `grep -c 'weekly-sport-test' <正式檔>` 要等於 `0`
-  - `diff test/<檔案> <檔案>` 的差異行數要剛好是 14（設定的 7 行 × 兩邊）
+  - `diff test/<檔案> <檔案> | grep -c '^[<>]'` 的差異行數：
+    **`trip.html` 與 `split.html` 是 14**（設定的 7 行 × 兩邊），
+    **`index.html` 是 15** —— 它的測試版多一行「這是測試專案」的警告註解，正式站不能有。
+  - 差異的內容要逐行看過，只能是那幾行。行數對不代表搬對了。
 - 推之前跑一次語法檢查：把 `<script>` 到 `</script>` 之間抽出來 `node --check`。
 
 ---
