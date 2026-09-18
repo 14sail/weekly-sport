@@ -689,7 +689,6 @@
   // tack 來自 Lucide（Feather 的後繼，同樣 MIT），Feather 本身沒有圖釘。
   // 直接內嵌 SVG path，不連 CDN，離線一樣顯示得出來。
   const ICONS = {
-    bike:'<circle cx="18.5" cy="17.5" r="3.5"></circle><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="15" cy="5" r="1"></circle><path d="M12 17.5V14l-3-3 4-3 2 3h2"></path>',
     dollar:'<line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>',
     copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
     pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
@@ -995,7 +994,6 @@
   // 一份名單、分站開放。旅程與記帳共用 canTrip；沒有這個欄位的是改版前就存在的
   // 成員，一律當作全開，不要讓誰突然消失。運動排程站的 canSport 同一套寫法。
   function inTrip(p){ return p && p.canTrip !== false; }
-  function inSport(p){ return p && p.canSport !== false; }
   // people 本身永遠是完整名單（依 id 查名字、既有旅程／帳本的成員都要用），
   // 選人與挑成員的畫面才走 tripPeople()。
   function tripPeople(){ return people.filter(inTrip); }
@@ -1147,22 +1145,17 @@
       '<span>離線中，唯讀模式</span></div>';
   }
 
-  // 三站切換。這是共用元件，三站要長得一樣（SPEC 第 4 節）。
-  // 名單分站之後每個人不一定三站都看得到，沒開放的站不要放連結——
-  // 點過去只會看到選人畫面裡沒有自己的名字，是條死路。
+  // 行程與記帳的切換。這兩站是一組（名單上也是同一個 canTrip 開關在管），
+  // 運動排程站跟它們沒有功能上的關係、只是共用同一份名單，所以不放進這一排。
+  // 這是共用元件，兩站要長得一樣（SPEC 第 4 節）。
   function switchBar(active){
-    const meP = people.find(x => x.id === me);
-    const links = [];
-    if(!meP || inSport(meP)) links.push(['index.html', 'sport', 'bike', '運動']);
-    if(!meP || inTrip(meP)){
-      links.push(['trip.html', 'trip', 'pin', '行程']);
-      links.push(['split.html', 'split', 'dollar', '記帳']);
-    }
-    if(links.length < 2) return '';   // 只剩自己這一站就不用畫了
-    return '<div class="switchbar">' + links.map(([href, key, icon, label]) =>
+    const link = (href, key, icon, label) =>
       '<a class="' + (active === key ? 'on' : '') + '" href="' + href + '"' +
-      (active === key ? ' aria-current="page"' : '') + '>' + ic(icon) + label + '</a>'
-    ).join('') + '</div>';
+      (active === key ? ' aria-current="page"' : '') + '>' + ic(icon) + label + '</a>';
+    return '<div class="switchbar">' +
+      link('trip.html', 'trip', 'pin', '行程') +
+      link('split.html', 'split', 'dollar', '記帳') +
+      '</div>';
   }
 
   let sheetWasOpen = false;
@@ -1974,7 +1967,6 @@
       '<li><b>地圖／路線</b>：韓國的旅程會先複製景點名稱，再開 NAVER 讓你貼上。</li>' +
       '<li><b>當地語名稱</b>：韓國、日本的店填了之後，「複製名稱」複製的是當地語，搜尋才找得到。</li>' +
       '<li><b>已結束</b>：旅程結束後在設定裡勾起來，會收到列表下面，資料不會刪掉。</li>' +
-      '<li><b>最上面那排</b>：運動、行程、記帳三站互相切換。沒開放給你的站不會出現。</li>' +
       '<li><b>面板的「開始」</b>：打字改它是<b>整塊移動</b>，停留不變。拖上邊則是結束不動，' +
         '兩個不一樣。要固定結束就改「結束」或「停留」。</li>' +
       '<li><b>短的行程沒有邊</b>：手機上一小時以下的格子太矮，塞不下上下邊，改時間請用面板。' +
