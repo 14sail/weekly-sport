@@ -229,6 +229,23 @@ h1.list-title（不要包在只裝一顆按鈕的卡片裡）
 用 `text-overflow:ellipsis` 就要補 `title`（滑鼠停著看得到）。讀螢幕的人走 `aria-label`
 或完整的內文，不要讓省略號是唯一的出口。
 
+### 分頁圖示（favicon）
+
+三站各一個，寫成 `<title>` 底下的一行 `<link rel="icon" href="data:image/svg+xml,…">`。
+**內嵌 data URI，不外連檔案也不連 CDN**，離線一樣畫得出來。
+
+| 站 | 圖示 |
+|---|---|
+| `index.html` 本週運動 | `activity`（脈搏） |
+| `trip.html` 旅程行程 | `pin`（地標） |
+| `split.html` 團體記帳 | `dollar`（錢字） |
+
+- **線寬用 2.4 不是 Feather 預設的 2。** 分頁圖示實際只有 16px，2 會糊掉。
+- **不要加圓角方塊底。** 試過「主色深方塊＋白線條」，那個底會吃掉本來就只有 16px
+  的空間，圖示反而更小更糊。純線條配 `--accent-deep` 在淺色和深色分頁列上都看得到。
+- **筆畫多的圖示在 16px 會變成一坨。** `bike` 就是這樣（三個圓加一條折線），所以運動站
+  的分頁圖示用 `activity` 而不是 `bike`。選之前先在 16px 實際渲染看過。
+
 ### 圖示
 
 - 一律內嵌 SVG（Feather 4.29.2，少數取自 Lucide），**不用 emoji、不連 CDN**
