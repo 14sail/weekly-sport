@@ -607,7 +607,7 @@
   .board-new textarea{ resize:vertical; }
   .board-new .btn{ flex:none; min-height:44px; }
   /* 手機上留言一多就會把輸入框推到很下面，封頂半個畫面、裡面自己捲。
-     桌機在下面的 media query 裡改用 flex 分高度，這裡的上限要拿掉。 */
+     桌機在下面的 media query 裡改由 grid 分高度，這裡的上限要拿掉。 */
   .board-list{
     border:1px solid var(--line); border-radius:var(--radius-sm);
     background:var(--bg-card); max-height:50vh; overflow-y:auto;
@@ -626,7 +626,7 @@
   .bm-who{ font-size:12.5px; font-weight:500; }
   .bm-at{ flex:1; font-size:11.5px; color:var(--ink-soft); }
   /* 內文縮排，跟上面那一列的名字錯開（名字從 34px 開始，內文從 46px）。
-     齊頭的話名字跟留言會黏成一块，分不出哪一段是誰說的。
+     齊頭的話名字跟留言會黏成一塊，分不出哪一段是誰說的。
      留言原樣顯示：換行留著，長網址也不要撐破欄寬。 */
   .bm-tx{
     margin:0; padding-left:46px; font-size:13.5px; line-height:1.6;
@@ -703,7 +703,7 @@
     font-size:13px; line-height:1.6;
   }
   .offbar .ic{ width:1.2em; height:1.2em; }
-  button:disabled, input:disabled, select:disabled{ opacity:.4; cursor:not-allowed; }
+  button:disabled, input:disabled, select:disabled, textarea:disabled{ opacity:.4; cursor:not-allowed; }
 
   @media (max-width:480px){
     .row2{ grid-template-columns:1fr; }
@@ -2674,7 +2674,11 @@
     async function sendNote(){
       const el = document.getElementById('boardInput');
       const text = (el ? el.value : boardDraft).trim();
-      if(!text){ msg = {type:'err', text:'請先寫點什麼。'}; render(); return; }
+      // 空的時候送出鈕本來就是停用的，這裡只擋 Ctrl+Enter。
+      // 不跳錯誤訊息——那句話會出在畫面最上面，離留言板很遠，手機上根本看不到。
+      if(!text){ if(el) el.focus(); return; }
+      // 存檔期間停用，否則網路慢的時候連按兩下會送出兩則一樣的
+      if(bSend) bSend.disabled = true;
       const n = { id: uid('nt'), date: curDate, text, by: me, at: new Date().toISOString() };
       const ok = await putNote(curTripId, curDate, n);
       if(!ok){ render(); return; }
@@ -2687,19 +2691,23 @@
     }
 
     const bIn = document.getElementById('boardInput');
+    const bSend = document.getElementById('boardSend');
+    // 沒字就不能送。只改這一顆的狀態，不重畫，不然打字會被打斷。
+    const syncSend = ()=>{
+      if(!bSend || offline) return;
+      bSend.disabled = !(bIn ? bIn.value : boardDraft).trim();
+    };
+    if(bSend){ bSend.onclick = sendNote; syncSend(); }
     if(bIn){
       bIn.value = boardDraft;
       // 打字只更新草稿、不重畫，否則每敲一個字焦點就被炸掉；
       // 接住了才能切日期、拖格子之後字還在。
-      bIn.oninput = ()=>{ boardDraft = bIn.value; };
+      bIn.oninput = ()=>{ boardDraft = bIn.value; syncSend(); };
       // textarea 的 Enter 是換行，送出要加 Ctrl / ⌘
       bIn.onkeydown = (e)=>{
         if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); sendNote(); }
       };
     }
-    const bSend = document.getElementById('boardSend');
-    if(bSend) bSend.onclick = sendNote;
-
     // 每次 render() 都是新的 DOM，捲動位置要自己記。預設貼在最下面（看最新的），
     // 但人家往上捲去看舊留言的時候，拖一下格子不要把他彈回最下面。
     const bList = app.querySelector('.board-list');
