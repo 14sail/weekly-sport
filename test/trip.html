@@ -648,17 +648,18 @@
     /* 沒備註的卡片也要留著那一行，不然它會比隔壁矮一行 */
     /* 12.5px x 1.6 line-height = 20px，剛好一行的高度 */
     .place-list .pc-note:empty{ display:block; min-height:20px; }
-    /* 右欄＝景點清單＋留言板，整欄一起釘住。景點多的時候先讓清單縮，
-       留言板至少留 180px，否則景點一多它就被擠到畫面外了。 */
+    /* 右欄＝景點清單＋留言板，整欄一起釘住。
+       景點清單封頂 38vh、剩下的都給留言板，兩張卡才不會一長一短。
+       景點少的時候它本來就矮（flex:0 1 auto），不會被撐成空的。 */
     .tl-aside{
-      position:sticky; top:12px; display:flex; flex-direction:column;
+      position:sticky; top:12px; display:grid; grid-template-rows:auto 1fr; gap:14px;
       max-height:calc(100vh - 24px);
     }
-    .side{ display:flex; flex-direction:column; flex:0 1 auto; min-height:0; }
+    .side{ display:flex; flex-direction:column; min-height:0; }
     .side h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0 0 8px; }
     .side-list{
       border:1px solid var(--line); border-radius:var(--radius-sm);
-      background:var(--bg-card); flex:1 1 auto; min-height:0; overflow-y:auto;
+      background:var(--bg-card); flex:1 1 auto; min-height:0; max-height:38vh; overflow-y:auto;
     }
     .side-list button{
       display:block; width:100%; text-align:left; border:0; background:transparent;
@@ -669,7 +670,8 @@
     .side-list button:hover{ background:var(--accent-soft); }
     .side-list button:active{ background:var(--accent-soft); color:var(--accent-deep); }
     .side-list .sl-sub{ display:block; font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
-    .board{ display:flex; flex-direction:column; flex:1 1 auto; min-height:180px; }
+    /* 高度由 grid 的 1fr 決定，間距由 gap 決定，這裡的 margin 要拿掉 */
+    .board{ display:flex; flex-direction:column; min-height:180px; margin-top:0; }
     .board-list{ flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto; }
   }
 
@@ -846,7 +848,7 @@
   let items = [];            // 目前旅程的所有行程項目
   let pres  = [];            // 行前：一起的清單
   let memo  = null;          // 行前：我自己的備忘錄（只讀自己那一包）
-  let notes = [];            // 留言板：整趟共用一份，新的在前面
+  let notes = [];            // 留言板：整趟的都在這裡，畫面上再按日期濾
   let boardDraft = '';       // 打到一半的留言。每次 render() 都重畫，不接住就沒了
   let boardScroll = null;    // 留言區的捲動位置，null＝貼在最下面
   let curDate = null;
@@ -1160,17 +1162,18 @@
     return ok;
   }
 
-  // 留言一則一個 key。兩個人同時送出不會互相蓋掉。
-  async function putNote(tripId, n){
+  // 留言一則一個 key，跟行程一樣把日期寫進 key 裡。
+  // 兩個人同時送出不會互相蓋掉。
+  async function putNote(tripId, date, n){
     if(offline){ msg = {type:'err', text:'離線狀態無法儲存。'}; return false; }
-    const ok = await sSet('trip-note:' + tripId + ':' + n.id, n);
-    if(ok) allData[safeKey('trip-note:' + tripId + ':' + n.id)] = JSON.stringify(n);
+    const ok = await sSet('trip-note:' + tripId + ':' + date + ':' + n.id, n);
+    if(ok) allData[safeKey('trip-note:' + tripId + ':' + date + ':' + n.id)] = JSON.stringify(n);
     return ok;
   }
-  async function delNote(tripId, id){
+  async function delNote(tripId, date, id){
     if(offline) return false;
-    const ok = await sDelete('trip-note:' + tripId + ':' + id);
-    if(ok) delete allData[safeKey('trip-note:' + tripId + ':' + id)];
+    const ok = await sDelete('trip-note:' + tripId + ':' + date + ':' + id);
+    if(ok) delete allData[safeKey('trip-note:' + tripId + ':' + date + ':' + id)];
     return ok;
   }
 
@@ -1865,19 +1868,20 @@
     return h;
   }
 
-  // 留言板：整趟共用一份，排行程的時候互相留話。
+  // 留言板：**一天一份**，跟課表看的是同一天。排行程的時候互相留話。
   // 資料不會自己推過來（整站只在進畫面時撈一次），所以標題旁邊放一顆重新整理。
   function boardHtml(){
+    const notesToday = dayNotes(curDate);
     let h = '<div class="board"><div class="board-h">' +
-      '<h3>留言板' + (notes.length ? ' ' + notes.length : '') + '</h3>' +
+      '<h3>留言板' + (notesToday.length ? ' ' + notesToday.length : '') + '</h3>' +
       '<button class="mini icon-only" id="boardSync" title="重新整理" aria-label="重新整理">' +
       ic('refresh') + '</button></div>';
 
-    if(!notes.length){
-      h += '<div class="empty">還沒有留言</div>';
+    if(!notesToday.length){
+      h += '<div class="empty">這天還沒有留言</div>';
     }else{
       h += '<div class="board-list">';
-      notes.forEach((n, i)=>{
+      notesToday.forEach((n, i)=>{
         h += '<div class="bm"><div class="bm-h">' +
           '<span class="bm-fl">' + (i + 1) + 'F</span>' +
           '<span class="bm-who">' + esc(personName(n.by)) + '</span>' +
@@ -1901,7 +1905,15 @@
     return h;
   }
 
-  // 今天的只寫時間，別天的才帶日期——留言大部分都是當天的。
+  // 這一天的留言。這個功能剛上線那幾天寫的留言沒有 date，
+  // 算在第一天，不要讓它們整批消失。
+  function dayNotes(date){
+    const t = curTrip();
+    const fallback = t ? t.startDate : null;
+    return notes.filter(n => (n.date || fallback) === date);
+  }
+
+  // 今天的只寫時間，別天的才帶日期——留言大部分都是當天寫的。
   function noteWhen(iso){
     const d = new Date(iso || '');
     if(isNaN(d.getTime())) return '';
@@ -2070,7 +2082,7 @@
       step('看新的', '留言不會自己跳出來，按標題旁邊那顆重新整理') +
       step('樓層', '1F、2F 往下累積。刪掉中間那一則，後面的樓層會往上遞補') +
       step('刪掉', '只有自己的留言可以刪') +
-      step('整趟共用', '不分天，切日期看到的是同一份');
+      step('一天一張', '留言跟課表看的是同一天，切日期就換一張');
 
     h += '<h2>名詞</h2><dl>' +
       term('景點', '你存下來的地點。存了不一定要排進行程。') +
@@ -2466,7 +2478,11 @@
 
   function wireTimeline(t, dates){
     app.querySelectorAll('[data-day]').forEach(b=>{
-      b.onclick = ()=>{ curDate = b.dataset.day; sheet = null; ttExtLo = 0; ttExtHi = 0; render(); };
+      b.onclick = ()=>{
+        curDate = b.dataset.day; sheet = null; ttExtLo = 0; ttExtHi = 0;
+        boardScroll = null;   // 換一天就是換一張留言板，從最新的那一則開始看
+        render();
+      };
     });
 
     const findItem = (id)=> items.find(i=>i.id===id);
@@ -2659,8 +2675,8 @@
       const el = document.getElementById('boardInput');
       const text = (el ? el.value : boardDraft).trim();
       if(!text){ msg = {type:'err', text:'請先寫點什麼。'}; render(); return; }
-      const n = { id: uid('nt'), text, by: me, at: new Date().toISOString() };
-      const ok = await putNote(curTripId, n);
+      const n = { id: uid('nt'), date: curDate, text, by: me, at: new Date().toISOString() };
+      const ok = await putNote(curTripId, curDate, n);
       if(!ok){ render(); return; }
       notes.push(n);
       boardScroll = null;   // 送完要看得到自己剛寫的那一則
@@ -2700,7 +2716,7 @@
         const n = notes.find(x=>x.id === b.dataset.ndel);
         if(!n) return;
         if(!window.confirm('刪掉這則留言？')) return;
-        await delNote(curTripId, n.id);
+        await delNote(curTripId, n.date || (curTrip() || {}).startDate, n.id);
         notes = notes.filter(x=>x.id !== n.id);
         render();
       };
