@@ -594,6 +594,44 @@
 
   /* 視窗夠寬時把景點清單搬到右邊當參考，手機完全不受影響 */
   .side{ display:none; }
+
+  /* ---------- 留言板 ---------- */
+  /* 桌機在右欄的景點下面，手機接在課表後面。同一段 HTML、位置交給版面決定，
+     不要寫成兩份——寫兩份就會只改到一邊。 */
+  .board{ margin-top:16px; }
+  .board-h{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .board-h h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0; flex:1; }
+  /* 輸入框在最下面，跟送出鈕排同一列。
+     .btn 本身沒有 min-height，這顆算出來只有 33px，撐到 44px 手指才按得到。 */
+  .board-new{ display:flex; gap:8px; align-items:flex-end; margin-top:10px; }
+  .board-new textarea{ resize:vertical; }
+  .board-new .btn{ flex:none; min-height:44px; }
+  /* 手機上留言一多就會把輸入框推到很下面，封頂半個畫面、裡面自己捲。
+     桌機在下面的 media query 裡改由 grid 分高度，這裡的上限要拿掉。 */
+  .board-list{
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--bg-card); max-height:50vh; overflow-y:auto;
+  }
+  .bm{ padding:10px 12px; border-bottom:1px solid var(--line-soft); }
+  .bm:last-child{ border-bottom:0; }
+  .bm-h{ display:flex; align-items:center; gap:8px; margin-bottom:3px; }
+  /* 樓層。寬度固定，否則 1F 跟 12F 會把名字推成一排參差不齊。
+     --accent-deep 放在 --accent-soft 上是 5.14:1，跟景點編號 .pcode 同一組配色。 */
+  .bm-fl{
+    flex:none; width:26px; text-align:center;
+    font-size:11px; font-weight:700; letter-spacing:.02em;
+    color:var(--accent-deep); background:var(--accent-soft);
+    border-radius:6px; padding:1px 0;
+  }
+  .bm-who{ font-size:12.5px; font-weight:500; }
+  .bm-at{ flex:1; font-size:11.5px; color:var(--ink-soft); }
+  /* 內文縮排，跟上面那一列的名字錯開（名字從 34px 開始，內文從 46px）。
+     齊頭的話名字跟留言會黏成一塊，分不出哪一段是誰說的。
+     留言原樣顯示：換行留著，長網址也不要撐破欄寬。 */
+  .bm-tx{
+    margin:0; padding-left:46px; font-size:13.5px; line-height:1.6;
+    white-space:pre-wrap; overflow-wrap:anywhere;
+  }
   @media (min-width:1000px){
     /* 只有課表需要放右欄才變寬；列表和表單維持 760px，一行才不會長到難讀 */
     .wrap.wide{ max-width:1140px; }
@@ -610,11 +648,18 @@
     /* 沒備註的卡片也要留著那一行，不然它會比隔壁矮一行 */
     /* 12.5px x 1.6 line-height = 20px，剛好一行的高度 */
     .place-list .pc-note:empty{ display:block; min-height:20px; }
-    .side{ display:block; position:sticky; top:12px; }
+    /* 右欄＝景點清單＋留言板，整欄一起釘住。
+       景點清單封頂 38vh、剩下的都給留言板，兩張卡才不會一長一短。
+       景點少的時候它本來就矮（flex:0 1 auto），不會被撐成空的。 */
+    .tl-aside{
+      position:sticky; top:12px; display:grid; grid-template-rows:auto 1fr; gap:14px;
+      max-height:calc(100vh - 24px);
+    }
+    .side{ display:flex; flex-direction:column; min-height:0; }
     .side h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0 0 8px; }
     .side-list{
       border:1px solid var(--line); border-radius:var(--radius-sm);
-      background:var(--bg-card); max-height:70vh; overflow-y:auto;
+      background:var(--bg-card); flex:1 1 auto; min-height:0; max-height:38vh; overflow-y:auto;
     }
     .side-list button{
       display:block; width:100%; text-align:left; border:0; background:transparent;
@@ -625,6 +670,9 @@
     .side-list button:hover{ background:var(--accent-soft); }
     .side-list button:active{ background:var(--accent-soft); color:var(--accent-deep); }
     .side-list .sl-sub{ display:block; font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+    /* 高度由 grid 的 1fr 決定，間距由 gap 決定，這裡的 margin 要拿掉 */
+    .board{ display:flex; flex-direction:column; min-height:180px; margin-top:0; }
+    .board-list{ flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto; }
   }
 
   .switchbar{ display:flex; gap:8px; margin-bottom:14px; }
@@ -655,7 +703,7 @@
     font-size:13px; line-height:1.6;
   }
   .offbar .ic{ width:1.2em; height:1.2em; }
-  button:disabled, input:disabled, select:disabled{ opacity:.4; cursor:not-allowed; }
+  button:disabled, input:disabled, select:disabled, textarea:disabled{ opacity:.4; cursor:not-allowed; }
 
   @media (max-width:480px){
     .row2{ grid-template-columns:1fr; }
@@ -706,7 +754,8 @@
     close:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
     check:'<polyline points="20 6 9 17 4 12"></polyline>',
     up:'<polyline points="18 15 12 9 6 15"></polyline>',
-    down:'<polyline points="6 9 12 15 18 9"></polyline>'
+    down:'<polyline points="6 9 12 15 18 9"></polyline>',
+    refresh:'<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>'
   };
   function ic(name){
     return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -799,6 +848,10 @@
   let items = [];            // 目前旅程的所有行程項目
   let pres  = [];            // 行前：一起的清單
   let memo  = null;          // 行前：我自己的備忘錄（只讀自己那一包）
+  let notes = [];            // 留言板：整趟的都在這裡，畫面上再按日期濾
+  let boardDraft = '';       // 打到一半的留言。每次 render() 都重畫，不接住就沒了
+  let boardScroll = null;    // 留言區的捲動位置，null＝貼在最下面
+  let boardSending = false;  // 正在存留言。停用送出鈕只擋得住滑鼠，Ctrl+Enter 要靠這個
   let curDate = null;
   let tab = 'timeline';      // timeline | places
   // 貼底面板：null＝沒開，{type:'add', at:分鐘} 或 {type:'item', id:項目 id}
@@ -1030,6 +1083,8 @@
     const pPrefix = safeKey('trip-place:' + tripId + ':');
     const iPrefix = safeKey('trip-item:' + tripId + ':');
     const rPrefix = safeKey('trip-pre:' + tripId + ':');
+    const nPrefix = safeKey('trip-note:' + tripId + ':');
+    notes = [];
     Object.keys(allData).forEach(k=>{
       if(k.startsWith(pPrefix)){
         const v = parseVal(allData[k]);
@@ -1040,11 +1095,16 @@
       }else if(k.startsWith(rPrefix)){
         const v = parseVal(allData[k]);
         if(v && v.id) pres.push(v);
+      }else if(k.startsWith(nPrefix)){
+        const v = parseVal(allData[k]);
+        if(v && v.id) notes.push(v);
       }
     });
     sortPlaces();
     items.sort((a,b)=> (a.order||0) - (b.order||0));
     pres.sort((a,b)=> (a.order||0) - (b.order||0));
+    // 舊的在上、新的在最下面，跟輸入框靠在一起（聊天室的看法）
+    notes.sort((a,b)=> String(a.at||'').localeCompare(String(b.at||'')));
     // 備忘錄只讀自己那一包。別人的資料還在同一個 data 節點裡，
     // 這是畫面層的過濾，不是資料庫權限。
     memo = parseVal(allData[safeKey('trip-memo:' + tripId + ':' + me)]) || null;
@@ -1100,6 +1160,21 @@
     if(offline){ msg = {type:'err', text:'離線狀態無法儲存。'}; return false; }
     const ok = await sSet('trip-memo:' + tripId + ':' + me, m);
     if(ok) allData[safeKey('trip-memo:' + tripId + ':' + me)] = JSON.stringify(m);
+    return ok;
+  }
+
+  // 留言一則一個 key，跟行程一樣把日期寫進 key 裡。
+  // 兩個人同時送出不會互相蓋掉。
+  async function putNote(tripId, date, n){
+    if(offline){ msg = {type:'err', text:'離線狀態無法儲存。'}; return false; }
+    const ok = await sSet('trip-note:' + tripId + ':' + date + ':' + n.id, n);
+    if(ok) allData[safeKey('trip-note:' + tripId + ':' + date + ':' + n.id)] = JSON.stringify(n);
+    return ok;
+  }
+  async function delNote(tripId, date, id){
+    if(offline) return false;
+    const ok = await sDelete('trip-note:' + tripId + ':' + date + ':' + id);
+    if(ok) delete allData[safeKey('trip-note:' + tripId + ':' + date + ':' + id)];
     return ok;
   }
 
@@ -1770,7 +1845,7 @@
       '<button class="mini" id="extDown"' + (ttHi >= 24*60 ? ' disabled' : '') + '>' + ic('down') + '往後 1 小時</button></div>';
 
     h += '<button class="btn wide ghost" id="openPicker">' + ic('plus') + '加入景點</button>';
-    h += '</div>' + sideHtml() + '</div>';
+    h += '</div><div class="tl-aside">' + sideHtml() + boardHtml() + '</div></div>';
     h += sheetHtml(t, rows);
     return h;
   }
@@ -1792,6 +1867,61 @@
     });
     h += '</div></div>';
     return h;
+  }
+
+  // 留言板：**一天一份**，跟課表看的是同一天。排行程的時候互相留話。
+  // 資料不會自己推過來（整站只在進畫面時撈一次），所以標題旁邊放一顆重新整理。
+  function boardHtml(){
+    const notesToday = dayNotes(curDate);
+    let h = '<div class="board"><div class="board-h">' +
+      '<h3>留言板' + (notesToday.length ? ' ' + notesToday.length : '') + '</h3>' +
+      // data-nav：這顆只是重抽資料，不寫東西。離線唯讀時不能跟其他按鈕一起被停用，
+      // 它是網路回來之後不重新整理整頁就能恢復的唯一一條路。
+      '<button class="mini icon-only" id="boardSync" data-nav title="重新整理" aria-label="重新整理">' +
+      ic('refresh') + '</button></div>';
+
+    if(!notesToday.length){
+      h += '<div class="empty">這天還沒有留言</div>';
+    }else{
+      h += '<div class="board-list">';
+      notesToday.forEach((n, i)=>{
+        h += '<div class="bm"><div class="bm-h">' +
+          '<span class="bm-fl">' + (i + 1) + 'F</span>' +
+          '<span class="bm-who">' + esc(personName(n.by)) + '</span>' +
+          '<span class="bm-at">' + esc(noteWhen(n.at)) + '</span>' +
+          (n.by === me
+            ? '<button class="mini warn icon-only" data-ndel="' + esc(n.id) + '" ' +
+              'title="刪除留言" aria-label="刪除留言">' + ic('trash') + '</button>'
+            : '') +
+          '</div><p class="bm-tx">' + esc(n.text) + '</p></div>';
+      });
+      h += '</div>';
+    }
+
+    // 輸入框放最下面，紧貼著最新的那一則
+    h += '<div class="board-new">' +
+      '<textarea id="boardInput" rows="2" maxlength="300" aria-label="寫留言" ' +
+      'placeholder="寫給大家看"></textarea>' +
+      '<button class="btn" id="boardSend">送出</button></div>';
+
+    h += '</div>';
+    return h;
+  }
+
+  // 這一天的留言。這個功能剛上線那幾天寫的留言沒有 date，
+  // 算在第一天，不要讓它們整批消失。
+  function dayNotes(date){
+    const t = curTrip();
+    const fallback = t ? t.startDate : null;
+    return notes.filter(n => (n.date || fallback) === date);
+  }
+
+  // 今天的只寫時間，別天的才帶日期——留言大部分都是當天寫的。
+  function noteWhen(iso){
+    const d = new Date(iso || '');
+    if(isNaN(d.getTime())) return '';
+    const hm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    return toKey(d) === toKey(new Date()) ? hm : (d.getMonth()+1) + '/' + d.getDate() + ' ' + hm;
   }
 
   // 左側的整點刻度。壓縮區裡整點會擠在一起疊字，太近的就不畫，看得懂比畫得齊重要。
@@ -1948,6 +2078,14 @@
       step('那個數字', '點 2/4 就是幫所有人一次打勾，再點一次全部取消') +
       step('只是提醒', '不需要打勾的事情，會收在下面的「提醒」區') +
       step('我自己的', '只有你看得到。自己開主題，底下想列幾點就列幾點');
+
+    h += '<h2>留言板</h2>' +
+      step('在哪裡', '電腦在景點清單下面，手機在課表最下面') +
+      step('送出', '按送出，或者 Ctrl（Mac 是 ⌘）加 Enter') +
+      step('看新的', '留言不會自己跳出來，按標題旁邊那顆重新整理') +
+      step('樓層', '1F、2F 往下累積。刪掉中間那一則，後面的樓層會往上遞補') +
+      step('刪掉', '只有自己的留言可以刪') +
+      step('一天一張', '留言跟課表看的是同一天，切日期就換一張');
 
     h += '<h2>名詞</h2><dl>' +
       term('景點', '你存下來的地點。存了不一定要排進行程。') +
@@ -2343,7 +2481,11 @@
 
   function wireTimeline(t, dates){
     app.querySelectorAll('[data-day]').forEach(b=>{
-      b.onclick = ()=>{ curDate = b.dataset.day; sheet = null; ttExtLo = 0; ttExtHi = 0; render(); };
+      b.onclick = ()=>{
+        curDate = b.dataset.day; sheet = null; ttExtLo = 0; ttExtHi = 0;
+        boardScroll = null;   // 換一天就是換一張留言板，從最新的那一則開始看
+        render();
+      };
     });
 
     const findItem = (id)=> items.find(i=>i.id===id);
@@ -2528,6 +2670,80 @@
       }
       sheet = { type:'add', at: Math.min(at, 23 * 60 + 45) };
       pickerQuery = '';
+      render();
+    };
+
+    // ---- 留言板 ----
+    async function sendNote(){
+      const el = document.getElementById('boardInput');
+      const text = (el ? el.value : boardDraft).trim();
+      if(boardSending) return;   // Ctrl+Enter 連敲兩下不走送出鈕，没這一行會送出兩則
+      // 空的時候送出鈕本來就是停用的，這裡只擋 Ctrl+Enter。
+      // 不跳錯誤訊息——那句話會出在畫面最上面，離留言板很遠，手機上根本看不到。
+      if(!text){ if(el) el.focus(); return; }
+      // 存檔期間停用，否則網路慢的時候連按兩下會送出兩則一樣的
+      boardSending = true;
+      if(bSend) bSend.disabled = true;
+      const n = { id: uid('nt'), date: curDate, text, by: me, at: new Date().toISOString() };
+      const ok = await putNote(curTripId, curDate, n);
+      boardSending = false;
+      if(!ok){ render(); return; }
+      notes.push(n);
+      boardScroll = null;   // 送完要看得到自己剛寫的那一則
+      boardDraft = '';
+      render();
+      const again = document.getElementById('boardInput');
+      if(again) again.focus();
+    }
+
+    const bIn = document.getElementById('boardInput');
+    const bSend = document.getElementById('boardSend');
+    // 沒字就不能送。只改這一顆的狀態，不重畫，不然打字會被打斷。
+    const syncSend = ()=>{
+      if(!bSend || offline) return;
+      bSend.disabled = !(bIn ? bIn.value : boardDraft).trim();
+    };
+    if(bSend){ bSend.onclick = sendNote; syncSend(); }
+    if(bIn){
+      bIn.value = boardDraft;
+      // 打字只更新草稿、不重畫，否則每敲一個字焦點就被炸掉；
+      // 接住了才能切日期、拖格子之後字還在。
+      bIn.oninput = ()=>{ boardDraft = bIn.value; syncSend(); };
+      // textarea 的 Enter 是換行，送出要加 Ctrl / ⌘
+      bIn.onkeydown = (e)=>{
+        if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); sendNote(); }
+      };
+    }
+    // 每次 render() 都是新的 DOM，捲動位置要自己記。預設貼在最下面（看最新的），
+    // 但人家往上捲去看舊留言的時候，拖一下格子不要把他彈回最下面。
+    const bList = app.querySelector('.board-list');
+    if(bList){
+      bList.scrollTop = (boardScroll == null) ? bList.scrollHeight : boardScroll;
+      bList.onscroll = ()=>{
+        const atBottom = bList.scrollHeight - bList.scrollTop - bList.clientHeight < 8;
+        boardScroll = atBottom ? null : bList.scrollTop;
+      };
+    }
+
+    app.querySelectorAll('[data-ndel]').forEach(b=>{
+      b.onclick = async ()=>{
+        const n = notes.find(x=>x.id === b.dataset.ndel);
+        if(!n) return;
+        if(!window.confirm('刪掉這則留言？')) return;
+        const ok = await delNote(curTripId, n.date || (curTrip() || {}).startDate, n.id);
+        // 寫失敗就不要先從畫面上拿掉。不講的話它看起來消失了，
+        // 一按重新整理又整則跑回來。
+        if(!ok){ msg = {type:'err', text:'刪不掉，請重新整理再試一次。'}; render(); return; }
+        notes = notes.filter(x=>x.id !== n.id);
+        render();
+      };
+    });
+
+    const bSync = document.getElementById('boardSync');
+    if(bSync) bSync.onclick = async ()=>{
+      bSync.disabled = true;
+      await refresh();
+      if(curTripId) loadTripChildren(curTripId);
       render();
     };
 
