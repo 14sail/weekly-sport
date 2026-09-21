@@ -601,12 +601,12 @@
   .board{ margin-top:16px; }
   .board-h{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .board-h h3{ font-family:'Noto Serif TC',serif; font-size:14px; margin:0; flex:1; }
-  /* 輸入框在最下面，跟送出顆排同一列。
+  /* 輸入框在最下面，跟送出鈕排同一列。
      .btn 本身沒有 min-height，這顆算出來只有 33px，撐到 44px 手指才按得到。 */
   .board-new{ display:flex; gap:8px; align-items:flex-end; margin-top:10px; }
   .board-new textarea{ resize:vertical; }
   .board-new .btn{ flex:none; min-height:44px; }
-  /* 手機上留言一多就會把輸入框推到很下面，封頂半個畫面、里面自己捲。
+  /* 手機上留言一多就會把輸入框推到很下面，封頂半個畫面、裡面自己捲。
      桌機在下面的 media query 裡改用 flex 分高度，這裡的上限要拿掉。 */
   .board-list{
     border:1px solid var(--line); border-radius:var(--radius-sm);
@@ -615,10 +615,23 @@
   .bm{ padding:10px 12px; border-bottom:1px solid var(--line-soft); }
   .bm:last-child{ border-bottom:0; }
   .bm-h{ display:flex; align-items:center; gap:8px; margin-bottom:3px; }
+  /* 樓層。寬度固定，否則 1F 跟 12F 會把名字推成一排參差不齊。
+     --accent-deep 放在 --accent-soft 上是 5.14:1，跟景點編號 .pcode 同一組配色。 */
+  .bm-fl{
+    flex:none; width:26px; text-align:center;
+    font-size:11px; font-weight:700; letter-spacing:.02em;
+    color:var(--accent-deep); background:var(--accent-soft);
+    border-radius:6px; padding:1px 0;
+  }
   .bm-who{ font-size:12.5px; font-weight:500; }
   .bm-at{ flex:1; font-size:11.5px; color:var(--ink-soft); }
-  /* 留言原樣顯示：換行留著，長網址也不要撐破欄寬 */
-  .bm-tx{ margin:0; font-size:13.5px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+  /* 內文縮排，跟上面那一列的名字錯開（名字從 34px 開始，內文從 46px）。
+     齊頭的話名字跟留言會黏成一块，分不出哪一段是誰說的。
+     留言原樣顯示：換行留著，長網址也不要撐破欄寬。 */
+  .bm-tx{
+    margin:0; padding-left:46px; font-size:13.5px; line-height:1.6;
+    white-space:pre-wrap; overflow-wrap:anywhere;
+  }
   @media (min-width:1000px){
     /* 只有課表需要放右欄才變寬；列表和表單維持 760px，一行才不會長到難讀 */
     .wrap.wide{ max-width:1140px; }
@@ -1864,8 +1877,9 @@
       h += '<div class="empty">還沒有留言</div>';
     }else{
       h += '<div class="board-list">';
-      notes.forEach(n=>{
+      notes.forEach((n, i)=>{
         h += '<div class="bm"><div class="bm-h">' +
+          '<span class="bm-fl">' + (i + 1) + 'F</span>' +
           '<span class="bm-who">' + esc(personName(n.by)) + '</span>' +
           '<span class="bm-at">' + esc(noteWhen(n.at)) + '</span>' +
           (n.by === me
@@ -2054,6 +2068,7 @@
       step('在哪裡', '電腦在景點清單下面，手機在課表最下面') +
       step('送出', '按送出，或者 Ctrl（Mac 是 ⌘）加 Enter') +
       step('看新的', '留言不會自己跳出來，按標題旁邊那顆重新整理') +
+      step('樓層', '1F、2F 往下累積。刪掉中間那一則，後面的樓層會往上遞補') +
       step('刪掉', '只有自己的留言可以刪') +
       step('整趟共用', '不分天，切日期看到的是同一份');
 
