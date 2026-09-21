@@ -851,6 +851,7 @@
   let notes = [];            // 留言板：整趟的都在這裡，畫面上再按日期濾
   let boardDraft = '';       // 打到一半的留言。每次 render() 都重畫，不接住就沒了
   let boardScroll = null;    // 留言區的捲動位置，null＝貼在最下面
+  let boardSending = false;  // 正在存留言。停用送出鈕只擋得住滑鼠，Ctrl+Enter 要靠這個
   let curDate = null;
   let tab = 'timeline';      // timeline | places
   // 貼底面板：null＝沒開，{type:'add', at:分鐘} 或 {type:'item', id:項目 id}
@@ -1874,7 +1875,9 @@
     const notesToday = dayNotes(curDate);
     let h = '<div class="board"><div class="board-h">' +
       '<h3>留言板' + (notesToday.length ? ' ' + notesToday.length : '') + '</h3>' +
-      '<button class="mini icon-only" id="boardSync" title="重新整理" aria-label="重新整理">' +
+      // data-nav：這顆只是重抽資料，不寫東西。離線唯讀時不能跟其他按鈕一起被停用，
+      // 它是網路回來之後不重新整理整頁就能恢復的唯一一條路。
+      '<button class="mini icon-only" id="boardSync" data-nav title="重新整理" aria-label="重新整理">' +
       ic('refresh') + '</button></div>';
 
     if(!notesToday.length){
@@ -2674,13 +2677,16 @@
     async function sendNote(){
       const el = document.getElementById('boardInput');
       const text = (el ? el.value : boardDraft).trim();
+      if(boardSending) return;   // Ctrl+Enter 連敲兩下不走送出鈕，没這一行會送出兩則
       // 空的時候送出鈕本來就是停用的，這裡只擋 Ctrl+Enter。
       // 不跳錯誤訊息——那句話會出在畫面最上面，離留言板很遠，手機上根本看不到。
       if(!text){ if(el) el.focus(); return; }
       // 存檔期間停用，否則網路慢的時候連按兩下會送出兩則一樣的
+      boardSending = true;
       if(bSend) bSend.disabled = true;
       const n = { id: uid('nt'), date: curDate, text, by: me, at: new Date().toISOString() };
       const ok = await putNote(curTripId, curDate, n);
+      boardSending = false;
       if(!ok){ render(); return; }
       notes.push(n);
       boardScroll = null;   // 送完要看得到自己剛寫的那一則
@@ -2724,7 +2730,10 @@
         const n = notes.find(x=>x.id === b.dataset.ndel);
         if(!n) return;
         if(!window.confirm('刪掉這則留言？')) return;
-        await delNote(curTripId, n.date || (curTrip() || {}).startDate, n.id);
+        const ok = await delNote(curTripId, n.date || (curTrip() || {}).startDate, n.id);
+        // 寫失敗就不要先從畫面上拿掉。不講的話它看起來消失了，
+        // 一按重新整理又整則跑回來。
+        if(!ok){ msg = {type:'err', text:'刪不掉，請重新整理再試一次。'}; render(); return; }
         notes = notes.filter(x=>x.id !== n.id);
         render();
       };
