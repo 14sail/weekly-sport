@@ -328,7 +328,19 @@
      試過兩版都退掉了：虛線框在排滿的一天上會變成「實線框、虛線框」一路交錯，
      而且虛線在多數介面裡的意思是「這裡還沒有東西」；拿掉盒子只留一條連接線
      又太弱，夾在兩張卡片中間讀不出來。 */
-  .tt-block.c-transit{ --tint-bg:var(--bg-card); --tint-ink:var(--ink-soft); }
+  /* 底色不能用白的：四種分類底都是淺色，白卡片一放上去就變成整條車道上最亮的
+     東西，交通反而比目的地還搶眼。換成一層很淡的暖灰，不是任何一個分類的色相，
+     讀起來就是「安靜的那一種」。
+
+     這個值刻意不放進 :root。SPEC 第 2 節的 token 是三站共用的，而這是時間軸
+     專屬、另外兩站根本沒有的東西，放進去只會在另外兩個檔案留兩行死程式。
+
+     算過的（底色相對亮度 0.779）：
+       名稱  --ink         10.40:1 ✓
+       次要  --accent-deep  5.31:1 ✓
+       次要  --ink-soft     4.08:1 ✗  ← 不及格，所以次要文字不能沿用它
+     次要文字改用 --accent-deep，剛好跟左邊那個路線圖示同一個顏色。 */
+  .tt-block.c-transit{ --tint-bg:#E9E4DA; --tint-ink:var(--accent-deep); }
   .tt-block.c-transit .tt-b-ico{ flex:none; display:flex; color:var(--accent-deep); }
   .tt-block.c-transit .tt-b-ico .ic{ width:16px; height:16px; }
   /* 20 分以下的卡片放不下預設的上下內距（6px×2 ＋ 框線 2px ＋ 那一行 18.2px
