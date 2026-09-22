@@ -343,16 +343,20 @@
     content:''; position:absolute; left:0; top:1px; bottom:1px;
     width:3px; border-radius:99px; background:var(--accent);
   }
-  /* 景點名稱是 13px/700，交通刻意比它輕一階 */
-  .tt-block.c-transit .tt-b-name{ font-size:12.5px; font-weight:400; color:var(--ink); }
+  /* 字級跟景點名稱一樣 13px，只把字重從 700 降到 500。
+     「沒有底色」本身就已經把交通降一階了，再減字級又減字重就過頭——
+     12.5px/400 夾在兩張 13px/700 的卡片中間，比隔壁卡片的副標（11.5px）
+     重不了多少，等於把交通的正文放到景點註腳的層級，整行讀不出來。 */
+  .tt-block.c-transit .tt-b-name{ font-size:13px; font-weight:500; color:var(--ink); }
   /* 分鐘數要貼著文字，不要被推到最右邊。
      卡片有底色，名稱在左、時間在右也讀得出是同一列；交通沒有底，兩端一分開
      中間就是一大片空白，看起來像一列壞掉的表格。所以名稱改成 flex:0 1 auto，
      整列往左靠，「45 分」緊接在後面，整條讀起來是一句話。 */
   .tt-block.c-transit .tt-b-name{ flex:0 1 auto; }
-  .tt-block.c-transit .tt-b-time{ color:var(--ink-soft); }
+  /* 分鐘數是這一行的重點之一，11px 在米色底上太淡，拉到 12px */
+  .tt-block.c-transit .tt-b-time{ font-size:12px; color:var(--ink-soft); }
   .tt-block.c-transit .tt-b-ico{ flex:none; display:flex; color:var(--accent-deep); }
-  .tt-block.c-transit .tt-b-ico .ic{ width:15px; height:15px; }
+  .tt-block.c-transit .tt-b-ico .ic{ width:16px; height:16px; }
   .tt-block.c-transit:active .tt-b-in,
   .tt-block.c-transit.drag .tt-b-in{
     background:var(--accent-soft); border-radius:var(--radius-sm);
@@ -1709,8 +1713,9 @@
   // 所以短行程撐高不會再害後面的行程被誤判成撞期。
   const MIN_DRAW_PX = 44;
   // 交通不套 MIN_DRAW_PX（那是 30 分鐘，交通常常只有 10～15 分，撐高會蓋到
-  // 下一個方塊）。18px 剛好放得下那一行（12.5px × 1.4 ＝ 17.5px，沒有上下 padding）。
-  const MIN_TRANSIT_PX = 18;
+  // 下一個方塊）。字放大到 13px 之後那一行是 18.2px，下限跟著補到 20px，
+  // 不然最短的卡片會把自己的字切掉一截。
+  const MIN_TRANSIT_PX = 20;
   // 方塊至少這麼高才放第二行（備註，或「停留 X 分　分類」）。
   // 標題列約 18px＋上下 padding 12px＝30px，第二行約 17px，62 留一點呼吸空間。
   const SUB_MIN_PX = 62;
