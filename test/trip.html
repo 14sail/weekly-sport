@@ -335,9 +335,12 @@
     position:relative; background:none; border:0; border-radius:0;
     padding:0 6px 0 14px; justify-content:center;
   }
+  /* 這條線要撐得起「這一小時都在路上」。2px 太細，一小時的線在畫面上只是
+     一道淺痕，整段看起來像一行字浮在空白裡。3px 讀得出長度，左緣跟卡片的
+     框線對齊（.tt-block 自己有 2px 的左右 padding，所以這裡是 0）。 */
   .tt-block.c-transit .tt-b-in::before{
-    content:''; position:absolute; left:2px; top:1px; bottom:1px;
-    width:2px; border-radius:99px; background:var(--accent);
+    content:''; position:absolute; left:0; top:1px; bottom:1px;
+    width:3px; border-radius:99px; background:var(--accent);
   }
   /* 景點名稱是 13px/700，交通刻意比它輕一階 */
   .tt-block.c-transit .tt-b-name{ font-size:12.5px; font-weight:400; color:var(--ink); }
@@ -387,6 +390,18 @@
   .tt-grip.top::after{ top:2px; }
   .tt-grip.bot::after{ bottom:2px; }
   .tt-grip:active::after{ background:var(--ink); height:3px; }
+  /* 有滑鼠的裝置上，把手平常收起來，游標移到方塊上（或鍵盤聚焦）才出現。
+     一整天排下來畫面上會有七八條橫槓，相鄰兩個方塊的上下把手還會貼成雙線，
+     看起來像畫壞了——而它們只是「這裡可以拉」的提示，不是內容。
+     手指沒有 hover，所以觸控裝置完全不套這一段；手機的門檻本來就是 88px，
+     只有長行程才畫得出來，不會吵。
+     用 opacity 不用 display：元素要一直在，滑鼠按下去的判定才抓得到。 */
+  @media (hover:hover) and (pointer:fine){
+    .tt-grip{ opacity:0; transition:opacity .12s ease-out; }
+    .tt-block:hover .tt-grip,
+    .tt-block:focus-within .tt-grip,
+    .tt-block.drag .tt-grip{ opacity:1; }
+  }
   .tt-block.drag{ z-index:5; cursor:grabbing; }
   .tt-block.drag .tt-b-in{ box-shadow:0 8px 20px rgba(58,46,34,.25); border-color:var(--accent-deep); }
   /* 拖曳中的落點時間。方塊矮的時候名稱和時間會擠成一行，正好被手指蓋住，
@@ -1981,8 +1996,11 @@
       const sub = (p && p.transitNote)
         ? ic('note') + ' ' + esc(p.transitNote)
         : ('停留 ' + r.stay + ' 分' + (p ? '\u3000' + esc(cat) : ''));
-      // 離線是唯讀，邊帶畫出來也拉不動，乾脆不要畫
-      const grip = offline ? 0 : gripPx(hgt);
+      // 離線是唯讀，邊帶畫出來也拉不動，乾脆不要畫。
+      // 交通也不畫：它沒有框，兩條橫槓會憑空浮在一條帶子上，而且交通常常
+      // 緊貼著前後的方塊，三條橫槓擠在一起整段就糊了。整條拖可以換時間，
+      // 車程在面板裡改。
+      const grip = (offline || tr) ? 0 : gripPx(hgt);
       const nm = tr ? transitText(r.item) : (p ? p.name : '(景點已刪除)');
       // 方塊是可以操作的東西，不能只是一個 div：沒有 tabindex 就完全按不到，
       // 而開始／結束／停留／移除全部都在點下去才出現的面板裡，等於用鍵盤的人
@@ -2014,7 +2032,7 @@
              // 讀螢幕的人走面板裡的「開始 ±15」「停留 ±15／常用」，那邊有完整標籤，
              // 這兩條純粹是滑鼠與手指的把手，不要再念一次
              ? '<div class="tt-grip top" data-grip="top" aria-hidden="true" title="拉動改開始時間" style="height:' + grip + 'px"></div>' +
-               '<div class="tt-grip bot" data-grip="bot" aria-hidden="true" title="拉動改' + (tr ? '車程' : '停留') + '" style="height:' + grip + 'px"></div>'
+               '<div class="tt-grip bot" data-grip="bot" aria-hidden="true" title="拉動改停留" style="height:' + grip + 'px"></div>'
              : '') +
            '</div>';
     });
@@ -2043,7 +2061,7 @@
       step('點空白處', '在那個時間加東西。面板上面選景點或交通') +
       step('點格子', '開面板：開始、結束、停留都能改，也能看地圖或刪掉') +
       step('拖格子中間', '整塊換時間，停留不變') +
-      step('拖上下邊', '上邊改開始、下邊改停留，另一端不動。看得到那條短橫線就能拉') +
+      step('拖上下邊', '上邊改開始、下邊改停留，另一端不動。看得到那條短橫線就能拉。電腦上滑過格子才會出現') +
       step('手機要先長按', '手指按著不動一下再拖。直接拖會變成捲動頁面') +
       step('對齊 15 分', '拖的時候會自動吸。要非整刻的時間就在面板裡打字');
 
@@ -2083,7 +2101,7 @@
       '<li><b>面板的「開始」</b>：打字改它是<b>整塊移動</b>，停留不變。拖上邊則是結束不動，' +
         '兩個不一樣。要固定結束就改「結束」或「停留」。</li>' +
       '<li><b>短的行程沒有邊</b>：手機上一小時以下的格子太矮，塞不下上下邊，改時間請用面板。' +
-        '電腦上每個格子都有邊。</li>' +
+        '交通一律沒有邊，整條拖可以換時間，車程在面板裡改。</li>' +
       '</ul>';
 
     h += '<h2>要知道的事</h2><ul>' +
