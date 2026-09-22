@@ -333,7 +333,8 @@
      所以這兩條一定要自己寫（SPEC 第 3 節那個坑）。 */
   .tt-block.c-transit .tt-b-in{
     position:relative; background:none; border:0; border-radius:0;
-    padding:0 6px 0 14px; justify-content:center;
+    /* 左邊 11px 讓文字跟卡片裡的文字對齊（卡片是 1px 框線＋10px padding） */
+    padding:0 6px 0 11px; justify-content:center;
   }
   /* 這條線要撐得起「這一小時都在路上」。2px 太細，一小時的線在畫面上只是
      一道淺痕，整段看起來像一行字浮在空白裡。3px 讀得出長度，左緣跟卡片的
@@ -344,6 +345,11 @@
   }
   /* 景點名稱是 13px/700，交通刻意比它輕一階 */
   .tt-block.c-transit .tt-b-name{ font-size:12.5px; font-weight:400; color:var(--ink); }
+  /* 分鐘數要貼著文字，不要被推到最右邊。
+     卡片有底色，名稱在左、時間在右也讀得出是同一列；交通沒有底，兩端一分開
+     中間就是一大片空白，看起來像一列壞掉的表格。所以名稱改成 flex:0 1 auto，
+     整列往左靠，「45 分」緊接在後面，整條讀起來是一句話。 */
+  .tt-block.c-transit .tt-b-name{ flex:0 1 auto; }
   .tt-block.c-transit .tt-b-time{ color:var(--ink-soft); }
   .tt-block.c-transit .tt-b-ico{ flex:none; display:flex; color:var(--accent-deep); }
   .tt-block.c-transit .tt-b-ico .ic{ width:15px; height:15px; }
