@@ -441,6 +441,14 @@
 
   .sheet-row .lab{ font-size:12.5px; color:var(--ink-soft); }
   .sheet-row .val{ font-size:14px; font-weight:700; min-width:52px; text-align:center; }
+  /* 停留／車程可以直接打。數字欄位窄一點，同一列才塞得下 ± 兩顆。
+     min-height 維持 44px（手指點得到），只把左右收窄。 */
+  .sheet-row .min-in{
+    width:72px; flex:none; padding:4px 8px; text-align:center;
+    font-size:14px; font-weight:700; font-variant-numeric:tabular-nums;
+    color:var(--accent-deep); background:var(--accent-soft); border-color:var(--accent);
+  }
+  .sheet-row .unit{ font-size:12.5px; color:var(--ink-soft); margin-left:-4px; }
   .sheet-note{
     font-size:12.5px; color:var(--ink-soft); line-height:1.6;
     padding:10px 0 2px; border-top:1px solid var(--line-soft);
@@ -1672,8 +1680,13 @@
   // 標題列約 18px＋上下 padding 12px＝30px，第二行約 17px，62 留一點呼吸空間。
   const SUB_MIN_PX = 62;
   const CATS = ['飯店', '餐廳', '景點', '購物', '交通', '其他'];
-  // 交通卡片的常用車程。市區移動大多落在這幾個數字上，四顆剛好一列放得下。
-  const TRANSIT_MINS = [15, 30, 45, 60];
+  // 常用長度。這兩排只是捷徑，任何數字都可以在旁邊的欄位直接打。
+  // 交通比景點細：走路常常是 5～10 分，所以下限拉到 5。
+  const TRANSIT_MINS = [5, 10, 15, 20, 30, 45, 60, 90];
+  const STAY_MINS = [30, 60, 90, 120, 180];
+  // ±鈕的級距。交通抓 5 分，景點維持 15 分。
+  const STEP_TRANSIT = 5;
+  const STEP_STAY = 15;
   // 六個分類對到五組底色：能用的淺底只有四組加白底，所以交通與其他共用中性的白。
   // 兩個都是「不是目的地」的類型，共用剛好。
   const CAT_CLASS = {
@@ -2110,6 +2123,10 @@
           '<input id="trText" placeholder="例如 4 號線轉 2 號線" value="' +
           esc(transitDraft.text) + '" autocomplete="off"></label>';
         inner += '<div class="sheet-row"><span class="lab">車程</span>' +
+          '<input type="number" class="min-in" id="trMin" min="1" max="1440" step="5"' +
+            ' inputmode="numeric" value="' + transitDraft.min + '" aria-label="車程幾分鐘">' +
+          '<span class="unit">分</span></div>';
+        inner += '<div class="sheet-row"><span class="lab">常用</span>' +
           TRANSIT_MINS.map(n =>
             '<button class="mini' + (transitDraft.min === n ? ' on' : '') + '" data-trmin="' + n +
             '" aria-pressed="' + (transitDraft.min === n ? 'true' : 'false') + '">' + n + ' 分</button>'
@@ -2163,14 +2180,21 @@
         esc(toClock(r.end)) + '">' +
         '<button class="mini" data-endshift="15" data-id="' + esc(r.item.id) + '" aria-label="結束延後 15 分">＋15</button></div>';
 
+      // 中間那格可以直接打字，任何數字都填得進去；±鈕只是快一點。
+      const step = tr ? STEP_TRANSIT : STEP_STAY;
       inner += '<div class="sheet-row"><span class="lab">' + stayLab + '</span>' +
-        '<button class="mini" data-stay="-15" data-id="' + esc(r.item.id) + '" aria-label="減少 15 分">−15</button>' +
-        '<span class="val">' + r.stay + ' 分</span>' +
-        '<button class="mini" data-stay="15" data-id="' + esc(r.item.id) + '" aria-label="增加 15 分">＋15</button></div>';
+        '<button class="mini" data-stay="-' + step + '" data-id="' + esc(r.item.id) +
+          '" aria-label="減少 ' + step + ' 分">−' + step + '</button>' +
+        '<input type="number" class="min-in" data-setmin="' + esc(r.item.id) +
+          '" min="0" max="1440" step="5" inputmode="numeric" value="' + r.stay +
+          '" aria-label="' + stayLab + '幾分鐘">' +
+        '<span class="unit">分</span>' +
+        '<button class="mini" data-stay="' + step + '" data-id="' + esc(r.item.id) +
+          '" aria-label="增加 ' + step + ' 分">＋' + step + '</button></div>';
 
       // 常用長度：三小時改成一小時本來要按八下 −15。交通的常用長度短很多。
       inner += '<div class="sheet-row"><span class="lab">常用</span>' +
-        (tr ? TRANSIT_MINS : [30, 60, 90, 120]).map(n =>
+        (tr ? TRANSIT_MINS : STAY_MINS).map(n =>
           '<button class="mini' + (r.stay === n ? ' on' : '') + '" data-setstay="' + n +
           '" data-id="' + esc(r.item.id) + '" aria-pressed="' + (r.stay === n ? 'true' : 'false') +
           '">' + n + ' 分</button>'
@@ -2483,6 +2507,19 @@
       };
     });
 
+    // 打字改停留／車程。空白或負數就當沒改，把原本的值畫回去。
+    app.querySelectorAll('[data-setmin]').forEach(inp=>{
+      inp.onchange = async ()=>{
+        const it = findItem(inp.dataset.setmin);
+        if(!it) return;
+        const v = Math.round(Number(inp.value));
+        if(inp.value.trim() === '' || !isFinite(v) || v < 0){ render(); return; }
+        it.stayMin = Math.min(24 * 60, v);
+        await putItem(curTripId, it.date, it);
+        render();
+      };
+    });
+
     app.querySelectorAll('[data-setstay]').forEach(b=>{
       b.onclick = async ()=>{
         const it = findItem(b.dataset.id);
@@ -2737,15 +2774,36 @@
       trText.oninput = ()=>{ transitDraft.text = trText.value; };
       trText.onkeydown = (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addTransit(); } };
     }
+    // 常用鈕與自訂欄位互相對齊。兩邊都只改畫面不 render()——整頁重繪會把
+    // 正在打的字和游標位置洗掉。
+    function syncTrMin(){
+      const mi = document.getElementById('trMin');
+      if(mi && Number(mi.value) !== transitDraft.min) mi.value = transitDraft.min;
+      app.querySelectorAll('[data-trmin]').forEach(x=>{
+        const on = Number(x.dataset.trmin) === transitDraft.min;
+        x.classList.toggle('on', on);
+        x.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
     app.querySelectorAll('[data-trmin]').forEach(b=>{
       b.onclick = ()=>{
-        // 按之前先把打到一半的字收好，render() 才不會把它吃掉
-        const el = document.getElementById('trText');
-        if(el) transitDraft.text = el.value;
         transitDraft.min = Number(b.dataset.trmin) || 30;
-        render();
+        syncTrMin();
       };
     });
+    const trMin = document.getElementById('trMin');
+    if(trMin){
+      trMin.oninput = ()=>{
+        const v = Math.round(Number(trMin.value));
+        transitDraft.min = (isFinite(v) && v > 0) ? Math.min(24 * 60, v) : 0;
+        app.querySelectorAll('[data-trmin]').forEach(x=>{
+          const on = Number(x.dataset.trmin) === transitDraft.min;
+          x.classList.toggle('on', on);
+          x.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      };
+      trMin.onkeydown = (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addTransit(); } };
+    }
     const trAdd = document.getElementById('trAdd');
     if(trAdd) trAdd.onclick = ()=>{ addTransit(); };
 
@@ -2832,12 +2890,16 @@
       const el = document.getElementById('trText');
       const text = ((el ? el.value : transitDraft.text) || '').trim();
       if(!text){ if(el) el.focus(); return; }
+      const mi = document.getElementById('trMin');
+      const typed = mi ? Math.round(Number(mi.value)) : NaN;
+      const min = (isFinite(typed) && typed > 0) ? Math.min(24 * 60, typed)
+                : (transitDraft.min > 0 ? transitDraft.min : 30);
       const list = dayItems(curDate);
       await pushItem({
         id: uid('ti'), date: curDate, placeId:'',
         startTime: toClock(addAt(list)),
         order: (list.length + 1) * 10,
-        stayMin: transitDraft.min,
+        stayMin: min,
         note: text,
         createdBy: me, savedAt:new Date().toISOString()
       });
