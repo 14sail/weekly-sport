@@ -335,12 +335,15 @@
      這個值刻意不放進 :root。SPEC 第 2 節的 token 是三站共用的，而這是時間軸
      專屬、另外兩站根本沒有的東西，放進去只會在另外兩個檔案留兩行死程式。
 
-     算過的（底色相對亮度 0.779）：
-       名稱  --ink         10.40:1 ✓
-       次要  --accent-deep  5.31:1 ✓
-       次要  --ink-soft     4.08:1 ✗  ← 不及格，所以次要文字不能沿用它
+     去飽和的灰太冷，在整站的暖色裡是外來的，所以留著暖色相、只把飽和度壓下來：
+     比車道沉、比購物的琥珀淡，落在車道與景點的 --accent-soft 中間。
+
+     算過的（底色相對亮度 0.794）：
+       名稱  --ink         10.59:1 ✓
+       次要  --accent-deep  5.40:1 ✓
+       次要  --ink-soft     4.15:1 ✗  ← 不及格，所以次要文字不能沿用它
      次要文字改用 --accent-deep，剛好跟左邊那個路線圖示同一個顏色。 */
-  .tt-block.c-transit{ --tint-bg:#E9E4DA; --tint-ink:var(--accent-deep); }
+  .tt-block.c-transit{ --tint-bg:#EDE6D3; --tint-ink:var(--accent-deep); }
   .tt-block.c-transit .tt-b-ico{ flex:none; display:flex; color:var(--accent-deep); }
   .tt-block.c-transit .tt-b-ico .ic{ width:16px; height:16px; }
   /* 20 分以下的卡片放不下預設的上下內距（6px×2 ＋ 框線 2px ＋ 那一行 18.2px
