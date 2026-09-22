@@ -638,6 +638,11 @@
     .tl-cols{ display:grid; grid-template-columns:1fr 300px; gap:22px; align-items:start; }
     /* 景點分頁沒有右欄，用兩欄把多出來的寬度吃掉，卡片才不會被拉成長條 */
     .place-list{ display:grid; grid-template-columns:1fr 1fr; gap:0 10px; align-items:start; }
+    /* grid 的格子預設 min-width:auto＝不會縮到比內容還窄。卡片裡的備註是
+       white-space:nowrap，一則長備註就會把那一欄撐開，把右邊整欄推出畫面外——
+       畫面上看起來就像「景點庫少了一半的景點」，其實是它們被擠到看不到的地方。
+       min-width:0 之後欄寬才守得住，下面那些省略號也才輪得到它生效。 */
+    .place-list > .place-card{ min-width:0; }
     /* 兩欄並排時高度一長一短會很亂。桌機把每張卡片鎖成一樣高：名稱一行、
        停留一行、備註一行，超出的用省略號（全文在編輯畫面，滑鼠停著也看得到）。
        手機是單欄、上下沒得比，維持完整顯示，這整段只在桌機生效。 */
@@ -2677,7 +2682,7 @@
     async function sendNote(){
       const el = document.getElementById('boardInput');
       const text = (el ? el.value : boardDraft).trim();
-      if(boardSending) return;   // Ctrl+Enter 連敲兩下不走送出鈕，没這一行會送出兩則
+      if(boardSending) return;   // Ctrl+Enter 連敲兩下不走送出鈕，沒這一行會送出兩則
       // 空的時候送出鈕本來就是停用的，這裡只擋 Ctrl+Enter。
       // 不跳錯誤訊息——那句話會出在畫面最上面，離留言板很遠，手機上根本看不到。
       if(!text){ if(el) el.focus(); return; }
