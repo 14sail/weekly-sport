@@ -321,22 +321,33 @@
   .tt-block.c-see{  --tint-bg:var(--accent-soft); --tint-ink:var(--accent-deep); }
   .tt-block.c-stay{ --tint-bg:var(--green-soft);  --tint-ink:var(--green-ink); }
   .tt-block.c-shop{ --tint-bg:var(--amber-soft);  --tint-ink:var(--amber-ink); }
-  /* 交通卡片：沒有景點的項目，只有一段文字和車程。
-     白底（跟分類「交通／其他」同一個中性底，對比不用重算）＋虛線框＋路線圖示，
-     三個訊號一起講「這不是景點」，沒有一個是只靠顏色。
-     框線用 --accent，對卡片底 3.96:1，過得了非文字的 3:1。 */
-  .tt-block.c-transit{ --tint-bg:var(--bg-card); --tint-ink:var(--ink-soft); }
-  .tt-block.c-transit .tt-b-in{ border-style:dashed; border-color:var(--accent); }
-  .tt-block.c-transit .tt-b-name{ font-weight:500; }
+  /* 交通不是目的地，是兩個景點中間的那一段，所以**不畫成卡片**。
+     沒有底、沒有框，左邊一條線的長度就是車程——像轉乘路線圖。
+
+     試過白底加虛線框，排滿的一天上會變成「實線框、虛線框、實線框」一路交錯，
+     那一段跟真正的行程搶版面；而且虛線框在多數介面裡的意思是「這裡還沒有東西」，
+     語意剛好相反。降成連接線之後，交通自然退到景點後面。
+
+     沒有框就沒有框線可以變色，按下與拖曳的回饋改成一條淺底的橫帶。
+     .c-transit .tt-b-in 是 (0,3,0)，壓得過 .tt-block:active 的 (0,2,0)，
+     所以這兩條一定要自己寫（SPEC 第 3 節那個坑）。 */
+  .tt-block.c-transit .tt-b-in{
+    position:relative; background:none; border:0; border-radius:0;
+    padding:0 6px 0 14px; justify-content:center;
+  }
+  .tt-block.c-transit .tt-b-in::before{
+    content:''; position:absolute; left:2px; top:1px; bottom:1px;
+    width:2px; border-radius:99px; background:var(--accent);
+  }
+  /* 景點名稱是 13px/700，交通刻意比它輕一階 */
+  .tt-block.c-transit .tt-b-name{ font-size:12.5px; font-weight:400; color:var(--ink); }
+  .tt-block.c-transit .tt-b-time{ color:var(--ink-soft); }
   .tt-block.c-transit .tt-b-ico{ flex:none; display:flex; color:var(--accent-deep); }
-  .tt-block.c-transit .tt-b-ico .ic{ width:16px; height:16px; }
-  /* 15 分的卡片只有 23px 高，預設的上下 padding 就把那一行擠掉了 */
-  .tt-block.c-transit.short .tt-b-in{ padding:1px 8px; justify-content:center; }
-  .tt-block.c-transit.short .tt-b-name{ font-size:12px; }
-  /* .c-transit .tt-b-in 是 (0,3,0)，比 .tt-block:active / .tt-block.drag 的 (0,2,0) 高，
-     不補這兩條的話按下與拖曳都會沒有框線回饋（SPEC 第 3 節那個坑）。 */
-  .tt-block.c-transit:active .tt-b-in{ border-color:var(--accent-deep); }
-  .tt-block.c-transit.drag .tt-b-in{ border-color:var(--accent-deep); }
+  .tt-block.c-transit .tt-b-ico .ic{ width:15px; height:15px; }
+  .tt-block.c-transit:active .tt-b-in,
+  .tt-block.c-transit.drag .tt-b-in{
+    background:var(--accent-soft); border-radius:var(--radius-sm);
+  }
   .tt-b-in{
     height:100%; overflow:hidden; padding:6px 10px;
     background:var(--tint-bg); border:1px solid var(--line);
@@ -1676,11 +1687,9 @@
   // 最矮 44px＝手指點得到的尺寸。這只影響畫出來的高度，不參與重疊判定，
   // 所以短行程撐高不會再害後面的行程被誤判成撞期。
   const MIN_DRAW_PX = 44;
-  // 交通卡片不套 MIN_DRAW_PX（那是 30 分鐘，交通常常只有 10～15 分，撐高會蓋到
-  // 下一個方塊）。只保一個看得見的下限，以及「擠到連預設 padding 都放不下」的門檻：
-  // 標題列 18px＋上下 padding 12px＝30px。
+  // 交通不套 MIN_DRAW_PX（那是 30 分鐘，交通常常只有 10～15 分，撐高會蓋到
+  // 下一個方塊）。18px 剛好放得下那一行（12.5px × 1.4 ＝ 17.5px，沒有上下 padding）。
   const MIN_TRANSIT_PX = 18;
-  const TRANSIT_TIGHT_PX = 32;
   // 方塊至少這麼高才放第二行（備註，或「停留 X 分　分類」）。
   // 標題列約 18px＋上下 padding 12px＝30px，第二行約 17px，62 留一點呼吸空間。
   const SUB_MIN_PX = 62;
@@ -1968,9 +1977,8 @@
       const w = 100 / r.cols;
       const cat = catOf(p);
       // 第二行：備註是自己寫的、資訊量最高，有就放備註；沒有才退回停留與分類。
-      const sub = tr
-        ? ('車程 ' + r.stay + ' 分')
-        : (p && p.transitNote)
+      // 交通只有一行，分鐘數已經在右邊，不需要第二行
+      const sub = (p && p.transitNote)
         ? ic('note') + ' ' + esc(p.transitNote)
         : ('停留 ' + r.stay + ' 分' + (p ? '\u3000' + esc(cat) : ''));
       // 離線是唯讀，邊帶畫出來也拉不動，乾脆不要畫
@@ -1986,9 +1994,7 @@
            '，停留 ' + r.stay + ' 分，' + cat);
       h += '<div data-block="' + esc(r.item.id) + '"' +
              (p ? ' data-place="' + esc(p.id) + '"' : '') +
-             ' class="tt-block ' +
-               (tr ? ('c-transit' + (hgt < TRANSIT_TIGHT_PX ? ' short' : ''))
-                   : (CAT_CLASS[cat] || 'c-see')) + '"' +
+             ' class="tt-block ' + (tr ? 'c-transit' : (CAT_CLASS[cat] || 'c-see')) + '"' +
              (offline ? '' : ' tabindex="0" role="button"') +
              ' aria-label="' + esc(aria) + '"' +
              ' style="top:' + Math.round(top) + 'px;height:' + Math.round(hgt) +
@@ -1998,9 +2004,11 @@
                (tr ? '<span class="tt-b-ico">' + ic('route') + '</span>' : (p ? codeTag(p) : '')) +
                // 名稱一定會被截斷，滑鼠停著要看得到全文；讀螢幕的走上面的 aria-label
                '<span class="tt-b-name" title="' + esc(nm) + '">' + esc(nm) + '</span>' +
-               '<span class="tt-b-time">' + toClock(r.start) + '–' + toClock(r.end) + '</span>' +
+               '<span class="tt-b-time">' +
+                 (tr ? (r.stay + ' 分') : (toClock(r.start) + '–' + toClock(r.end))) +
+               '</span>' +
              '</div>' +
-             (hgt >= SUB_MIN_PX ? '<div class="tt-b-sub">' + sub + '</div>' : '') +
+             (!tr && hgt >= SUB_MIN_PX ? '<div class="tt-b-sub">' + sub + '</div>' : '') +
            '</div>' +
            (grip
              // 讀螢幕的人走面板裡的「開始 ±15」「停留 ±15／常用」，那邊有完整標籤，
