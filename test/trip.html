@@ -449,6 +449,11 @@
     color:var(--accent-deep); background:var(--accent-soft); border-color:var(--accent);
   }
   .sheet-row .unit{ font-size:12.5px; color:var(--ink-soft); margin-left:-4px; }
+  /* type=number 自帶的上下小箭頭在 72px 的欄位裡只有十幾 px 寬，
+     手指點不到還把數字擠偏。旁邊已經有 ± 兩顆，關掉。 */
+  .sheet-row .min-in::-webkit-outer-spin-button,
+  .sheet-row .min-in::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .sheet-row .min-in{ -moz-appearance:textfield; appearance:textfield; }
   .sheet-note{
     font-size:12.5px; color:var(--ink-soft); line-height:1.6;
     padding:10px 0 2px; border-top:1px solid var(--line-soft);
@@ -1830,7 +1835,7 @@
 
     // 提示只在空的日子出現，其他時候不佔位置
     if(!rows.length){
-      h += '<p class="hint">點空白處就可以加景點</p>';
+      h += '<p class="hint">點空白處加行程</p>';
     }
 
     h += '<div class="tl-cols"><div>';
@@ -2890,10 +2895,11 @@
       const el = document.getElementById('trText');
       const text = ((el ? el.value : transitDraft.text) || '').trim();
       if(!text){ if(el) el.focus(); return; }
+      // 車程被清空或打了 0 就把游標送回那一格，不要默默塞一個 30 進去
       const mi = document.getElementById('trMin');
-      const typed = mi ? Math.round(Number(mi.value)) : NaN;
-      const min = (isFinite(typed) && typed > 0) ? Math.min(24 * 60, typed)
-                : (transitDraft.min > 0 ? transitDraft.min : 30);
+      const typed = mi ? Math.round(Number(mi.value)) : transitDraft.min;
+      if(!isFinite(typed) || typed <= 0){ if(mi) mi.focus(); return; }
+      const min = Math.min(24 * 60, typed);
       const list = dayItems(curDate);
       await pushItem({
         id: uid('ti'), date: curDate, placeId:'',
