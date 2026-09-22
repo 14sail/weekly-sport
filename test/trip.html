@@ -321,46 +321,19 @@
   .tt-block.c-see{  --tint-bg:var(--accent-soft); --tint-ink:var(--accent-deep); }
   .tt-block.c-stay{ --tint-bg:var(--green-soft);  --tint-ink:var(--green-ink); }
   .tt-block.c-shop{ --tint-bg:var(--amber-soft);  --tint-ink:var(--amber-ink); }
-  /* 交通不是目的地，是兩個景點中間的那一段，所以**不畫成卡片**。
-     沒有底、沒有框，左邊一條線的長度就是車程——像轉乘路線圖。
+  /* 交通卡片：跟景點同一套盒子——白底、實線框、圓角、一樣的內距與字級。
+     分辨靠編號格換成路線圖示，那一格本來就是「這是哪一個景點」的位置。
+     白底是分類「交通／其他」本來就在用的中性底，對比不用重算。
 
-     試過白底加虛線框，排滿的一天上會變成「實線框、虛線框、實線框」一路交錯，
-     那一段跟真正的行程搶版面；而且虛線框在多數介面裡的意思是「這裡還沒有東西」，
-     語意剛好相反。降成連接線之後，交通自然退到景點後面。
-
-     沒有框就沒有框線可以變色，按下與拖曳的回饋改成一條淺底的橫帶。
-     .c-transit .tt-b-in 是 (0,3,0)，壓得過 .tt-block:active 的 (0,2,0)，
-     所以這兩條一定要自己寫（SPEC 第 3 節那個坑）。 */
-  .tt-block.c-transit .tt-b-in{
-    position:relative; background:none; border:0; border-radius:0;
-    /* 左邊 11px 讓文字跟卡片裡的文字對齊（卡片是 1px 框線＋10px padding） */
-    padding:0 6px 0 11px; justify-content:center;
-  }
-  /* 這條線要撐得起「這一小時都在路上」。2px 太細，一小時的線在畫面上只是
-     一道淺痕，整段看起來像一行字浮在空白裡。3px 讀得出長度，左緣跟卡片的
-     框線對齊（.tt-block 自己有 2px 的左右 padding，所以這裡是 0）。 */
-  .tt-block.c-transit .tt-b-in::before{
-    content:''; position:absolute; left:0; top:1px; bottom:1px;
-    width:3px; border-radius:99px; background:var(--accent);
-  }
-  /* 字級跟景點名稱一樣 13px，只把字重從 700 降到 500。
-     「沒有底色」本身就已經把交通降一階了，再減字級又減字重就過頭——
-     12.5px/400 夾在兩張 13px/700 的卡片中間，比隔壁卡片的副標（11.5px）
-     重不了多少，等於把交通的正文放到景點註腳的層級，整行讀不出來。 */
-  .tt-block.c-transit .tt-b-name{ font-size:13px; font-weight:500; color:var(--ink); }
-  /* 分鐘數要貼著文字，不要被推到最右邊。
-     卡片有底色，名稱在左、時間在右也讀得出是同一列；交通沒有底，兩端一分開
-     中間就是一大片空白，看起來像一列壞掉的表格。所以名稱改成 flex:0 1 auto，
-     整列往左靠，「45 分」緊接在後面，整條讀起來是一句話。 */
-  .tt-block.c-transit .tt-b-name{ flex:0 1 auto; }
-  /* 分鐘數是這一行的重點之一，11px 在米色底上太淡，拉到 12px */
-  .tt-block.c-transit .tt-b-time{ font-size:12px; color:var(--ink-soft); }
+     試過兩版都退掉了：虛線框在排滿的一天上會變成「實線框、虛線框」一路交錯，
+     而且虛線在多數介面裡的意思是「這裡還沒有東西」；拿掉盒子只留一條連接線
+     又太弱，夾在兩張卡片中間讀不出來。 */
+  .tt-block.c-transit{ --tint-bg:var(--bg-card); --tint-ink:var(--ink-soft); }
   .tt-block.c-transit .tt-b-ico{ flex:none; display:flex; color:var(--accent-deep); }
   .tt-block.c-transit .tt-b-ico .ic{ width:16px; height:16px; }
-  .tt-block.c-transit:active .tt-b-in,
-  .tt-block.c-transit.drag .tt-b-in{
-    background:var(--accent-soft); border-radius:var(--radius-sm);
-  }
+  /* 20 分以下的卡片放不下預設的上下內距（6px×2 ＋ 框線 2px ＋ 那一行 18.2px
+     ＝ 32.2px），收成只有左右內距的一行 */
+  .tt-block.c-transit.short .tt-b-in{ padding:0 8px; justify-content:center; }
   .tt-b-in{
     height:100%; overflow:hidden; padding:6px 10px;
     background:var(--tint-bg); border:1px solid var(--line);
@@ -1713,9 +1686,10 @@
   // 所以短行程撐高不會再害後面的行程被誤判成撞期。
   const MIN_DRAW_PX = 44;
   // 交通不套 MIN_DRAW_PX（那是 30 分鐘，交通常常只有 10～15 分，撐高會蓋到
-  // 下一個方塊）。字放大到 13px 之後那一行是 18.2px，下限跟著補到 20px，
-  // 不然最短的卡片會把自己的字切掉一截。
-  const MIN_TRANSIT_PX = 20;
+  // 下一個方塊）。那一行是 18.2px，加上框線 2px 就是 22px 的下限；
+  // 34px 以上才塞得下預設的上下內距（再多 12px）。
+  const MIN_TRANSIT_PX = 22;
+  const TRANSIT_TIGHT_PX = 34;
   // 方塊至少這麼高才放第二行（備註，或「停留 X 分　分類」）。
   // 標題列約 18px＋上下 padding 12px＝30px，第二行約 17px，62 留一點呼吸空間。
   const SUB_MIN_PX = 62;
@@ -2003,15 +1977,15 @@
       const w = 100 / r.cols;
       const cat = catOf(p);
       // 第二行：備註是自己寫的、資訊量最高，有就放備註；沒有才退回停留與分類。
-      // 交通只有一行，分鐘數已經在右邊，不需要第二行
-      const sub = (p && p.transitNote)
+      // 景點：標題列放起訖、第二行放停留與分類。
+      // 交通剛好相反——標題列那一格放的是車程，所以第二行放起訖，兩個不重複。
+      const sub = tr
+        ? (toClock(r.start) + ' – ' + toClock(r.end))
+        : (p && p.transitNote)
         ? ic('note') + ' ' + esc(p.transitNote)
         : ('停留 ' + r.stay + ' 分' + (p ? '\u3000' + esc(cat) : ''));
-      // 離線是唯讀，邊帶畫出來也拉不動，乾脆不要畫。
-      // 交通也不畫：它沒有框，兩條橫槓會憑空浮在一條帶子上，而且交通常常
-      // 緊貼著前後的方塊，三條橫槓擠在一起整段就糊了。整條拖可以換時間，
-      // 車程在面板裡改。
-      const grip = (offline || tr) ? 0 : gripPx(hgt);
+      // 離線是唯讀，邊帶畫出來也拉不動，乾脆不要畫
+      const grip = offline ? 0 : gripPx(hgt);
       const nm = tr ? transitText(r.item) : (p ? p.name : '(景點已刪除)');
       // 方塊是可以操作的東西，不能只是一個 div：沒有 tabindex 就完全按不到，
       // 而開始／結束／停留／移除全部都在點下去才出現的面板裡，等於用鍵盤的人
@@ -2023,7 +1997,9 @@
            '，停留 ' + r.stay + ' 分，' + cat);
       h += '<div data-block="' + esc(r.item.id) + '"' +
              (p ? ' data-place="' + esc(p.id) + '"' : '') +
-             ' class="tt-block ' + (tr ? 'c-transit' : (CAT_CLASS[cat] || 'c-see')) + '"' +
+             ' class="tt-block ' +
+               (tr ? ('c-transit' + (hgt < TRANSIT_TIGHT_PX ? ' short' : ''))
+                   : (CAT_CLASS[cat] || 'c-see')) + '"' +
              (offline ? '' : ' tabindex="0" role="button"') +
              ' aria-label="' + esc(aria) + '"' +
              ' style="top:' + Math.round(top) + 'px;height:' + Math.round(hgt) +
@@ -2037,13 +2013,13 @@
                  (tr ? (r.stay + ' 分') : (toClock(r.start) + '–' + toClock(r.end))) +
                '</span>' +
              '</div>' +
-             (!tr && hgt >= SUB_MIN_PX ? '<div class="tt-b-sub">' + sub + '</div>' : '') +
+             (hgt >= SUB_MIN_PX ? '<div class="tt-b-sub">' + sub + '</div>' : '') +
            '</div>' +
            (grip
              // 讀螢幕的人走面板裡的「開始 ±15」「停留 ±15／常用」，那邊有完整標籤，
              // 這兩條純粹是滑鼠與手指的把手，不要再念一次
              ? '<div class="tt-grip top" data-grip="top" aria-hidden="true" title="拉動改開始時間" style="height:' + grip + 'px"></div>' +
-               '<div class="tt-grip bot" data-grip="bot" aria-hidden="true" title="拉動改停留" style="height:' + grip + 'px"></div>'
+               '<div class="tt-grip bot" data-grip="bot" aria-hidden="true" title="拉動改' + (tr ? '車程' : '停留') + '" style="height:' + grip + 'px"></div>'
              : '') +
            '</div>';
     });
@@ -2112,7 +2088,7 @@
       '<li><b>面板的「開始」</b>：打字改它是<b>整塊移動</b>，停留不變。拖上邊則是結束不動，' +
         '兩個不一樣。要固定結束就改「結束」或「停留」。</li>' +
       '<li><b>短的行程沒有邊</b>：手機上一小時以下的格子太矮，塞不下上下邊，改時間請用面板。' +
-        '交通一律沒有邊，整條拖可以換時間，車程在面板裡改。</li>' +
+        '電腦上滑過格子才會出現。</li>' +
       '</ul>';
 
     h += '<h2>要知道的事</h2><ul>' +
