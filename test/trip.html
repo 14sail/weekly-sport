@@ -336,8 +336,11 @@
        白卡片 --bg-card #FFFDF8  H43 S100% L99%   ← 原本用的，太亮
        車道 --bg        #F6F1E7  H40 S45% L94%
 
-     代價講清楚：對車道只剩 1.03（白卡片是 1.11），這張卡片主要是靠那圈
-     1px 的 --line 框線在跟車道分開，不是靠底色。
+     代價講清楚：底色對車道只剩 1.03（白卡片是 1.11），而那圈 1px 的 --line 對車道
+     也只有 1.24——兩個都不到非文字要求的 3:1。卡片跟空白車道之間就是一道很淡的界線，
+     大太陽底下的手機大概看不出來。這是車道改成 --bg 之後 c-move 就一直有的狀況，
+     交通卡片只是沿用，不是它新造成的。要真的分開只有兩條路：底色壓到車道以下
+     （那時候次要文字要換成 --accent-deep），或者另外給這張卡片一個更深的框線。
 
      算過的（底色相對亮度 0.914）：
        名稱  --ink       12.09:1 ✓
@@ -1839,6 +1842,21 @@
     return Math.max(ttLo, Math.min(ttHi, ttLo + y / PX_PER_MIN));
   }
 
+  // 方塊畫在哪、多高。渲染與拖曳中的即時預覽共用同一份算法——這兩邊本來各寫一次，
+  // 結果拖曳中的交通卡片套的是景點的 44px 下限，放開才縮回真實高度，鬆手瞬間彈一下。
+  //
+  // 交通卡片不套 MIN_DRAW_PX（那是 30 分鐘），太矮時補到 MIN_TRANSIT_PX，而且多出來
+  // 的高度往**上**長不往下長：下面那一格的標題就貼在它的上緣，往下長會把人家的名字
+  // 蓋掉；上面那一格的下緣通常是空的。off 就是往上挪了多少，拖曳那邊要拿它補回來。
+  function blockBox(it, startMin, endMin){
+    const top = ttY(startMin);
+    const raw = ttY(endMin) - top;
+    if(!isTransit(it)) return { top, hgt: Math.max(MIN_DRAW_PX, raw), off: 0 };
+    const hgt = Math.max(MIN_TRANSIT_PX, raw);
+    const off = Math.max(0, Math.min(top, hgt - raw));
+    return { top: top - off, hgt, off };
+  }
+
   function timelineHtml(t, dates){
     let h = '<div class="tt-stick"><div class="tabs">' +
       '<button data-tab="timeline" data-nav class="' + (tab==='timeline'?'on':'') + '">時間軸</button>' +
@@ -1980,16 +1998,8 @@
     rows.forEach(r=>{
       const tr = isTransit(r.item);
       const p = placeById(r.item.placeId);
-      let top = ttY(r.start);
-      // 交通卡片照真實高度畫，其他的撐到看得見名字為止
-      const hgt = tr
-        ? Math.max(MIN_TRANSIT_PX, ttY(r.drawEnd) - top)
-        : Math.max(MIN_DRAW_PX, ttY(r.drawEnd) - top);
-      // 5 分鐘只有 7.5px，放不下那一行字，只好補到 MIN_TRANSIT_PX。多出來的高度
-      // 往**上**長不往下長：下面那一格的標題就貼在它的上緣，往下長會把人家的名字
-      // 蓋掉；上面那一格的下緣通常是空的。
-      const drawOff = tr ? Math.min(top, hgt - (ttY(r.drawEnd) - top)) : 0;
-      if(drawOff > 0) top -= drawOff;
+      const box = blockBox(r.item, r.start, r.drawEnd);
+      const top = box.top, hgt = box.hgt;
       const w = 100 / r.cols;
       const cat = catOf(p);
       // 第二行：備註是自己寫的、資訊量最高，有就放備註；沒有才退回停留與分類。
@@ -2090,7 +2100,8 @@
       term('停留', '在這個景點待多久。新加的預設 60 分。') +
       term('分類', '飯店、餐廳、景點、購物、交通、其他。課表上用底色分，' +
            '其中交通和其他共用同一個底色。') +
-      term('交通卡片', '虛線框的那種。只有一段文字和車程，不會變成景點、也不會拿到編號。' +
+      term('交通卡片', '米白底、左邊是路線圖示的那種。只有一段文字和車程，' +
+           '不會變成景點、也不會拿到編號。' +
            '要記「搭幾號線、走幾分鐘」就用它。') +
       term('備註', '寫在景點裡的自由欄位，交通、要不要訂位都可以寫。會顯示在課表的面板裡。') +
       '</dl>';
@@ -2288,8 +2299,8 @@
   const MOUSE_SLOP = 4;   // 滑鼠移動超過這麼多 px 就當成要拖
   const TOUCH_SLOP = 8;   // 手指在長按成立前移動超過這麼多 px 就當成要捲頁面
 
-  // touch 事件一輩子都送到「手指按下去的那個元素」，而 enterDragScale() 會 render()
-  // 把它換掉——元素一離開文件就不再冒泡到 document，掛在 document 上的 touchmove／
+  // touch 事件一輩子都送到「手指按下去的那個元素」，而拖曳中只要有任何一次 render()
+  // 就會把它換掉——元素一離開文件就不再冒泡到 document，掛在 document 上的 touchmove／
   // touchend 會收不到，拖到一半整個斷掉。所以觸控的監聽要掛在那個元素自己身上。
   // 滑鼠沒有這個問題（事件跟著游標下面的東西走），維持掛在 document。
   let touchHost = null;
@@ -2360,13 +2371,12 @@
     press = {
       el, it, x: pt.x, y: pt.y,
       laneTop, mouse: !!mouse, mode,
-      band: gripPx(rect.height) || 44,
       // 手指抓在參考邊的哪個位置，拖的時候要維持這個相對位置。
       // 拉下緣時參考邊是底部，其他時候是頂部。
       grabDy: pt.y - (mode === 'bot' ? rect.bottom : rect.top),
-      // 太短的交通卡片畫出來的位置比真實時間高一點（見 timetableHtml），
+      // 太短的交通卡片畫出來的位置比真實時間高一點（見 blockBox），
       // 不補回來的話手指一碰它就先往前跳一格。一般方塊這個值是 0。
-      drawOff: ttY(start) - (rect.top - laneTop),
+      drawOff: blockBox(it, start, start + stayOf(it)).off,
       origin: start, endOrigin: start + stayOf(it),
       cur: null, dragging: false, timer: null
     };
@@ -2390,8 +2400,11 @@
     }
 
     if(e.cancelable) e.preventDefault();
-    // 用絕對位置換算，才跟畫面上的格線對得起來
-    let v = ttMinAt((pt.y - press.laneTop) - press.grabDy + press.drawOff);
+    // 用絕對位置換算，才跟畫面上的格線對得起來。
+    // drawOff 只有「參考邊是頂部」時要補：拉下緣時參考邊是底部，而卡片往上挪
+    // 不會動到底部（挪多少就長高多少），再加一次就變成多算一段。
+    let v = ttMinAt((pt.y - press.laneTop) - press.grabDy +
+                    (press.mode === 'bot' ? 0 : press.drawOff));
     v = Math.round(v / SNAP_MIN) * SNAP_MIN;
     if(press.mode === 'bot'){
       // 結束時間：最短留 SNAP_MIN，開始時間不動
@@ -2404,15 +2417,18 @@
     }
     press.cur = v;
 
-    const top = press.mode === 'bot' ? ttY(press.origin) : ttY(v);
-    press.el.style.top = Math.round(top) + 'px';
+    // 走跟渲染同一個 blockBox，拖曳中看到的就是放開之後會畫出來的樣子
+    const s0 = press.mode === 'bot' ? press.origin : v;
+    const e0 = press.mode === 'bot' ? v
+             : press.mode === 'top' ? press.endOrigin
+             : v + (press.endOrigin - press.origin);
+    const box = blockBox(press.it, s0, e0);
+    press.el.style.top = Math.round(box.top) + 'px';
     if(press.mode !== 'move'){
-      const bottom = press.mode === 'bot' ? ttY(v) : ttY(press.endOrigin);
-      const hgt = Math.max(MIN_DRAW_PX, bottom - top);
-      press.el.style.height = Math.round(hgt) + 'px';
+      press.el.style.height = Math.round(box.hgt) + 'px';
       // 拉短到塞不下第二行時就把它收起來，不然會被裁一半
       const subEl = press.el.querySelector('.tt-b-sub');
-      if(subEl) subEl.style.display = hgt >= SUB_MIN_PX ? '' : 'none';
+      if(subEl) subEl.style.display = box.hgt >= SUB_MIN_PX ? '' : 'none';
     }
 
     // 方塊裡只放時間（窄的時候會被裁），停留幾分交給上緣那個提示
