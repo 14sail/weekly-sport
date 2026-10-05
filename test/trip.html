@@ -536,17 +536,26 @@
   .pre-h{
     font-family:'Noto Serif TC',serif; font-size:16px; margin:0 0 10px;
   }
-  .pre-row{
+  /* 一起的分三塊：要帶的／要買的／注意。能不能勾看塊，不看項目。 */
+  .pre-sec{ margin-bottom:18px; }
+  .pre-sub{
+    font-size:13px; font-weight:700; color:var(--ink-soft); letter-spacing:.06em;
+    margin:0 0 8px;
+  }
+  .pre-list{
     background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:12px 14px; margin-bottom:8px;
+    padding:0 12px;
   }
-  .pre-top{ display:flex; align-items:center; gap:8px; }
-  .pre-text{ flex:1; min-width:0; font-size:14.5px; font-weight:500; }
-  .pre-text.note{ font-weight:400; color:var(--ink-soft); }
-  .pre-sep{
-    font-size:12px; letter-spacing:.1em; color:var(--ink-soft);
-    margin:20px 0 8px;
+  /* 點文字就是改文字或刪除，列上不再放鉛筆和垃圾桶 */
+  .row-text{
+    flex:1; min-width:0; min-height:44px; padding:8px 4px;
+    border:0; background:none; color:inherit; text-align:left;
+    font-size:14px; line-height:1.45; border-radius:var(--radius-sm);
   }
+  .row-text:active{ background:var(--accent-soft); }
+  .row-text.note{ color:var(--ink-soft); font-size:13.5px; }
+  .row-text.done{ color:var(--ink-soft); text-decoration:line-through; }
+  .mini.buyer{ flex:none; min-width:52px; justify-content:center; }
   /* 一起的清單：一個項目一列，成員名字只在表頭出現一次。
      成員多的時候橫向捲動，項目名稱那一欄釘住不動。 */
   .sr-only{
@@ -614,7 +623,7 @@
     display:flex; align-items:center; gap:9px;
     padding:5px 0; border-top:1px solid var(--line-soft); min-height:44px;
   }
-  .memo-item:first-of-type{ border-top:0; }
+  .memo-item:first-child, .memo-head + .memo-item{ border-top:0; }
   .mi-tick{
     flex:none; position:relative; width:26px; height:26px; padding:0;
     border:1px solid var(--line); background:#fff; color:#fff;
@@ -622,11 +631,9 @@
   }
   .mi-tick::after{ content:''; position:absolute; inset:-9px; }
   .mi-tick .ic{ width:15px; height:15px; margin:0; vertical-align:0; }
-  .mi-tick.on{ background:var(--accent); border-color:var(--accent); }
+  .mi-tick.on{ background:var(--accent-deep); border-color:var(--accent-deep); }
   .mi-tick:active{ background:var(--accent-soft); }
-  .mi-tick.on:active{ filter:brightness(.9); background:var(--accent); }
-  .mi-text{ flex:1; min-width:0; font-size:14px; }
-  .mi-note{ flex:1; min-width:0; font-size:13.5px; color:var(--ink-soft); line-height:1.6; }
+  .mi-tick.on:active{ filter:brightness(.9); background:var(--accent-deep); }
 
   /* ---------- 景點 ---------- */
   .place-card{
@@ -2079,9 +2086,11 @@
       step('對齊 15 分', '拖的時候會自動吸。要非整刻的時間就在面板裡打字');
 
     h += '<h2>行前</h2>' +
-      step('一起的', '一個項目一列，每個人一個勾格。點名字可以改文字或刪掉') +
+      step('要帶的', '每個人一個勾格，各勾各的') +
       step('那個數字', '點 2/4 就是幫所有人一次打勾，再點一次全部取消') +
-      step('只是提醒', '不需要打勾的事情，會收在下面的「提醒」區') +
+      step('要買的', '一項一格勾。按「我買」認領，買到了就勾掉') +
+      step('注意', '不用勾的事情，例如護照效期') +
+      step('改或刪', '點項目的文字。放錯塊也是在這裡搬') +
       step('我自己的', '只有你看得到。自己開主題，底下想列幾點就列幾點');
 
     h += '<h2>留言板</h2>' +
@@ -2966,9 +2975,18 @@
   }
 
   // ---------- 行前 ----------
-  // 「一起的」是整趟一份，每個項目下面有每位成員的勾；
-  // 「我自己的」一個人一包，畫面上只顯示自己的。
-  // 兩邊的項目都可以是「勾選型」或「提醒型」（純文字、沒有勾格）。
+  // 「一起的」是整趟一份，分成三塊，能不能勾看它在哪一塊，不用每一項自己選：
+  //   要帶的 kind:'check' 每個人各勾一格（表格）
+  //   要買的 kind:'buy'   一格勾＋誰買（buyer），有人認領就由那個人買
+  //   注意   kind:'note'  純文字
+  // 舊資料沒有 kind 或 kind:'check' 都算「要帶的」，不用搬資料。
+  // 「我自己的」一個人一包，畫面上只顯示自己的；新項目一律可以勾。
+
+  const PRE_SECTIONS = [
+    { kind:'check', title:'要帶的' },
+    { kind:'buy',   title:'要買的' },
+    { kind:'note',  title:'注意' }
+  ];
 
   const PRE_PRESETS = [
     { text:'護照效期要滿六個月', kind:'note' },
@@ -2980,8 +2998,12 @@
     { text:'轉接頭', kind:'check' }
   ];
 
+  function preKindOf(r){
+    return r.kind === 'note' ? 'note' : r.kind === 'buy' ? 'buy' : 'check';
+  }
+
   // 正在編輯／新增的東西。一次只會有一個，所以用一個物件就夠。
-  // {what:'preNew'|'preEdit'|'topicNew'|'topicEdit'|'memoNew'|'memoEdit', id, topicId}
+  // {what:'preNew'|'preEdit'|'topicNew'|'topicEdit'|'memoNew'|'memoEdit', id, topicId, kind}
   let preForm = null;
   let preDraft = '';
   let preKind = 'check';
@@ -2992,71 +3014,89 @@
 
   function preHtml(t){
     const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
+    const editing = preForm && preForm.what === 'preEdit' ? preForm.id : null;
     let h = '';
 
     // ---- 一起的 ----
     h += '<h2 class="pre-h">一起的</h2>';
 
-    if(!pres.length && preForm !== 'preNew'){
-      h += '<div class="empty">還沒有項目</div>' +
-           '<button class="btn wide ghost" id="preSeed" style="margin-top:10px">' +
+    if(!pres.length && !preForm){
+      h += '<button class="btn wide ghost" id="preSeed" style="margin-bottom:14px">' +
            ic('plus') + '帶入常用項目</button>';
     }
 
-    // 打勾的排成表格：成員名字只出現一次在表頭，一個項目一列。
-    // 原本一項要一張卡片加一整排 44px 的勾，七項就吃掉七百多像素。
-    // 用真的 <table>，讀螢幕軟體才唸得出「旅平險 × 雅婷」這個交叉關係。
-    const checks = pres.filter(r => r.kind !== 'note');
-    const notes  = pres.filter(r => r.kind === 'note');
-    const editing = preForm && preForm.what === 'preEdit' ? preForm.id : null;
+    PRE_SECTIONS.forEach(sec=>{
+      const rows = pres.filter(r => preKindOf(r) === sec.kind);
+      const shown = rows.filter(r => r.id !== editing);
+      h += '<section class="pre-sec"><h3 class="pre-sub">' + sec.title + '</h3>';
 
-    if(checks.length){
-      h += '<div class="pre-table-wrap"><table class="pre-table">' +
-        '<thead><tr><th class="c-name"></th><th class="c-all"><span class="sr-only">全部</span></th>';
-      ids.forEach(id=>{ h += '<th>' + esc(personName(id)) + '</th>'; });
-      h += '</tr></thead><tbody>';
-
-      checks.forEach(r=>{
-        if(r.id === editing) return;   // 正在編輯的那一列拉到表格外面顯示
-        const done = r.done || {};
-        const n = ids.filter(id => done[id]).length;
-        const allDone = ids.length > 0 && n === ids.length;
-        h += '<tr><th class="c-name">' +
-          '<button data-preedit="' + esc(r.id) + '" title="改文字或刪除">' + esc(r.text) + '</button></th>' +
-          '<td class="c-all"><button class="all-pill' + (allDone ? ' on' : '') + '" data-preall="' + esc(r.id) +
-            '" title="' + (allDone ? '全部取消' : '全部打勾') + '" aria-label="' +
-            (allDone ? '全部取消' : '全部打勾') + '">' + n + '/' + ids.length + '</button></td>';
-        ids.forEach(id=>{
-          const on = !!done[id];
-          h += '<td><button class="cell-tick' + (on ? ' on' : '') + '" data-pretick="' + esc(r.id) +
-               '" data-who="' + esc(id) + '" aria-pressed="' + (on ? 'true' : 'false') +
-               '" aria-label="' + esc(r.text) + ' ' + esc(personName(id)) + '">' +
-               '<span class="box">' + (on ? ic('check') : '') + '</span></button></td>';
+      if(sec.kind === 'check' && shown.length){
+        // 打勾的排成表格：成員名字只出現一次在表頭，一個項目一列。
+        // 用真的 <table>，讀螢幕軟體才唸得出「旅平險 × 雅婷」這個交叉關係。
+        h += '<div class="pre-table-wrap"><table class="pre-table">' +
+          '<thead><tr><th class="c-name"></th><th class="c-all"><span class="sr-only">全部</span></th>';
+        ids.forEach(id=>{ h += '<th>' + esc(personName(id)) + '</th>'; });
+        h += '</tr></thead><tbody>';
+        shown.forEach(r=>{
+          const done = r.done || {};
+          const n = ids.filter(id => done[id]).length;
+          const allDone = ids.length > 0 && n === ids.length;
+          h += '<tr><th class="c-name">' +
+            '<button data-preedit="' + esc(r.id) + '" title="改文字或刪除">' + esc(r.text) + '</button></th>' +
+            '<td class="c-all"><button class="all-pill' + (allDone ? ' on' : '') + '" data-preall="' + esc(r.id) +
+              '" title="' + (allDone ? '全部取消' : '全部打勾') + '" aria-label="' +
+              (allDone ? '全部取消' : '全部打勾') + '">' + n + '/' + ids.length + '</button></td>';
+          ids.forEach(id=>{
+            const on = !!done[id];
+            h += '<td><button class="cell-tick' + (on ? ' on' : '') + '" data-pretick="' + esc(r.id) +
+                 '" data-who="' + esc(id) + '" aria-pressed="' + (on ? 'true' : 'false') +
+                 '" aria-label="' + esc(r.text) + ' ' + esc(personName(id)) + '">' +
+                 '<span class="box">' + (on ? ic('check') : '') + '</span></button></td>';
+          });
+          h += '</tr>';
         });
-        h += '</tr>';
-      });
-      h += '</tbody></table></div>';
-    }
+        h += '</tbody></table></div>';
+      }
 
-    if(editing && pres.some(r => r.id === editing)){
-      h += preEditRow('pre', editing);
-    }
+      if(sec.kind === 'buy' && shown.length){
+        h += '<div class="pre-list">';
+        shown.forEach(r=>{
+          const on = !!r.bought;
+          const buyer = r.buyer && people.some(p => p.id === r.buyer) ? r.buyer : null;
+          const mine = buyer === me;
+          const who = buyer ? (mine ? '我' : personName(buyer)) : '我買';
+          h += '<div class="memo-item">' +
+            '<button class="mi-tick' + (on ? ' on' : '') + '" data-buytick="' + esc(r.id) +
+              '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(r.text) + ' 買到了">' +
+              (on ? ic('check') : '') + '</button>' +
+            '<button class="row-text' + (on ? ' done' : '') + '" data-preedit="' + esc(r.id) +
+              '" title="改文字或刪除">' + esc(r.text) + '</button>' +
+            '<button class="mini buyer' + (buyer ? ' on' : '') + '" data-buyer="' + esc(r.id) +
+              '" aria-label="誰買：' + esc(buyer ? personName(buyer) : '還沒有人') + '">' + esc(who) + '</button>' +
+            '</div>';
+        });
+        h += '</div>';
+      }
 
-    if(notes.length){
-      if(checks.length) h += '<div class="pre-sep">提醒</div>';
-      notes.forEach(r=>{
-        if(r.id === editing) return;
-        h += '<div class="pre-row"><div class="pre-top">' +
-          '<span class="pre-text note">' + ic('note') + ' ' + esc(r.text) + '</span>' +
-          '<button class="mini icon-only" data-preedit="' + esc(r.id) + '" title="改文字" aria-label="改文字">' + ic('edit') + '</button>' +
-          '<button class="mini warn icon-only" data-predel="' + esc(r.id) + '" title="刪除" aria-label="刪除">' + ic('trash') + '</button>' +
-          '</div></div>';
-      });
-    }
+      if(sec.kind === 'note' && shown.length){
+        h += '<div class="pre-list">';
+        shown.forEach(r=>{
+          h += '<div class="memo-item">' +
+            '<button class="row-text note" data-preedit="' + esc(r.id) + '" title="改文字或刪除">' +
+              ic('note') + ' ' + esc(r.text) + '</button></div>';
+        });
+        h += '</div>';
+      }
 
-    h += (preForm && preForm.what === 'preNew')
-      ? preEditRow('pre', null)
-      : '<button class="btn wide ghost" id="preAdd" style="margin-top:10px">' + ic('plus') + '新增項目</button>';
+      if(editing && rows.some(r => r.id === editing)){
+        h += preEditRow('pre', editing);
+      }
+
+      h += (preForm && preForm.what === 'preNew' && preForm.kind === sec.kind)
+        ? preEditRow('pre', null)
+        : '<button class="mini" data-preadd="' + sec.kind + '" style="margin-top:8px">' + ic('plus') + '加一項</button>';
+      h += '</section>';
+    });
 
     // ---- 我自己的 ----
     const m = memoData();
@@ -3078,6 +3118,7 @@
           '</div>';
       }
 
+      // 舊版留下來的「提醒型」照樣顯示，排在可以勾的後面
       const list = (tp.items || []);
       const mChecks = list.filter(x => x.kind !== 'note');
       const mNotes  = list.filter(x => x.kind === 'note');
@@ -3088,17 +3129,16 @@
         }
         h += '<div class="memo-item">';
         if(it.kind === 'note'){
-          h += '<span class="mi-note">' + ic('note') + ' ' + esc(it.text) + '</span>';
+          h += '<button class="row-text note" data-miedit="' + esc(it.id) + '" data-tp="' + esc(tp.id) +
+               '" title="改文字或刪除">' + ic('note') + ' ' + esc(it.text) + '</button>';
         }else{
           h += '<button class="mi-tick' + (it.done ? ' on' : '') + '" data-memotick="' + esc(it.id) +
-               '" data-tp="' + esc(tp.id) + '" aria-pressed="' + (it.done ? 'true' : 'false') + '">' +
-               (it.done ? ic('check') : '') + '</button>' +
-               '<span class="mi-text">' + esc(it.text) + '</span>';
+               '" data-tp="' + esc(tp.id) + '" aria-pressed="' + (it.done ? 'true' : 'false') +
+               '" aria-label="' + esc(it.text) + '">' + (it.done ? ic('check') : '') + '</button>' +
+               '<button class="row-text' + (it.done ? ' done' : '') + '" data-miedit="' + esc(it.id) +
+               '" data-tp="' + esc(tp.id) + '" title="改文字或刪除">' + esc(it.text) + '</button>';
         }
-        h += '<span class="spacer"></span>' +
-          '<button class="mini icon-only" data-miedit="' + esc(it.id) + '" data-tp="' + esc(tp.id) + '" title="改文字" aria-label="改文字">' + ic('edit') + '</button>' +
-          '<button class="mini warn icon-only" data-midel="' + esc(it.id) + '" data-tp="' + esc(tp.id) + '" title="刪除" aria-label="刪除">' + ic('trash') + '</button>' +
-          '</div>';
+        h += '</div>';
       });
 
       h += (preForm && preForm.what === 'memoNew' && preForm.topicId === tp.id)
@@ -3115,25 +3155,30 @@
   }
 
   // 新增與改文字共用同一個表單。scope: 'pre' | 'topic' | 'memo'
+  // 新增時只有一個輸入框；改「一起的」項目時才多一排「搬到哪一塊」，放錯了可以搬。
   function preEditRow(scope, id, topicId){
     const isTopic = scope === 'topic';
     let h = '<div class="pre-form">' +
       '<input id="preInput" value="' + esc(preDraft) + '" placeholder="' +
       (isTopic ? '主題名稱，例如 伴手禮' : '要做什麼') + '" autocomplete="off">';
 
-    if(!isTopic){
-      h += '<div class="tabs" style="margin:10px 0 0">' +
-        '<button data-prekind="check" class="' + (preKind === 'check' ? 'on' : '') + '">可以打勾</button>' +
-        '<button data-prekind="note" class="' + (preKind === 'note' ? 'on' : '') + '">只是提醒</button>' +
-        '</div>';
+    if(id && scope === 'pre'){
+      h += '<div class="tabs" style="margin:10px 0 0">';
+      PRE_SECTIONS.forEach(sec=>{
+        h += '<button data-prekind="' + sec.kind + '" class="' + (preKind === sec.kind ? 'on' : '') + '">' + sec.title + '</button>';
+      });
+      h += '</div>';
     }
 
     h += '<div style="display:flex;gap:8px;margin-top:10px">' +
       '<button class="btn" id="preSave" style="flex:1">' + (id ? '儲存' : '加入') + '</button>' +
       '<button class="btn ghost" id="preCancel">取消</button></div>';
-    // 表格的列裡沒有刪除鈕，刪除放在這裡
+    // 列上沒有刪除鈕，刪除都放在這裡
     if(id && scope === 'pre'){
       h += '<button class="btn wide danger" data-predel="' + esc(id) + '" style="margin-top:10px">' +
+           ic('trash') + '刪除這一項</button>';
+    }else if(id && scope === 'memo'){
+      h += '<button class="btn wide danger" data-midel="' + esc(id) + '" data-tp="' + esc(topicId) + '" style="margin-top:10px">' +
            ic('trash') + '刪除這一項</button>';
     }
     h += '</div>';
@@ -3143,7 +3188,7 @@
   function wirePre(t){
     const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
     const openForm = (what, id, topicId, draft, kind)=>{
-      preForm = { what, id: id || null, topicId: topicId || null };
+      preForm = { what, id: id || null, topicId: topicId || null, kind: kind || 'check' };
       preDraft = draft || '';
       preKind = kind || 'check';
       render();
@@ -3164,15 +3209,16 @@
       render();
     };
 
-    const add = document.getElementById('preAdd');
-    if(add) add.onclick = ()=> openForm('preNew');
+    app.querySelectorAll('[data-preadd]').forEach(b=>{
+      b.onclick = ()=> openForm('preNew', null, null, '', b.dataset.preadd);
+    });
     const tpAdd = document.getElementById('tpAdd');
     if(tpAdd) tpAdd.onclick = ()=> openForm('topicNew');
 
     app.querySelectorAll('[data-preedit]').forEach(b=>{
       b.onclick = ()=>{
         const r = pres.find(x => x.id === b.dataset.preedit);
-        if(r) openForm('preEdit', r.id, null, r.text, r.kind);
+        if(r) openForm('preEdit', r.id, null, r.text, preKindOf(r));
       };
     });
     app.querySelectorAll('[data-tpedit]').forEach(b=>{
@@ -3222,13 +3268,19 @@
       if(f.what === 'preNew' || f.what === 'preEdit'){
         let r = f.id ? pres.find(x => x.id === f.id) : null;
         if(r){
+          // 搬到別塊就把原本那塊的勾選狀態清掉，兩種勾的意思不一樣
+          if(preKindOf(r) !== preKind){
+            r.done = {};
+            delete r.bought;
+            delete r.buyer;
+          }
           r.text = text;
           r.kind = preKind;
-          if(preKind === 'note') r.done = {};   // 改成提醒型就不留勾選狀態
         }else{
+          const last = pres.reduce((mx, x) => Math.max(mx, x.order || 0), 0);
           r = {
             id: uid('pr'), text, kind: preKind, done: {},
-            order: (pres.length + 1) * 10, createdBy: me, savedAt: new Date().toISOString()
+            order: last + 10, createdBy: me, savedAt: new Date().toISOString()
           };
           pres.push(r);
         }
@@ -3249,16 +3301,12 @@
         const tp = m.topics.find(x => x.id === f.topicId);
         if(tp){
           tp.items = tp.items || [];
-          tp.items.push({ id: uid('mi'), text, kind: preKind, done: false });
+          tp.items.push({ id: uid('mi'), text, kind: 'check', done: false });
         }
       }else if(f.what === 'memoEdit'){
         const tp = m.topics.find(x => x.id === f.topicId);
         const it = tp && (tp.items || []).find(x => x.id === f.id);
-        if(it){
-          it.text = text;
-          it.kind = preKind;
-          if(preKind === 'note') it.done = false;
-        }
+        if(it) it.text = text;
       }
       await saveMemo(m);
       closeForm();
@@ -3297,14 +3345,45 @@
       };
     });
 
+    // 要買的：勾＝買到了
+    app.querySelectorAll('[data-buytick]').forEach(b=>{
+      b.onclick = async ()=>{
+        const r = pres.find(x => x.id === b.dataset.buytick);
+        if(!r) return;
+        r.bought = !r.bought;
+        r.savedAt = new Date().toISOString();
+        await putPre(curTripId, r);
+        render();
+      };
+    });
+
+    // 誰買：沒人 → 我；我 → 沒人；別人 → 問一次再換成我
+    app.querySelectorAll('[data-buyer]').forEach(b=>{
+      b.onclick = async ()=>{
+        const r = pres.find(x => x.id === b.dataset.buyer);
+        if(!r) return;
+        const cur = r.buyer && people.some(p => p.id === r.buyer) ? r.buyer : null;
+        if(cur === me){
+          delete r.buyer;
+        }else{
+          if(cur && !window.confirm('「' + r.text + '」原本是 ' + personName(cur) + ' 要買，改成你？')) return;
+          r.buyer = me;
+        }
+        r.savedAt = new Date().toISOString();
+        await putPre(curTripId, r);
+        render();
+      };
+    });
+
     app.querySelectorAll('[data-predel]').forEach(b=>{
       b.onclick = async ()=>{
         const r = pres.find(x => x.id === b.dataset.predel);
         if(!r) return;
         if(!window.confirm('刪掉「' + r.text + '」？')) return;
-        await delPre(curTripId, r.id);
+        const ok = await delPre(curTripId, r.id);
+        if(!ok){ render(); return; }
         pres = pres.filter(x => x.id !== r.id);
-        render();
+        closeForm();
       };
     });
 
@@ -3325,9 +3404,11 @@
         const m = memoData();
         const tp = m.topics.find(x => x.id === b.dataset.tp);
         if(!tp) return;
-        tp.items = (tp.items || []).filter(x => x.id !== b.dataset.midel);
+        const it = (tp.items || []).find(x => x.id === b.dataset.midel);
+        if(!it || !window.confirm('刪掉「' + it.text + '」？')) return;
+        tp.items = tp.items.filter(x => x.id !== it.id);
         await saveMemo(m);
-        render();
+        closeForm();
       };
     });
 
