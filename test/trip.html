@@ -2083,11 +2083,11 @@
       step('對齊 15 分', '拖的時候會自動吸。要非整刻的時間就在面板裡打字');
 
     h += '<h2>行前</h2>' +
-      step('分塊', '一起的：每人帶、一人帶、要買的、注意。我自己的：要帶的、要買的、注意') +
+      step('三塊', '要帶的、要買的、注意。一起的和我自己的都一樣') +
       step('加一項', '每塊下面各一顆，打完按 Enter') +
-      step('每人帶', '每個人一個勾格，各勾各的。護照、行動電源這種') +
-      step('那個數字', '點 2/4 就是幫所有人一次打勾，再點一次全部取消') +
-      step('一人帶', '一個人帶大家共用，行李秤、吹風機這種。按「我帶」認領，帶了就勾') +
+      step('要帶的', '每個人一個勾格，各勾各的') +
+      step('誰要帶', '行李秤這種一個人帶就好的，在「誰要帶」只留那個人，其他人那格會空著') +
+      step('那個數字', '要帶的人勾了幾個。點它是幫要帶的人一次打勾，再點一次全部取消') +
       step('要買的', '按「我買」認領，買到了就勾，項目會劃掉') +
       step('換人', '按「我」是取消認領。按別人的名字會先問要不要換你') +
       step('注意', '不用勾的事情，例如護照效期') +
@@ -2979,41 +2979,53 @@
 
   // ---------- 行前 ----------
   // 能不能勾、怎麼勾看項目在哪一塊，不用每一項自己選。
-  // 一起的四塊：
-  //   每人帶 kind:'check'  每個人各勾一格（表格）
-  //   一人帶 kind:'share'  一格勾＋誰帶（bringer），行李秤這種大家共用的
+  // 一起的三塊：
+  //   要帶的 kind:'check'  表格，每個人一格。need 是「誰要帶」，沒有就是全部的人；
+  //                        行李秤這種一個人帶大家用的，need 只留那個人，其他人那格空著
   //   要買的 kind:'buy'    一格勾＋誰買（buyer）
   //   注意   kind:'note'   純文字
-  // 自己的三塊：要帶的（check）／要買的（buy）／注意（note），都是一格勾。
-  // 一起的舊資料沒有 kind 或 kind:'check' 都算「每人帶」，不用搬資料。
+  // 自己的三塊一樣，都是一格勾。
+  // 一起的舊資料沒有 kind 或 kind:'check' 都算「要帶的」，不用搬資料。
   // 自己的一個人一包（trip-memo），畫面上只顯示自己的。
 
   const PRE_SECTIONS = [
-    { kind:'check', title:'每人帶' },
-    { kind:'share', title:'一人帶' },
-    { kind:'buy',   title:'要買的' },
-    { kind:'note',  title:'注意' }
-  ];
-  const MEMO_SECTIONS = [
     { kind:'check', title:'要帶的' },
     { kind:'buy',   title:'要買的' },
     { kind:'note',  title:'注意' }
   ];
+  const MEMO_SECTIONS = PRE_SECTIONS;
 
-  // 一人帶與要買的是同一種列：一格勾＋認領。差別只在欄位名和動詞。
-  // 要買的先上線，欄位沿用 bought／buyer，不改名才不用搬資料。
+  // 要買的：一格勾＋認領。
   const CLAIM = {
-    share: { done:'packed', who:'bringer', verb:'帶', doneWord:'帶了' },
-    buy:   { done:'bought', who:'buyer',   verb:'買', doneWord:'買到了' }
+    buy: { done:'bought', who:'buyer', verb:'買', doneWord:'買到了' }
   };
 
   function preKindOf(r){
-    return r.kind === 'note' || r.kind === 'buy' || r.kind === 'share' ? r.kind : 'check';
+    return r.kind === 'note' || r.kind === 'buy' ? r.kind : 'check';
   }
   function claimer(r){
     const c = CLAIM[preKindOf(r)];
     const id = c && r[c.who];
     return id && people.some(p => p.id === id) ? id : null;
+  }
+  // 誰要帶。need 裡已經不在旅程的人略過；全部被略過就當成全部的人。
+  function needOf(r, ids){
+    const need = Array.isArray(r.need) ? r.need.filter(id => ids.includes(id)) : [];
+    return need.length ? need : ids;
+  }
+  // 短暫上線過的「一人帶」（kind:'share'）收回要帶的：有人認領就只留他那格。
+  // 只改記憶體裡的，下次存這一項才寫回去。
+  function normPre(r){
+    if(r.kind !== 'share') return;
+    r.kind = 'check';
+    if(r.bringer){
+      r.need = [r.bringer];
+      r.done = r.packed ? { [r.bringer]: true } : {};
+    }else{
+      r.done = {};
+    }
+    delete r.packed;
+    delete r.bringer;
   }
 
   // 正在編輯／新增的東西。一次只會有一個，所以用一個物件就夠。
@@ -3022,6 +3034,7 @@
   let preDraft = '';
   let preKind = 'check';
   let preReturn = null;   // 表單關掉後要把焦點送回去的元素（selector）
+  let preNeed = [];       // 表單裡「誰要帶」選了誰
 
   // 自己的：{ items:[{id, text, kind, done}] }
   // 舊版是「主題 → 項目」兩層。讀到舊格式就攤平成一層，文字前面補上主題名，
@@ -3048,6 +3061,7 @@
     const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
     const f = preForm || {};
     let h = '';
+    pres.forEach(normPre);
 
     // ---- 一起的 ----
     h += '<h2 class="pre-h">一起的</h2>';
@@ -3067,14 +3081,17 @@
         h += '</tr></thead><tbody>';
         shown.forEach(r=>{
           const done = r.done || {};
-          const n = ids.filter(id => done[id]).length;
-          const allDone = ids.length > 0 && n === ids.length;
+          const need = needOf(r, ids);
+          const n = need.filter(id => done[id]).length;
+          const allDone = n === need.length;
           h += '<tr><th class="c-name">' +
-            '<button data-preedit="' + esc(r.id) + '" title="改文字或刪除">' + esc(r.text) + '</button></th>' +
+            '<button data-preedit="' + esc(r.id) + '" title="改文字、誰要帶或刪除">' + esc(r.text) + '</button></th>' +
             '<td class="c-all"><button class="all-pill' + (allDone ? ' on' : '') + '" data-preall="' + esc(r.id) +
               '" title="' + (allDone ? '全部取消' : '全部打勾') + '" aria-label="' +
-              (allDone ? '全部取消' : '全部打勾') + '">' + n + '/' + ids.length + '</button></td>';
+              (allDone ? '全部取消' : '全部打勾') + '">' + n + '/' + need.length + '</button></td>';
           ids.forEach(id=>{
+            // 不用帶的人那格空著
+            if(!need.includes(id)){ h += '<td><span class="sr-only">不用帶</span></td>'; return; }
             const on = !!done[id];
             h += '<td><button class="cell-tick' + (on ? ' on' : '') + '" data-pretick="' + esc(r.id) +
                  '" data-who="' + esc(id) + '" aria-pressed="' + (on ? 'true' : 'false') +
@@ -3111,9 +3128,9 @@
         h += '</div>';
       }
 
-      if(editing) h += preEditRow('pre', editing);
+      if(editing) h += preEditRow('pre', editing, ids);
       h += (f.what === 'preNew' && f.kind === sec.kind)
-        ? preEditRow('pre', null)
+        ? preEditRow('pre', null, ids)
         : addBtn('data-preadd', sec.kind);
       h += '</section>';
     });
@@ -3170,10 +3187,21 @@
   }
 
   // 新增與改文字共用同一個表單。scope: 'pre' | 'memo'
-  // 新增時只有一個輸入框；改的時候才多一排「放在」，放錯塊可以搬。
-  function preEditRow(scope, id){
+  // 一起的要帶的多一排「誰要帶」，預設全部；改的時候才多一排「放在」，放錯塊可以搬。
+  function preEditRow(scope, id, ids){
     let h = '<div class="pre-form">' +
       '<input id="preInput" aria-label="項目" value="' + esc(preDraft) + '" placeholder="要做什麼" autocomplete="off">';
+
+    if(scope === 'pre' && preKind === 'check' && ids && ids.length > 1){
+      h += '<div class="pre-move-lbl" id="preNeedLbl">誰要帶</div>' +
+        '<div class="tabs pre-move" role="group" aria-labelledby="preNeedLbl">';
+      ids.forEach(pid=>{
+        const on = preNeed.includes(pid);
+        h += '<button data-preneed="' + esc(pid) + '" class="' + (on ? 'on' : '') +
+             '" aria-pressed="' + (on ? 'true' : 'false') + '">' + esc(personName(pid)) + '</button>';
+      });
+      h += '</div>';
+    }
 
     if(id){
       h += '<div class="pre-move-lbl" id="preMoveLbl">放在</div>' +
@@ -3208,6 +3236,8 @@
       preForm = { what, id: id || null, kind: kind || 'check' };
       preDraft = draft || '';
       preKind = kind || 'check';
+      const r = what === 'preEdit' ? pres.find(x => x.id === id) : null;
+      preNeed = r ? needOf(r, ids).slice() : ids.slice();
       render();
     };
     const closeForm = ()=>{ preForm = null; preDraft = ''; preKind = 'check'; render(); };
@@ -3252,6 +3282,19 @@
         render();
       };
     });
+    app.querySelectorAll('[data-preneed]').forEach(b=>{
+      b.onclick = ()=>{
+        preDraft = input ? input.value : preDraft;
+        const pid = b.dataset.preneed;
+        if(preNeed.includes(pid)){
+          if(preNeed.length === 1) return;   // 至少要有一個人帶
+          preNeed = preNeed.filter(x => x !== pid);
+        }else{
+          preNeed = ids.filter(x => x === pid || preNeed.includes(x));
+        }
+        render();
+      };
+    });
     const cancel = document.getElementById('preCancel');
     if(cancel) cancel.onclick = closeForm;
     const save = document.getElementById('preSave');
@@ -3272,8 +3315,6 @@
             r.done = {};
             delete r.bought;
             delete r.buyer;
-            delete r.packed;
-            delete r.bringer;
           }
           r.text = text;
           r.kind = preKind;
@@ -3284,6 +3325,14 @@
             order: last + 10, createdBy: me, savedAt: new Date().toISOString()
           };
           pres.push(r);
+        }
+        // 誰要帶：全部的人就不存，之後加進旅程的人自動也要帶
+        const need = ids.filter(id => preNeed.includes(id));
+        if(preKind === 'check' && need.length && need.length < ids.length){
+          r.need = need;
+          Object.keys(r.done || {}).forEach(id=>{ if(!need.includes(id)) delete r.done[id]; });
+        }else{
+          delete r.need;
         }
         r.savedAt = new Date().toISOString();
         const ok = await putPre(curTripId, r);
@@ -3335,16 +3384,17 @@
         const r = pres.find(x => x.id === b.dataset.preall);
         if(!r) return;
         r.done = r.done || {};
-        const allDone = ids.length > 0 && ids.every(id => r.done[id]);
+        const need = needOf(r, ids);
+        const allDone = need.every(id => r.done[id]);
         r.done = {};
-        if(!allDone) ids.forEach(id=>{ r.done[id] = true; });
+        if(!allDone) need.forEach(id=>{ r.done[id] = true; });
         r.savedAt = new Date().toISOString();
         await putPre(curTripId, r);
         render();
       };
     });
 
-    // 一人帶／要買的：勾＝帶了／買到了
+    // 要買的：勾＝買到了
     app.querySelectorAll('[data-claimtick]').forEach(b=>{
       b.onclick = async ()=>{
         if(b.disabled) return;
@@ -3359,7 +3409,7 @@
       };
     });
 
-    // 誰帶／誰買：沒人 → 我；我 → 沒人；別人 → 問一次再換成我
+    // 誰買：沒人 → 我；我 → 沒人；別人 → 問一次再換成我
     app.querySelectorAll('[data-claim]').forEach(b=>{
       b.onclick = async ()=>{
         const r = pres.find(x => x.id === b.dataset.claim);
