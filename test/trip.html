@@ -161,7 +161,7 @@
 
   /* min-height 44px：手指點得到的最小尺寸。原本算出來只有約 38px。 */
   input, select, textarea{
-    font-family:inherit; font-size:15px; color:var(--ink);
+    font-family:inherit; font-size:16px; color:var(--ink);
     background:#fff; border:1px solid var(--line);
     border-radius:var(--radius-sm); padding:9px 11px; width:100%;
     min-height:44px;
@@ -256,12 +256,16 @@
   .tag.soft{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
 
   /* ---------- 分頁 ---------- */
-  .tabs{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  /* 看起來約 32px 高，用 ::after 上下各撐 6px 到 44px。分頁列釘在上緣，
+     真的做成 44px 會多吃掉手機一截畫面。換行時列距 12px，上下兩排才不會互搶。 */
+  .tabs{ display:flex; gap:12px 8px; margin-bottom:14px; flex-wrap:wrap; }
   .tabs button{
+    position:relative;
     border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
     border-radius:99px; padding:7px 14px; font-size:13.5px;
   }
   .tabs button.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
+  .tabs button::after{ content:''; position:absolute; inset:-6px 0; }
 
   /* ---------- 日期列 ---------- */
   .daybar{ display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:14px; }
@@ -473,7 +477,7 @@
      min-height 維持 44px（手指點得到），只把左右收窄。 */
   .sheet-row .min-in{
     width:72px; flex:none; padding:4px 8px; text-align:center;
-    font-size:14px; font-weight:700; font-variant-numeric:tabular-nums;
+    font-size:16px; font-weight:700; font-variant-numeric:tabular-nums;
     color:var(--accent-deep); background:var(--accent-soft); border-color:var(--accent);
   }
   .sheet-row .unit{ font-size:12.5px; color:var(--ink-soft); margin-left:-4px; }
@@ -491,7 +495,7 @@
      寫死寬度會把分鐘切掉。 */
   input.start-time{
     width:auto; min-width:0; flex:none; padding:4px 7px;
-    font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
+    font-size:16px; font-weight:700; font-variant-numeric:tabular-nums;
     color:var(--accent-deep); background:var(--accent-soft); border-color:var(--accent);
   }
 
@@ -556,10 +560,8 @@
   .row-text.note{ color:var(--ink-soft); font-size:13.5px; }
   .row-text.done{ color:var(--ink-soft); text-decoration:line-through; }
   .mini.buyer{ flex:none; min-width:52px; justify-content:center; }
-  /* 改項目時的「放在」：共用的 .tabs 只有約 32px 高，這裡要給手指點，撐到 44 */
-  .pre-move-lbl{ font-size:12px; color:var(--ink-soft); margin:12px 0 6px; }
-  .tabs.pre-move{ gap:8px; margin:0; }
-  .tabs.pre-move button{ min-height:44px; }
+  .pre-move-lbl{ font-size:12px; color:var(--ink-soft); margin:12px 0 10px; }
+  .tabs.pre-move{ margin:0; }
   /* 一起的清單：一個項目一列，成員名字只在表頭出現一次。
      成員多的時候橫向捲動，項目名稱那一欄釘住不動。 */
   .sr-only{

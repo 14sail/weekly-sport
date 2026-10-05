@@ -107,6 +107,7 @@ test/<檔案>  →  驗證  →  <檔案>（正式站）
 |---|---|
 | 觸控尺寸 | 可點的東西 **≥ 44×44px**。視覺上要小的按鈕用 `::after { inset:-4px }` 把感應範圍撐開，不要真的把按鈕做大 |
 | 按鈕間距 | `gap: 8px`，剛好是感應範圍外擴值的兩倍，相鄰按鈕才不會互搶 |
+| 輸入框字級 | **≥ 16px**，包括時間、數字這類小欄位。iPhone Safari 在小於 16px 的欄位打字會自動放大整頁 |
 | 輸入框 | `min-height: 44px`。**核取方塊要排除**（`input[type=checkbox]{min-height:0}`），否則會被撐成大方塊；觸控範圍改由包住它的整列提供（`.chk-row` / `.split-row`，整列 `min-height:44px`） |
 | 按下回饋 | 每個可點元素都要有 `:active` 變色。**一律用顏色，不要用會改變版面的 transform** |
 | iOS 的坑 | iOS Safari 只有在 document 有 touch 監聽時才會套用 `:active`。每個檔案都要有一行 `document.addEventListener('touchstart', function(){}, {passive:true})`，否則所有按下效果在 iPhone 上都不會出現 |
