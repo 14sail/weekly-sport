@@ -2083,12 +2083,16 @@
       step('對齊 15 分', '拖的時候會自動吸。要非整刻的時間就在面板裡打字');
 
     h += '<h2>行前</h2>' +
-      step('要帶的', '每個人一個勾格，各勾各的') +
+      step('分塊', '一起的：每人帶、一人帶、要買的、注意。我自己的：要帶的、要買的、注意') +
+      step('加一項', '每塊下面各一顆，打完按 Enter') +
+      step('每人帶', '每個人一個勾格，各勾各的。護照、行動電源這種') +
       step('那個數字', '點 2/4 就是幫所有人一次打勾，再點一次全部取消') +
-      step('要買的', '一項一格勾。按「我買」認領，買到了就勾掉') +
+      step('一人帶', '一個人帶大家共用，行李秤、吹風機這種。按「我帶」認領，帶了就勾') +
+      step('要買的', '按「我買」認領，買到了就勾，項目會劃掉') +
+      step('換人', '按「我」是取消認領。按別人的名字會先問要不要換你') +
       step('注意', '不用勾的事情，例如護照效期') +
-      step('改或刪', '點項目的文字。放錯塊也是在這裡搬') +
-      step('我自己的', '一樣分三塊，只有你看得到');
+      step('改或刪', '點項目的文字。放錯塊就在「放在」那排搬') +
+      step('我自己的', '只有你看得到。要買的不用認領，只有一格勾');
 
     h += '<h2>留言板</h2>' +
       step('在哪裡', '電腦在景點清單下面，手機在課表最下面') +
@@ -2130,6 +2134,8 @@
       '<li>沒網路時是<b>唯讀</b>，看得到之前載過的內容，但不能新增或修改。</li>' +
       '<li>同一筆資料大家都能改，要動別人排好的東西前先說一聲。</li>' +
       '<li>密碼只是防止手滑改到別人的資料，<b>不要用你其他重要網站的密碼</b>。</li>' +
+      '<li>行前的<b>我自己的不是上鎖</b>，只是畫面上不顯示別人的，不要寫真正的秘密。</li>' +
+      '<li>以前在我自己的<b>開過主題</b>的，項目會變成「主題：項目」放在要帶的，要買的東西請自己搬過去。</li>' +
       '</ul>';
 
     h += '<div class="foot"><button id="helpClose2" data-nav>關閉說明書</button></div>';
@@ -2972,21 +2978,42 @@
   }
 
   // ---------- 行前 ----------
-  // 「一起的」和「我自己的」都分成同樣三塊，能不能勾看它在哪一塊，不用每一項自己選：
-  //   要帶的 kind:'check'  一起的：每個人各勾一格（表格）／自己的：一格
-  //   要買的 kind:'buy'    一起的：一格勾＋誰買（buyer）／自己的：一格
+  // 能不能勾、怎麼勾看項目在哪一塊，不用每一項自己選。
+  // 一起的四塊：
+  //   每人帶 kind:'check'  每個人各勾一格（表格）
+  //   一人帶 kind:'share'  一格勾＋誰帶（bringer），行李秤這種大家共用的
+  //   要買的 kind:'buy'    一格勾＋誰買（buyer）
   //   注意   kind:'note'   純文字
-  // 一起的舊資料沒有 kind 或 kind:'check' 都算「要帶的」，不用搬資料。
+  // 自己的三塊：要帶的（check）／要買的（buy）／注意（note），都是一格勾。
+  // 一起的舊資料沒有 kind 或 kind:'check' 都算「每人帶」，不用搬資料。
   // 自己的一個人一包（trip-memo），畫面上只顯示自己的。
 
   const PRE_SECTIONS = [
+    { kind:'check', title:'每人帶' },
+    { kind:'share', title:'一人帶' },
+    { kind:'buy',   title:'要買的' },
+    { kind:'note',  title:'注意' }
+  ];
+  const MEMO_SECTIONS = [
     { kind:'check', title:'要帶的' },
     { kind:'buy',   title:'要買的' },
     { kind:'note',  title:'注意' }
   ];
 
+  // 一人帶與要買的是同一種列：一格勾＋認領。差別只在欄位名和動詞。
+  // 要買的先上線，欄位沿用 bought／buyer，不改名才不用搬資料。
+  const CLAIM = {
+    share: { done:'packed', who:'bringer', verb:'帶', doneWord:'帶了' },
+    buy:   { done:'bought', who:'buyer',   verb:'買', doneWord:'買到了' }
+  };
+
   function preKindOf(r){
-    return r.kind === 'note' ? 'note' : r.kind === 'buy' ? 'buy' : 'check';
+    return r.kind === 'note' || r.kind === 'buy' || r.kind === 'share' ? r.kind : 'check';
+  }
+  function claimer(r){
+    const c = CLAIM[preKindOf(r)];
+    const id = c && r[c.who];
+    return id && people.some(p => p.id === id) ? id : null;
   }
 
   // 正在編輯／新增的東西。一次只會有一個，所以用一個物件就夠。
@@ -3059,19 +3086,20 @@
         h += '</tbody></table></div>';
       }
 
-      if(sec.kind === 'buy' && shown.length){
+      if(CLAIM[sec.kind] && shown.length){
+        const c = CLAIM[sec.kind];
         h += '<div class="pre-list">';
         shown.forEach(r=>{
-          const on = !!r.bought;
-          const buyer = r.buyer && people.some(p => p.id === r.buyer) ? r.buyer : null;
-          const mine = buyer === me;
-          const who = buyer ? (mine ? '我' : personName(buyer)) : '我買';
+          const on = !!r[c.done];
+          const who = claimer(r);
+          const mine = who === me;
+          const label = who ? (mine ? '我' : personName(who)) : '我' + c.verb;
           h += '<div class="memo-item">' +
-            tickBtn('data-buytick', r.id, on, r.text + ' 買到了') +
+            tickBtn('data-claimtick', r.id, on, r.text + ' ' + c.doneWord) +
             textBtn('data-preedit', r.id, r.text, on) +
-            '<button class="mini buyer' + (buyer ? ' on' : '') + '" data-buyer="' + esc(r.id) +
+            '<button class="mini buyer' + (who ? ' on' : '') + '" data-claim="' + esc(r.id) +
               '" aria-pressed="' + (mine ? 'true' : 'false') +
-              '" aria-label="' + esc((buyer && !mine ? personName(buyer) : '我') + '買 ' + r.text) + '">' + esc(who) + '</button>' +
+              '" aria-label="' + esc((who && !mine ? personName(who) : '我') + c.verb + ' ' + r.text) + '">' + esc(label) + '</button>' +
             '</div>';
         });
         h += '</div>';
@@ -3093,9 +3121,9 @@
     // ---- 我自己的 ----
     const m = memoData();
     h += '<h2 class="pre-h" style="margin-top:30px">我自己的</h2>' +
-         '<p class="hint" style="margin-top:-4px">只有你看得到。不要寫真正的秘密——這是畫面上的過濾，不是上鎖。</p>';
+         '<p class="hint" style="margin-top:-4px">只有你看得到</p>';
 
-    PRE_SECTIONS.forEach(sec=>{
+    MEMO_SECTIONS.forEach(sec=>{
       const rows = m.items.filter(it => preKindOf(it) === sec.kind);
       const editing = f.what === 'memoEdit' && rows.some(it => it.id === f.id) ? f.id : null;
       const shown = rows.filter(it => it.id !== editing);
@@ -3150,7 +3178,7 @@
     if(id){
       h += '<div class="pre-move-lbl" id="preMoveLbl">放在</div>' +
         '<div class="tabs pre-move" role="group" aria-labelledby="preMoveLbl">';
-      PRE_SECTIONS.forEach(sec=>{
+      (scope === 'pre' ? PRE_SECTIONS : MEMO_SECTIONS).forEach(sec=>{
         const on = preKind === sec.kind;
         h += '<button data-prekind="' + sec.kind + '" class="' + (on ? 'on' : '') +
              '" aria-pressed="' + (on ? 'true' : 'false') + '">' + sec.title + '</button>';
@@ -3244,6 +3272,8 @@
             r.done = {};
             delete r.bought;
             delete r.buyer;
+            delete r.packed;
+            delete r.bringer;
           }
           r.text = text;
           r.kind = preKind;
@@ -3314,31 +3344,33 @@
       };
     });
 
-    // 要買的：勾＝買到了
-    app.querySelectorAll('[data-buytick]').forEach(b=>{
+    // 一人帶／要買的：勾＝帶了／買到了
+    app.querySelectorAll('[data-claimtick]').forEach(b=>{
       b.onclick = async ()=>{
         if(b.disabled) return;
         b.disabled = true;
-        const r = pres.find(x => x.id === b.dataset.buytick);
-        if(!r) return;
-        r.bought = !r.bought;
+        const r = pres.find(x => x.id === b.dataset.claimtick);
+        const c = r && CLAIM[preKindOf(r)];
+        if(!c) return;
+        r[c.done] = !r[c.done];
         r.savedAt = new Date().toISOString();
         await putPre(curTripId, r);
         render();
       };
     });
 
-    // 誰買：沒人 → 我；我 → 沒人；別人 → 問一次再換成我
-    app.querySelectorAll('[data-buyer]').forEach(b=>{
+    // 誰帶／誰買：沒人 → 我；我 → 沒人；別人 → 問一次再換成我
+    app.querySelectorAll('[data-claim]').forEach(b=>{
       b.onclick = async ()=>{
-        const r = pres.find(x => x.id === b.dataset.buyer);
-        if(!r) return;
-        const cur = r.buyer && people.some(p => p.id === r.buyer) ? r.buyer : null;
+        const r = pres.find(x => x.id === b.dataset.claim);
+        const c = r && CLAIM[preKindOf(r)];
+        if(!c) return;
+        const cur = claimer(r);
         if(cur === me){
-          delete r.buyer;
+          delete r[c.who];
         }else{
-          if(cur && !window.confirm('「' + r.text + '」原本是 ' + personName(cur) + ' 要買，改成你？')) return;
-          r.buyer = me;
+          if(cur && !window.confirm('「' + r.text + '」原本是 ' + personName(cur) + ' 要' + c.verb + '，改成你？')) return;
+          r[c.who] = me;
         }
         r.savedAt = new Date().toISOString();
         b.disabled = true;
