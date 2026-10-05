@@ -268,6 +268,7 @@
   .save-flash{
     text-align:center; font-size:12px; color:var(--green); margin-top:8px; height:14px;
   }
+  .save-time{ text-align:center; font-size:11px; color:var(--ink-soft); margin-top:6px; }
 
   .nav-tabs{
     display:flex; gap:8px; margin-bottom:16px;
@@ -284,6 +285,7 @@
     cursor:pointer;
   }
   .nav-tabs button.active{ background:var(--accent-deep); color:#fff; border-color:var(--accent-deep); }
+  .nav-tabs button .wk-date{ display:block; font-size:11px; }
   .nav-tabs.scroll{ overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   .nav-tabs.scroll::-webkit-scrollbar{ display:none; }
   .nav-tabs.scroll button{ flex:0 0 auto; white-space:nowrap; padding:10px 14px; }
@@ -557,6 +559,7 @@
     border-bottom:var(--sis-bw-thin) dashed var(--sis-dash); cursor:pointer;
   }
   .sis-ev:last-child{ border-bottom:0; padding-bottom:0; }
+  .sis-sheet .sis-ev{ min-height:44px; padding-bottom:9px; }
   .sis-ev .dt{ font-size:12px; font-weight:700; min-width:42px; white-space:nowrap; }
   .sis-ev .sw{ width:13px; height:13px; border-radius:50%; flex:none; }
   .sis-ev .txt{ flex:1; min-width:0; }
@@ -784,6 +787,12 @@
     return weeks;
   }
   const WEEKS = getWeeks();
+  // 週次：2026/4/20 那週算第 1 週（10/5 那週是第 25 週）
+  const WEEK1_MONDAY = new Date(2026, 3, 20);
+  function weekNo(monday){ return Math.round((monday - WEEK1_MONDAY) / (7*86400000)) + 1; }
+  function weekTabLabel(w, i){
+    return i===0 ? '本週' : `第${weekNo(w.monday)}週<span class="wk-date">（${fmtShort(w.monday)}）</span>`;
+  }
   const CURRENT_WEEK = WEEKS[0];
 
   // ---------- Storage helpers (Firebase Realtime Database) ----------
@@ -1195,8 +1204,7 @@
 
       let tabsHtml = '<div class="nav-tabs">';
       WEEKS.forEach((w,i)=>{
-        const label = i===0 ? '本週' : (fmtShort(w.monday)+'週');
-        tabsHtml += `<button data-idx="${i}" class="${i===memberSelectedWeekIdx?'active':''}">${label}</button>`;
+        tabsHtml += `<button data-idx="${i}" class="${i===memberSelectedWeekIdx?'active':''}">${weekTabLabel(w, i)}</button>`;
       });
       tabsHtml += '</div>';
 
@@ -1222,6 +1230,7 @@
         <div class="note-label">給老師的備註（選填）</div>
         <textarea class="note" id="noteInput" placeholder="例如：這週想打羽球、或身體微恙先觀望…">${escapeHtml(existing.note||'')}</textarea>
         <button class="save-btn" id="saveBtn">儲存這週的回覆</button>
+        <div class="save-time" id="saveTime">${existing.savedAt ? '上次儲存 '+fmtDateTime(existing.savedAt) : ''}</div>
         <div class="save-flash" role="alert" id="saveFlash"></div>
       `;
     } else {
@@ -1299,8 +1308,10 @@
 
       document.getElementById('saveBtn').addEventListener('click', async ()=>{
         const note = document.getElementById('noteInput').value.trim();
-        await sSet(respKey, {statuses: state, note: note}, true);
-        existing = {statuses: Object.assign({}, state), note: note};
+        const savedAt = new Date().toISOString();
+        await sSet(respKey, {statuses: state, note: note, savedAt: savedAt}, true);
+        existing = {statuses: Object.assign({}, state), note: note, savedAt: savedAt};
+        document.getElementById('saveTime').textContent = '上次儲存 '+fmtDateTime(savedAt);
         const flash = document.getElementById('saveFlash');
         flash.textContent = '已儲存';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
@@ -1375,8 +1386,7 @@
 
     let tabsHtml = '<div class="nav-tabs">';
     WEEKS.forEach((w,i)=>{
-      const label = i===0 ? '本週' : (fmtShort(w.monday)+'週');
-      tabsHtml += `<button data-idx="${i}" class="${i===teacherSelectedWeekIdx?'active':''}">${label}</button>`;
+      tabsHtml += `<button data-idx="${i}" class="${i===teacherSelectedWeekIdx?'active':''}">${weekTabLabel(w, i)}</button>`;
     });
     tabsHtml += '</div>';
 
@@ -1479,6 +1489,7 @@
       bodyHtml += `<textarea class="note" id="teacherNoteInput" placeholder="例如：這週想打羽球、或身體微恙先觀望…" ${readOnly?'readonly':''}>${escapeHtml(teacherResp.note||'')}</textarea>`;
       if(!readOnly){
         bodyHtml += `<button class="save-btn" id="teacherSaveBtn">儲存這週的回覆</button>`;
+        bodyHtml += `<div class="save-time" id="teacherSaveTime">${teacherResp.savedAt ? '上次儲存 '+fmtDateTime(teacherResp.savedAt) : ''}</div>`;
         bodyHtml += `<div class="save-flash" role="alert" id="teacherSaveFlash"></div>`;
       }
     } else if(tab==='announce'){
@@ -1607,9 +1618,12 @@
       });
       document.getElementById('teacherSaveBtn').addEventListener('click', async ()=>{
         const note = document.getElementById('teacherNoteInput').value.trim();
-        await sSet('resp:'+week.weekKey+':'+viewingPerson.id, {statuses: fillState, note: note}, true);
+        const savedAt = new Date().toISOString();
+        await sSet('resp:'+week.weekKey+':'+viewingPerson.id, {statuses: fillState, note: note, savedAt: savedAt}, true);
         teacherResp.statuses = Object.assign({}, fillState);
         teacherResp.note = note;
+        teacherResp.savedAt = savedAt;
+        document.getElementById('teacherSaveTime').textContent = '上次儲存 '+fmtDateTime(savedAt);
         const flash = document.getElementById('teacherSaveFlash');
         flash.textContent = '已儲存';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
@@ -2050,6 +2064,10 @@
   }
   function sisRangeLabel(m){
     return sisMeetDays(m) > 1 ? sisFmtDate(m.date) + '－' + sisFmtDate(sisMeetEnd(m)) : sisFmtDate(m.date);
+  }
+  // 某一天佔到的行程（多天行程的每一天都算）
+  function sisMeetsOn(date){
+    return sisVisibleMeets(sisYear).filter(m => m.date <= date && sisMeetEnd(m) >= date);
   }
   // 要改的那筆可能是去年出發、跨年跑到今年的行程，兩年都找一下
   function sisFindMeet(id){
@@ -2496,6 +2514,20 @@
     const days = (typeof sisSheet.days === 'number' && sisSheet.days >= 1)
       ? sisSheet.days : (editing ? sisMeetDays(editing) : 1);
     const countMode = sisSheet.countMode || ((editing && editing.countMode === 'each') ? 'each' : 'once');
+    // 新增時，這天已經有的行程列在最上面，點了就改那筆
+    const existingOnDay = editing ? [] : sisMeetsOn(date);
+    const existingHtml = existingOnDay.length ? `
+        <div class="sis-lab">這天已有</div>
+        ${existingOnDay.map(m=>{
+          const g = sisGroupById(m.groupId);
+          return `<div class="sis-ev" data-meet="${m.id}">
+            <span class="dt">${sisRangeLabel(m)}</span>
+            <span class="sw" style="background:${g ? g.color : '#8A7A64'}"></span>
+            <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span></span>
+            <span class="nth">修改</span>
+          </div>`;
+        }).join('')}
+        <div class="sis-lab">另加一筆</div>` : '';
     const dayChips = [1,2,3,4,5,6,7].map(n=>
       `<div class="sis-opt ${days===n?'on':''}" data-days="${n}">${n} 天</div>`
     ).join('');
@@ -2505,6 +2537,7 @@
       <div class="sis-sheet">
         <h3>${parseInt(date.slice(5,7),10)} 月 ${parseInt(date.slice(8),10)} 日</h3>
         <div class="sub">星期${sisWeekdayOf(date)}${editing ? '・修改既有紀錄' : ''}</div>
+        ${existingHtml}
         <div class="sis-lab">選擇組合</div>
         <div class="sis-opts">${optsHtml}</div>
         <div class="sis-lab">連續幾天</div>
@@ -2522,6 +2555,7 @@
           <button class="sis-btn" id="sisSaveMeet">儲存</button>
         </div>
         ${editing ? '<button class="sis-btn danger" id="sisDeleteMeet" style="margin-top:9px">刪除這筆紀錄</button>' : ''}
+        ${editing && sisSheet.fromCell ? `<button class="sis-btn ghost" id="sisAddOnDay" style="margin-top:9px">${sisFmtDate(sisSheet.fromCell)} 另加一筆</button>` : ''}
         <div class="save-flash" role="alert" id="sisSheetFlash"></div>
       </div>
     `;
@@ -2549,7 +2583,17 @@
     app.querySelectorAll('.sis-cell[data-day]').forEach(cell=>{
       cell.addEventListener('click', ()=>{
         if(!mine.length) return;
-        sisSheet = {kind:'meet', date: sisDateKey(sisYear, sisMonth, parseInt(cell.dataset.day,10)), meetId:null, groupId:null};
+        const date = sisDateKey(sisYear, sisMonth, parseInt(cell.dataset.day,10));
+        // 這天只有一筆行程（含多天行程的中間幾天）就直接打開那筆來改，
+        // 不然點到行程中間那天會冒出一張「1 天」的空白新表單，看起來像設定被洗掉
+        const onDay = sisMeetsOn(date);
+        if(onDay.length === 1){
+          const m = onDay[0];
+          sisSheet = {kind:'meet', date:m.date, meetId:m.id, groupId:m.groupId, fromCell:date,
+                      days:sisMeetDays(m), countMode:(m.countMode==='each'?'each':'once')};
+        } else {
+          sisSheet = {kind:'meet', date:date, meetId:null, groupId:null};
+        }
         renderSisters();
       });
     });
@@ -2701,11 +2745,19 @@
         // 否則會把自己開頁面當下的舊快照寫回去，別人這段時間新增的紀錄就消失了。
         const list = await sisLoadMeets(targetYear, true);
         if(editing){
-          editing.groupId = groupId;
-          editing.note = note;
-          editing.days = days;
-          editing.countMode = countMode;
-          editing.savedAt = new Date().toISOString();
+          // 重讀之後快取換成一份新陣列，手上的 editing 是舊快照的物件，
+          // 改它不會進到要寫回去的 list——要在新的 list 裡找同一筆來改
+          const target = list.find(m=>m.id===editing.id);
+          if(!target){
+            flash.style.color = 'var(--red)';
+            flash.textContent = '這筆已被刪除';
+            return;
+          }
+          target.groupId = groupId;
+          target.note = note;
+          target.days = days;
+          target.countMode = countMode;
+          target.savedAt = new Date().toISOString();
         } else {
           list.push({
             id: 'sm' + Date.now(),
@@ -2723,13 +2775,22 @@
         renderSisters();
       });
     }
+    const addOnDayBtn = document.getElementById('sisAddOnDay');
+    if(addOnDayBtn){
+      addOnDayBtn.addEventListener('click', ()=>{
+        sisSheet = {kind:'meet', date:sisSheet.fromCell, meetId:null, groupId:null};
+        renderSisters();
+      });
+    }
     const delMeetBtn = document.getElementById('sisDeleteMeet');
     if(delMeetBtn){
       delMeetBtn.addEventListener('click', async ()=>{
         if(!confirm('確定要刪除這筆見面紀錄嗎？')) return;
         const target = sisFindMeet(sisSheet.meetId);
         const y = target ? sisMeetYear(target) : sisYear;
-        sisMeetCache[y] = (sisMeetCache[y]||[]).filter(m=>m.id!==sisSheet.meetId);
+        // 整年一包覆寫，刪之前也要先拿最新的，免得蓋掉別人剛加的紀錄
+        const list = await sisLoadMeets(y, true);
+        sisMeetCache[y] = list.filter(m=>m.id!==sisSheet.meetId);
         await sisSaveMeets(y);
         sisSheet = null;
         renderSisters();
