@@ -2091,6 +2091,7 @@
       step('要買的', '按「我買」認領，買到了就勾，項目會劃掉') +
       step('換人', '按「我」是取消認領。按別人的名字會先問要不要換你') +
       step('注意', '不用勾的事情，例如護照效期') +
+      step('勾完的', '會排到那一塊最下面。要帶的是要帶的人全勾了才往下') +
       step('改或刪', '點項目的文字。放錯塊就在「放在」那排搬') +
       step('我自己的', '只有你看得到。要買的不用認領，只有一格勾');
 
@@ -3013,6 +3014,19 @@
     const need = Array.isArray(r.need) ? r.need.filter(id => ids.includes(id)) : [];
     return need.length ? need : ids;
   }
+  // 完成了沒：要帶的是「要帶的人全勾了」，要買的是「買到了」，注意永遠沒完成。
+  // 完成的排到那一塊最下面，取消勾就回到原本的順序（sort 是穩定的）。
+  function preDone(r, ids){
+    const k = preKindOf(r);
+    if(k === 'note') return false;
+    if(k === 'buy') return !!r.bought;
+    const done = r.done || {};
+    return needOf(r, ids).every(id => done[id]);
+  }
+  function doneLast(rows, isDone){
+    return rows.slice().sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0));
+  }
+
   // 短暫上線過的「一人帶」（kind:'share'）收回要帶的：有人認領就只留他那格。
   // 只改記憶體裡的，下次存這一項才寫回去。
   function normPre(r){
@@ -3069,7 +3083,7 @@
     PRE_SECTIONS.forEach(sec=>{
       const rows = pres.filter(r => preKindOf(r) === sec.kind);
       const editing = f.what === 'preEdit' && rows.some(r => r.id === f.id) ? f.id : null;
-      const shown = rows.filter(r => r.id !== editing);
+      const shown = doneLast(rows.filter(r => r.id !== editing), r => preDone(r, ids));
       h += '<section class="pre-sec"><h3 class="pre-sub">' + sec.title + '</h3>';
 
       if(sec.kind === 'check' && shown.length){
@@ -3143,7 +3157,7 @@
     MEMO_SECTIONS.forEach(sec=>{
       const rows = m.items.filter(it => preKindOf(it) === sec.kind);
       const editing = f.what === 'memoEdit' && rows.some(it => it.id === f.id) ? f.id : null;
-      const shown = rows.filter(it => it.id !== editing);
+      const shown = doneLast(rows.filter(it => it.id !== editing), it => it.kind !== 'note' && !!it.done);
       h += '<section class="pre-sec"><h3 class="pre-sub">' + sec.title + '</h3>';
 
       if(shown.length){
