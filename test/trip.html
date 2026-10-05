@@ -616,20 +616,11 @@
     padding:14px; margin-bottom:8px;
   }
 
-  .memo-card{
-    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:14px; margin-bottom:10px;
-  }
-  .memo-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-  .memo-head h3{
-    flex:1; min-width:0; margin:0;
-    font-family:'Noto Serif TC',serif; font-size:15px;
-  }
   .memo-item{
     display:flex; align-items:center; gap:9px;
     padding:5px 0; border-top:1px solid var(--line-soft); min-height:44px;
   }
-  .memo-item:first-child, .memo-head + .memo-item{ border-top:0; }
+  .memo-item:first-child{ border-top:0; }
   .mi-tick{
     flex:none; position:relative; width:26px; height:26px; padding:0;
     border:1px solid var(--line); background:#fff; color:#fff;
@@ -2097,7 +2088,7 @@
       step('要買的', '一項一格勾。按「我買」認領，買到了就勾掉') +
       step('注意', '不用勾的事情，例如護照效期') +
       step('改或刪', '點項目的文字。放錯塊也是在這裡搬') +
-      step('我自己的', '只有你看得到。自己開主題，底下想列幾點就列幾點');
+      step('我自己的', '一樣分三塊，只有你看得到');
 
     h += '<h2>留言板</h2>' +
       step('在哪裡', '電腦在景點清單下面，手機在課表最下面') +
@@ -2981,12 +2972,12 @@
   }
 
   // ---------- 行前 ----------
-  // 「一起的」是整趟一份，分成三塊，能不能勾看它在哪一塊，不用每一項自己選：
-  //   要帶的 kind:'check' 每個人各勾一格（表格）
-  //   要買的 kind:'buy'   一格勾＋誰買（buyer），有人認領就由那個人買
-  //   注意   kind:'note'  純文字
-  // 舊資料沒有 kind 或 kind:'check' 都算「要帶的」，不用搬資料。
-  // 「我自己的」一個人一包，畫面上只顯示自己的；新項目一律可以勾。
+  // 「一起的」和「我自己的」都分成同樣三塊，能不能勾看它在哪一塊，不用每一項自己選：
+  //   要帶的 kind:'check'  一起的：每個人各勾一格（表格）／自己的：一格
+  //   要買的 kind:'buy'    一起的：一格勾＋誰買（buyer）／自己的：一格
+  //   注意   kind:'note'   純文字
+  // 一起的舊資料沒有 kind 或 kind:'check' 都算「要帶的」，不用搬資料。
+  // 自己的一個人一包（trip-memo），畫面上只顯示自己的。
 
   const PRE_SECTIONS = [
     { kind:'check', title:'要帶的' },
@@ -2994,46 +2985,49 @@
     { kind:'note',  title:'注意' }
   ];
 
-  const PRE_PRESETS = [
-    { text:'護照效期要滿六個月', kind:'note' },
-    { text:'簽證／KETA', kind:'check' },
-    { text:'旅平險', kind:'check' },
-    { text:'網卡／漫遊', kind:'check' },
-    { text:'換錢', kind:'check' },
-    { text:'行動電源', kind:'check' },
-    { text:'轉接頭', kind:'check' }
-  ];
-
   function preKindOf(r){
     return r.kind === 'note' ? 'note' : r.kind === 'buy' ? 'buy' : 'check';
   }
 
   // 正在編輯／新增的東西。一次只會有一個，所以用一個物件就夠。
-  // {what:'preNew'|'preEdit'|'topicNew'|'topicEdit'|'memoNew'|'memoEdit', id, topicId, kind}
+  // {what:'preNew'|'preEdit'|'memoNew'|'memoEdit', id, kind}
   let preForm = null;
   let preDraft = '';
   let preKind = 'check';
   let preReturn = null;   // 表單關掉後要把焦點送回去的元素（selector）
 
+  // 自己的：{ items:[{id, text, kind, done}] }
+  // 舊版是「主題 → 項目」兩層。讀到舊格式就攤平成一層，文字前面補上主題名，
+  // 提醒型進「注意」、其他進「要帶的」，放錯的再用「放在」搬。下次存檔才會寫回去。
   function memoData(){
-    return memo && Array.isArray(memo.topics) ? memo : { topics: [] };
+    if(!memo) memo = { items: [] };
+    if(Array.isArray(memo.items)) return memo;
+    const items = [];
+    (memo.topics || []).forEach(tp=>{
+      (tp.items || []).forEach(it=>{
+        items.push({
+          id: it.id || uid('mi'),
+          text: (tp.title ? tp.title + '：' : '') + it.text,
+          kind: it.kind === 'note' ? 'note' : 'check',
+          done: !!it.done
+        });
+      });
+    });
+    memo = { items, savedAt: memo.savedAt };
+    return memo;
   }
 
   function preHtml(t){
     const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
-    const editing = preForm && preForm.what === 'preEdit' ? preForm.id : null;
+    const f = preForm || {};
     let h = '';
 
     // ---- 一起的 ----
     h += '<h2 class="pre-h">一起的</h2>';
 
-    if(!pres.length && !preForm){
-      h += '<button class="btn wide ghost" id="preSeed" style="margin-bottom:14px">' +
-           ic('plus') + '帶入常用項目</button>';
-    }
-
     PRE_SECTIONS.forEach(sec=>{
       const rows = pres.filter(r => preKindOf(r) === sec.kind);
+      const editing = f.what === 'preEdit' && rows.some(r => r.id === f.id) ? f.id : null;
       const shown = rows.filter(r => r.id !== editing);
       h += '<section class="pre-sec"><h3 class="pre-sub">' + sec.title + '</h3>';
 
@@ -3073,11 +3067,8 @@
           const mine = buyer === me;
           const who = buyer ? (mine ? '我' : personName(buyer)) : '我買';
           h += '<div class="memo-item">' +
-            '<button class="mi-tick' + (on ? ' on' : '') + '" data-buytick="' + esc(r.id) +
-              '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(r.text) + ' 買到了">' +
-              (on ? ic('check') : '') + '</button>' +
-            '<button class="row-text' + (on ? ' done' : '') + '" data-preedit="' + esc(r.id) +
-              '" title="改文字或刪除">' + esc(r.text) + '</button>' +
+            tickBtn('data-buytick', r.id, on, r.text + ' 買到了') +
+            textBtn('data-preedit', r.id, r.text, on) +
             '<button class="mini buyer' + (buyer ? ' on' : '') + '" data-buyer="' + esc(r.id) +
               '" aria-pressed="' + (mine ? 'true' : 'false') +
               '" aria-label="' + esc((buyer && !mine ? personName(buyer) : '我') + '買 ' + r.text) + '">' + esc(who) + '</button>' +
@@ -3088,21 +3079,14 @@
 
       if(sec.kind === 'note' && shown.length){
         h += '<div class="pre-list">';
-        shown.forEach(r=>{
-          h += '<div class="memo-item">' +
-            '<button class="row-text note" data-preedit="' + esc(r.id) + '" title="改文字或刪除">' +
-              ic('note') + ' ' + esc(r.text) + '</button></div>';
-        });
+        shown.forEach(r=>{ h += '<div class="memo-item">' + noteBtn('data-preedit', r.id, r.text) + '</div>'; });
         h += '</div>';
       }
 
-      if(editing && rows.some(r => r.id === editing)){
-        h += preEditRow('pre', editing);
-      }
-
-      h += (preForm && preForm.what === 'preNew' && preForm.kind === sec.kind)
+      if(editing) h += preEditRow('pre', editing);
+      h += (f.what === 'preNew' && f.kind === sec.kind)
         ? preEditRow('pre', null)
-        : '<button class="mini" data-preadd="' + sec.kind + '" style="margin-top:8px">' + ic('plus') + '加一項</button>';
+        : addBtn('data-preadd', sec.kind);
       h += '</section>';
     });
 
@@ -3111,66 +3095,59 @@
     h += '<h2 class="pre-h" style="margin-top:30px">我自己的</h2>' +
          '<p class="hint" style="margin-top:-4px">只有你看得到。不要寫真正的秘密——這是畫面上的過濾，不是上鎖。</p>';
 
-    if(!m.topics.length && !(preForm && preForm.what === 'topicNew')){
-      h += '<div class="empty">還沒有主題</div>';
-    }
+    PRE_SECTIONS.forEach(sec=>{
+      const rows = m.items.filter(it => preKindOf(it) === sec.kind);
+      const editing = f.what === 'memoEdit' && rows.some(it => it.id === f.id) ? f.id : null;
+      const shown = rows.filter(it => it.id !== editing);
+      h += '<section class="pre-sec"><h3 class="pre-sub">' + sec.title + '</h3>';
 
-    m.topics.forEach(tp=>{
-      h += '<div class="memo-card">';
-      if(preForm && preForm.what === 'topicEdit' && preForm.id === tp.id){
-        h += preEditRow('topic', tp.id);
-      }else{
-        h += '<div class="memo-head"><h3>' + esc(tp.title) + '</h3>' +
-          '<button class="mini icon-only" data-tpedit="' + esc(tp.id) + '" title="改名" aria-label="改名">' + ic('edit') + '</button>' +
-          '<button class="mini warn icon-only" data-tpdel="' + esc(tp.id) + '" title="刪除主題" aria-label="刪除主題">' + ic('trash') + '</button>' +
-          '</div>';
+      if(shown.length){
+        h += '<div class="pre-list">';
+        shown.forEach(it=>{
+          h += '<div class="memo-item">' + (sec.kind === 'note'
+            ? noteBtn('data-miedit', it.id, it.text)
+            : tickBtn('data-memotick', it.id, !!it.done, it.text + (sec.kind === 'buy' ? ' 買到了' : '')) +
+              textBtn('data-miedit', it.id, it.text, !!it.done)) + '</div>';
+        });
+        h += '</div>';
       }
 
-      // 舊版留下來的「提醒型」照樣顯示，排在可以勾的後面
-      const list = (tp.items || []);
-      const mChecks = list.filter(x => x.kind !== 'note');
-      const mNotes  = list.filter(x => x.kind === 'note');
-      mChecks.concat(mNotes).forEach(it=>{
-        if(preForm && preForm.what === 'memoEdit' && preForm.id === it.id){
-          h += preEditRow('memo', it.id, tp.id);
-          return;
-        }
-        h += '<div class="memo-item">';
-        if(it.kind === 'note'){
-          h += '<button class="row-text note" data-miedit="' + esc(it.id) + '" data-tp="' + esc(tp.id) +
-               '" title="改文字或刪除">' + ic('note') + ' ' + esc(it.text) + '</button>';
-        }else{
-          h += '<button class="mi-tick' + (it.done ? ' on' : '') + '" data-memotick="' + esc(it.id) +
-               '" data-tp="' + esc(tp.id) + '" aria-pressed="' + (it.done ? 'true' : 'false') +
-               '" aria-label="' + esc(it.text) + '">' + (it.done ? ic('check') : '') + '</button>' +
-               '<button class="row-text' + (it.done ? ' done' : '') + '" data-miedit="' + esc(it.id) +
-               '" data-tp="' + esc(tp.id) + '" title="改文字或刪除">' + esc(it.text) + '</button>';
-        }
-        h += '</div>';
-      });
-
-      h += (preForm && preForm.what === 'memoNew' && preForm.topicId === tp.id)
-        ? preEditRow('memo', null, tp.id)
-        : '<button class="mini" data-miadd="' + esc(tp.id) + '" style="margin-top:8px">' + ic('plus') + '加一項</button>';
-      h += '</div>';
+      if(editing) h += preEditRow('memo', editing);
+      h += (f.what === 'memoNew' && f.kind === sec.kind)
+        ? preEditRow('memo', null)
+        : addBtn('data-miadd', sec.kind);
+      h += '</section>';
     });
-
-    h += (preForm && preForm.what === 'topicNew')
-      ? preEditRow('topic', null)
-      : '<button class="btn wide ghost" id="tpAdd" style="margin-top:10px">' + ic('plus') + '新增主題</button>';
 
     return h;
   }
 
-  // 新增與改文字共用同一個表單。scope: 'pre' | 'topic' | 'memo'
-  // 新增時只有一個輸入框；改「一起的」項目時才多一排「搬到哪一塊」，放錯了可以搬。
-  function preEditRow(scope, id, topicId){
-    const isTopic = scope === 'topic';
-    let h = '<div class="pre-form">' +
-      '<input id="preInput" aria-label="' + (isTopic ? '主題名稱' : '項目') + '" value="' + esc(preDraft) + '" placeholder="' +
-      (isTopic ? '主題名稱，例如 伴手禮' : '要做什麼') + '" autocomplete="off">';
+  // 一列裡的小零件，一起的和自己的共用
+  function tickBtn(attr, id, on, label){
+    return '<button class="mi-tick' + (on ? ' on' : '') + '" ' + attr + '="' + esc(id) +
+      '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '">' +
+      (on ? ic('check') : '') + '</button>';
+  }
+  // 點文字就是改文字或刪除，列上不放鉛筆和垃圾桶
+  function textBtn(attr, id, text, done){
+    return '<button class="row-text' + (done ? ' done' : '') + '" ' + attr + '="' + esc(id) +
+      '" title="改文字或刪除">' + esc(text) + '</button>';
+  }
+  function noteBtn(attr, id, text){
+    return '<button class="row-text note" ' + attr + '="' + esc(id) + '" title="改文字或刪除">' +
+      ic('note') + ' ' + esc(text) + '</button>';
+  }
+  function addBtn(attr, kind){
+    return '<button class="mini" ' + attr + '="' + kind + '" style="margin-top:8px">' + ic('plus') + '加一項</button>';
+  }
 
-    if(id && scope === 'pre'){
+  // 新增與改文字共用同一個表單。scope: 'pre' | 'memo'
+  // 新增時只有一個輸入框；改的時候才多一排「放在」，放錯塊可以搬。
+  function preEditRow(scope, id){
+    let h = '<div class="pre-form">' +
+      '<input id="preInput" aria-label="項目" value="' + esc(preDraft) + '" placeholder="要做什麼" autocomplete="off">';
+
+    if(id){
       h += '<div class="pre-move-lbl" id="preMoveLbl">放在</div>' +
         '<div class="tabs pre-move" role="group" aria-labelledby="preMoveLbl">';
       PRE_SECTIONS.forEach(sec=>{
@@ -3184,13 +3161,9 @@
     h += '<div style="display:flex;gap:8px;margin-top:10px">' +
       '<button class="btn" id="preSave" style="flex:1">' + (id ? '儲存' : '加入') + '</button>' +
       '<button class="btn ghost" id="preCancel">取消</button></div>';
-    // 列上沒有刪除鈕，刪除都放在這裡
-    if(id && scope === 'pre'){
-      h += '<button class="btn wide danger" data-predel="' + esc(id) + '" style="margin-top:10px">' +
-           ic('trash') + '刪除這一項</button>';
-    }else if(id && scope === 'memo'){
-      h += '<button class="btn wide danger" data-midel="' + esc(id) + '" data-tp="' + esc(topicId) + '" style="margin-top:10px">' +
-           ic('trash') + '刪除這一項</button>';
+    if(id){
+      h += '<button class="btn wide danger" ' + (scope === 'pre' ? 'data-predel' : 'data-midel') +
+           '="' + esc(id) + '" style="margin-top:10px">' + ic('trash') + '刪除這一項</button>';
     }
     h += '</div>';
     return h;
@@ -3198,13 +3171,13 @@
 
   function wirePre(t){
     const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
-    const openForm = (what, id, topicId, draft, kind)=>{
-      // 記住是誰打開的。刪掉的話那個元素不在了，就退回那一塊的「加一項」
+    const openForm = (what, id, draft, kind)=>{
+      // 記住是誰打開的。刪掉的話那個元素不在了，就退回第一顆「加一項」
       const el = document.activeElement;
-      const attr = el && ['data-preedit','data-preadd','data-miedit','data-miadd','data-tpedit']
+      const attr = el && ['data-preedit','data-preadd','data-miedit','data-miadd']
         .find(a => el.hasAttribute(a));
       preReturn = attr ? '[' + attr + '="' + el.getAttribute(attr) + '"]' : null;
-      preForm = { what, id: id || null, topicId: topicId || null, kind: kind || 'check' };
+      preForm = { what, id: id || null, kind: kind || 'check' };
       preDraft = draft || '';
       preKind = kind || 'check';
       render();
@@ -3212,51 +3185,27 @@
     const closeForm = ()=>{ preForm = null; preDraft = ''; preKind = 'check'; render(); };
 
     if(!preForm && preReturn){
-      const back = app.querySelector(preReturn) || app.querySelector('[data-preadd],#tpAdd');
+      const back = app.querySelector(preReturn) || app.querySelector('[data-preadd]');
       preReturn = null;
       if(back) back.focus();
     }
 
-    const seed = document.getElementById('preSeed');
-    if(seed) seed.onclick = async ()=>{
-      for(let i = 0; i < PRE_PRESETS.length; i++){
-        const r = {
-          id: uid('pr'), text: PRE_PRESETS[i].text, kind: PRE_PRESETS[i].kind,
-          done: {}, order: (i + 1) * 10, createdBy: me, savedAt: new Date().toISOString()
-        };
-        const ok = await putPre(curTripId, r);
-        if(!ok){ render(); return; }
-        pres.push(r);
-      }
-      render();
-    };
-
     app.querySelectorAll('[data-preadd]').forEach(b=>{
-      b.onclick = ()=> openForm('preNew', null, null, '', b.dataset.preadd);
+      b.onclick = ()=> openForm('preNew', null, '', b.dataset.preadd);
     });
-    const tpAdd = document.getElementById('tpAdd');
-    if(tpAdd) tpAdd.onclick = ()=> openForm('topicNew');
-
+    app.querySelectorAll('[data-miadd]').forEach(b=>{
+      b.onclick = ()=> openForm('memoNew', null, '', b.dataset.miadd);
+    });
     app.querySelectorAll('[data-preedit]').forEach(b=>{
       b.onclick = ()=>{
         const r = pres.find(x => x.id === b.dataset.preedit);
-        if(r) openForm('preEdit', r.id, null, r.text, preKindOf(r));
+        if(r) openForm('preEdit', r.id, r.text, preKindOf(r));
       };
-    });
-    app.querySelectorAll('[data-tpedit]').forEach(b=>{
-      b.onclick = ()=>{
-        const tp = memoData().topics.find(x => x.id === b.dataset.tpedit);
-        if(tp) openForm('topicEdit', tp.id, null, tp.title);
-      };
-    });
-    app.querySelectorAll('[data-miadd]').forEach(b=>{
-      b.onclick = ()=> openForm('memoNew', null, b.dataset.miadd);
     });
     app.querySelectorAll('[data-miedit]').forEach(b=>{
       b.onclick = ()=>{
-        const tp = memoData().topics.find(x => x.id === b.dataset.tp);
-        const it = tp && (tp.items || []).find(x => x.id === b.dataset.miedit);
-        if(it) openForm('memoEdit', it.id, tp.id, it.text, it.kind);
+        const it = memoData().items.find(x => x.id === b.dataset.miedit);
+        if(it) openForm('memoEdit', it.id, it.text, preKindOf(it));
       };
     });
 
@@ -3314,23 +3263,17 @@
       }
 
       const m = memoData();
-      if(f.what === 'topicNew'){
-        m.topics.push({ id: uid('tp'), title: text, items: [] });
-      }else if(f.what === 'topicEdit'){
-        const tp = m.topics.find(x => x.id === f.id);
-        if(tp) tp.title = text;
-      }else if(f.what === 'memoNew'){
-        const tp = m.topics.find(x => x.id === f.topicId);
-        if(tp){
-          tp.items = tp.items || [];
-          tp.items.push({ id: uid('mi'), text, kind: 'check', done: false });
+      if(f.what === 'memoNew'){
+        m.items.push({ id: uid('mi'), text, kind: preKind, done: false });
+      }else{
+        const it = m.items.find(x => x.id === f.id);
+        if(it){
+          if(preKind === 'note') it.done = false;
+          it.text = text;
+          it.kind = preKind;
         }
-      }else if(f.what === 'memoEdit'){
-        const tp = m.topics.find(x => x.id === f.topicId);
-        const it = tp && (tp.items || []).find(x => x.id === f.id);
-        if(it) it.text = text;
       }
-      await saveMemo(m);
+      if(!await saveMemo(m)){ render(); return; }
       closeForm();
     }
 
@@ -3421,8 +3364,7 @@
         if(b.disabled) return;
         b.disabled = true;
         const m = memoData();
-        const tp = m.topics.find(x => x.id === b.dataset.tp);
-        const it = tp && (tp.items || []).find(x => x.id === b.dataset.memotick);
+        const it = m.items.find(x => x.id === b.dataset.memotick);
         if(!it) return;
         it.done = !it.done;
         await saveMemo(m);
@@ -3433,25 +3375,11 @@
     app.querySelectorAll('[data-midel]').forEach(b=>{
       b.onclick = async ()=>{
         const m = memoData();
-        const tp = m.topics.find(x => x.id === b.dataset.tp);
-        if(!tp) return;
-        const it = (tp.items || []).find(x => x.id === b.dataset.midel);
+        const it = m.items.find(x => x.id === b.dataset.midel);
         if(!it || !window.confirm('刪掉「' + it.text + '」？')) return;
-        tp.items = tp.items.filter(x => x.id !== it.id);
-        await saveMemo(m);
+        m.items = m.items.filter(x => x.id !== it.id);
+        if(!await saveMemo(m)){ render(); return; }
         closeForm();
-      };
-    });
-
-    app.querySelectorAll('[data-tpdel]').forEach(b=>{
-      b.onclick = async ()=>{
-        const m = memoData();
-        const tp = m.topics.find(x => x.id === b.dataset.tpdel);
-        if(!tp) return;
-        if(!window.confirm('刪掉主題「' + tp.title + '」和裡面的項目？')) return;
-        m.topics = m.topics.filter(x => x.id !== tp.id);
-        await saveMemo(m);
-        render();
       };
     });
   }
