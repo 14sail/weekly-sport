@@ -402,7 +402,9 @@
 
   /* ---- 三站共用的基礎規範，見 SPEC.md ---- */
   /* 可點的東西至少 44px。核取方塊要排除，否則會被撐成大方塊。 */
-  input, select, textarea{ min-height:44px; }
+  /* 16px：iPhone Safari 在小於 16px 的欄位打字會自動放大整頁。
+     沒套 class 的欄位不寫的話會退回瀏覽器預設的 13px 左右。 */
+  input, select, textarea{ min-height:44px; font-size:16px; }
   input[type="checkbox"], input[type="radio"]{ min-height:0; }
   /* --accent-soft 對卡片底只有 1.28:1，等於把瀏覽器原本看得見的外框換成看不見的。
      焦點指示要 3:1，改用跟 button:focus-visible 同一個 --accent-deep（6.63:1）。 */

@@ -146,7 +146,7 @@
 
   /* min-height 44px：手指點得到的最小尺寸。原本算出來只有約 38px。 */
   input, select, textarea{
-    font-family:inherit; font-size:15px; color:var(--ink); background:#fff;
+    font-family:inherit; font-size:16px; color:var(--ink); background:#fff;
     border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 11px; width:100%;
     min-height:44px;
   }
@@ -218,10 +218,13 @@
   .tag.soft{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-soft); }
   .tag.hot{ border-color:var(--red); color:var(--red-ink); background:var(--red-soft); }
 
-  .tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-  .tabs button{ border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
+  /* 看起來約 32px 高，用 ::after 上下各撐 6px 到 44px。分頁列釘在上緣，
+     真的做成 44px 會多吃掉手機一截畫面。換行時列距 12px，上下兩排才不會互搶。 */
+  .tabs{ display:flex; gap:12px 8px; margin-bottom:14px; flex-wrap:wrap; }
+  .tabs button{ position:relative; border:1px solid var(--line); background:var(--bg-card); color:var(--ink-soft);
                 border-radius:99px; padding:7px 14px; font-size:13.5px; }
   .tabs button.on{ background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; font-weight:500; }
+  .tabs button::after{ content:''; position:absolute; inset:-6px 0; }
 
   /* ---------- 帳目 ---------- */
   .exp{
