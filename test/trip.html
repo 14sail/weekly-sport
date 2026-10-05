@@ -3238,11 +3238,8 @@
                esc(personName(x.id)) + '</span><span class="sum-n">還沒寫</span></div></div>';
           return;
         }
-        const ticks = x.items.filter(it => it.kind !== 'note');
-        const n = ticks.filter(it => it.done).length;
         h += '<details class="sis-memo" data-sis="' + esc(x.id) + '"' + (sisOpen.has(x.id) ? ' open' : '') + '>' +
           '<summary><span class="sum-txt">' + esc(personName(x.id)) + '</span>' +
-          (ticks.length ? '<span class="sum-n">' + n + '/' + ticks.length + '</span>' : '') +
           ic('chevR') + '</summary><div class="sis-body">';
         MEMO_SECTIONS.forEach(sec=>{
           const rows = doneLast(x.items.filter(it => preKindOf(it) === sec.kind),
