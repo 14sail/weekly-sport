@@ -556,6 +556,10 @@
   .row-text.note{ color:var(--ink-soft); font-size:13.5px; }
   .row-text.done{ color:var(--ink-soft); text-decoration:line-through; }
   .mini.buyer{ flex:none; min-width:52px; justify-content:center; }
+  /* 改項目時的「放在」：共用的 .tabs 只有約 32px 高，這裡要給手指點，撐到 44 */
+  .pre-move-lbl{ font-size:12px; color:var(--ink-soft); margin:12px 0 6px; }
+  .tabs.pre-move{ gap:8px; margin:0; }
+  .tabs.pre-move button{ min-height:44px; }
   /* 一起的清單：一個項目一列，成員名字只在表頭出現一次。
      成員多的時候橫向捲動，項目名稱那一欄釘住不動。 */
   .sr-only{
@@ -3007,6 +3011,7 @@
   let preForm = null;
   let preDraft = '';
   let preKind = 'check';
+  let preReturn = null;   // 表單關掉後要把焦點送回去的元素（selector）
 
   function memoData(){
     return memo && Array.isArray(memo.topics) ? memo : { topics: [] };
@@ -3072,7 +3077,8 @@
             '<button class="row-text' + (on ? ' done' : '') + '" data-preedit="' + esc(r.id) +
               '" title="改文字或刪除">' + esc(r.text) + '</button>' +
             '<button class="mini buyer' + (buyer ? ' on' : '') + '" data-buyer="' + esc(r.id) +
-              '" aria-label="誰買：' + esc(buyer ? personName(buyer) : '還沒有人') + '">' + esc(who) + '</button>' +
+              '" aria-pressed="' + (mine ? 'true' : 'false') +
+              '" aria-label="' + esc((buyer && !mine ? personName(buyer) : '我') + '買 ' + r.text) + '">' + esc(who) + '</button>' +
             '</div>';
         });
         h += '</div>';
@@ -3159,13 +3165,16 @@
   function preEditRow(scope, id, topicId){
     const isTopic = scope === 'topic';
     let h = '<div class="pre-form">' +
-      '<input id="preInput" value="' + esc(preDraft) + '" placeholder="' +
+      '<input id="preInput" aria-label="' + (isTopic ? '主題名稱' : '項目') + '" value="' + esc(preDraft) + '" placeholder="' +
       (isTopic ? '主題名稱，例如 伴手禮' : '要做什麼') + '" autocomplete="off">';
 
     if(id && scope === 'pre'){
-      h += '<div class="tabs" style="margin:10px 0 0">';
+      h += '<div class="pre-move-lbl" id="preMoveLbl">放在</div>' +
+        '<div class="tabs pre-move" role="group" aria-labelledby="preMoveLbl">';
       PRE_SECTIONS.forEach(sec=>{
-        h += '<button data-prekind="' + sec.kind + '" class="' + (preKind === sec.kind ? 'on' : '') + '">' + sec.title + '</button>';
+        const on = preKind === sec.kind;
+        h += '<button data-prekind="' + sec.kind + '" class="' + (on ? 'on' : '') +
+             '" aria-pressed="' + (on ? 'true' : 'false') + '">' + sec.title + '</button>';
       });
       h += '</div>';
     }
@@ -3188,12 +3197,23 @@
   function wirePre(t){
     const ids = (t.memberIds || []).filter(id => people.some(p => p.id === id));
     const openForm = (what, id, topicId, draft, kind)=>{
+      // 記住是誰打開的。刪掉的話那個元素不在了，就退回那一塊的「加一項」
+      const el = document.activeElement;
+      const attr = el && ['data-preedit','data-preadd','data-miedit','data-miadd','data-tpedit']
+        .find(a => el.hasAttribute(a));
+      preReturn = attr ? '[' + attr + '="' + el.getAttribute(attr) + '"]' : null;
       preForm = { what, id: id || null, topicId: topicId || null, kind: kind || 'check' };
       preDraft = draft || '';
       preKind = kind || 'check';
       render();
     };
     const closeForm = ()=>{ preForm = null; preDraft = ''; preKind = 'check'; render(); };
+
+    if(!preForm && preReturn){
+      const back = app.querySelector(preReturn) || app.querySelector('[data-preadd],#tpAdd');
+      preReturn = null;
+      if(back) back.focus();
+    }
 
     const seed = document.getElementById('preSeed');
     if(seed) seed.onclick = async ()=>{
@@ -3320,6 +3340,8 @@
 
     app.querySelectorAll('[data-pretick]').forEach(b=>{
       b.onclick = async ()=>{
+        if(b.disabled) return;
+        b.disabled = true;
         const r = pres.find(x => x.id === b.dataset.pretick);
         if(!r) return;
         r.done = r.done || {};
@@ -3333,6 +3355,8 @@
 
     app.querySelectorAll('[data-preall]').forEach(b=>{
       b.onclick = async ()=>{
+        if(b.disabled) return;
+        b.disabled = true;
         const r = pres.find(x => x.id === b.dataset.preall);
         if(!r) return;
         r.done = r.done || {};
@@ -3348,6 +3372,8 @@
     // 要買的：勾＝買到了
     app.querySelectorAll('[data-buytick]').forEach(b=>{
       b.onclick = async ()=>{
+        if(b.disabled) return;
+        b.disabled = true;
         const r = pres.find(x => x.id === b.dataset.buytick);
         if(!r) return;
         r.bought = !r.bought;
@@ -3370,6 +3396,7 @@
           r.buyer = me;
         }
         r.savedAt = new Date().toISOString();
+        b.disabled = true;
         await putPre(curTripId, r);
         render();
       };
@@ -3389,6 +3416,8 @@
 
     app.querySelectorAll('[data-memotick]').forEach(b=>{
       b.onclick = async ()=>{
+        if(b.disabled) return;
+        b.disabled = true;
         const m = memoData();
         const tp = m.topics.find(x => x.id === b.dataset.tp);
         const it = tp && (tp.items || []).find(x => x.id === b.dataset.memotick);
