@@ -178,7 +178,7 @@
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-deep); outline-offset:1px; }
 
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳出外框。 */
-  button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+  button:focus-visible, a:focus-visible, summary:focus-visible, [tabindex]:focus-visible{
     outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:var(--radius-sm);
   }
   /* 去掉行動瀏覽器點擊後那 300ms 的等待（等雙擊縮放） */
@@ -560,6 +560,37 @@
   .row-text.note{ color:var(--ink-soft); font-size:13.5px; }
   .row-text.done{ color:var(--ink-soft); text-decoration:line-through; }
   .mini.buyer{ flex:none; min-width:52px; justify-content:center; }
+
+  /* 姊妹的：跟運動站的回覆時間卡同一種收合 */
+  .sis-memo{
+    border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--bg-card); margin-bottom:10px;
+  }
+  .sis-memo summary{
+    list-style:none; cursor:pointer; min-height:44px; box-sizing:border-box;
+    display:flex; align-items:center; gap:8px; padding:10px 14px;
+    font-size:14px; font-weight:500; border-radius:var(--radius);
+  }
+  .sis-memo summary::-webkit-details-marker{ display:none; }
+  .sis-memo summary:active{ background:var(--accent-soft); }
+  .sis-memo .sum-txt{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  .sis-memo .sum-n{ font-size:12px; font-weight:400; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+  .sis-memo summary svg{ flex:none; transition:transform .15s; }
+  .sis-memo[open] summary svg{ transform:rotate(90deg); }
+  .sis-body{ padding:0 14px 14px; }
+  .sis-body .pre-list{ background:var(--bg); margin-bottom:12px; }
+  .sis-body .pre-list:last-child{ margin-bottom:0; }
+  /* 唯讀的勾：長得像勾格但不是按鈕，所以不用 44px */
+  .ro-tick{
+    flex:none; width:20px; height:20px; border-radius:6px;
+    border:1px solid var(--line); background:#fff; color:#fff;
+    display:grid; place-items:center;
+  }
+  .ro-tick .ic{ width:12px; height:12px; margin:0; vertical-align:0; }
+  .ro-tick.on{ background:var(--accent-deep); border-color:var(--accent-deep); }
+  .ro-text{ flex:1; min-width:0; padding:10px 4px; font-size:14px; line-height:1.45; overflow-wrap:anywhere; }
+  .ro-text.note{ color:var(--ink-soft); font-size:13.5px; }
+  .ro-text.done{ color:var(--ink-soft); text-decoration:line-through; }
   .pre-move-lbl{ font-size:12px; color:var(--ink-soft); margin:12px 0 10px; }
   .tabs.pre-move{ margin:0; }
   /* 一起的清單：一個項目一列，成員名字只在表頭出現一次。
@@ -2093,7 +2124,8 @@
       step('注意', '不用勾的事情，例如護照效期') +
       step('勾完的', '會排到那一塊最下面。要帶的是要帶的人全勾了才往下') +
       step('改或刪', '點項目的文字。放錯塊就在「放在」那排搬') +
-      step('我自己的', '只有你看得到。要買的不用認領，只有一格勾');
+      step('我自己的', '只有你能改。要買的不用認領，只有一格勾') +
+      step('姊妹的', '最下面。別人的我自己的，只能看不能改，點名字打開');
 
     h += '<h2>留言板</h2>' +
       step('在哪裡', '電腦在景點清單下面，手機在課表最下面') +
@@ -2135,7 +2167,7 @@
       '<li>沒網路時是<b>唯讀</b>，看得到之前載過的內容，但不能新增或修改。</li>' +
       '<li>同一筆資料大家都能改，要動別人排好的東西前先說一聲。</li>' +
       '<li>密碼只是防止手滑改到別人的資料，<b>不要用你其他重要網站的密碼</b>。</li>' +
-      '<li>行前的<b>我自己的不是上鎖</b>，只是畫面上不顯示別人的，不要寫真正的秘密。</li>' +
+      '<li>行前的<b>我自己的姊妹都看得到</b>，只是不能改，不要寫秘密。</li>' +
       '<li>以前在我自己的<b>開過主題</b>的，項目會變成「主題：項目」放在要帶的，要買的東西請自己搬過去。</li>' +
       '</ul>';
 
@@ -3055,9 +3087,13 @@
   // 提醒型進「注意」、其他進「要帶的」，放錯的再用「放在」搬。下次存檔才會寫回去。
   function memoData(){
     if(!memo) memo = { items: [] };
-    if(Array.isArray(memo.items)) return memo;
+    if(!Array.isArray(memo.items)) memo = flatMemo(memo);
+    return memo;
+  }
+  function flatMemo(raw){
+    if(raw && Array.isArray(raw.items)) return raw;
     const items = [];
-    (memo.topics || []).forEach(tp=>{
+    ((raw && raw.topics) || []).forEach(tp=>{
       (tp.items || []).forEach(it=>{
         items.push({
           id: it.id || uid('mi'),
@@ -3067,8 +3103,15 @@
         });
       });
     });
-    memo = { items, savedAt: memo.savedAt };
-    return memo;
+    return { items, savedAt: raw && raw.savedAt };
+  }
+
+  // 姊妹的：別人的那一包，唯讀。跟自己的一樣存在 trip-memo:<旅程>:<人>。
+  // 收合狀態記在這裡，不然每勾一次重繪就全部收回去。
+  const sisOpen = new Set();
+  function sisMemo(tripId, pid){
+    const raw = parseVal(allData[safeKey('trip-memo:' + tripId + ':' + pid)]);
+    return raw ? flatMemo(raw) : { items: [] };
   }
 
   function preHtml(t){
@@ -3152,7 +3195,7 @@
     // ---- 我自己的 ----
     const m = memoData();
     h += '<h2 class="pre-h" style="margin-top:30px">我自己的</h2>' +
-         '<p class="hint" style="margin-top:-4px">只有你看得到</p>';
+         '<p class="hint" style="margin-top:-4px">只有你能改</p>';
 
     MEMO_SECTIONS.forEach(sec=>{
       const rows = m.items.filter(it => preKindOf(it) === sec.kind);
@@ -3177,6 +3220,39 @@
         : addBtn('data-miadd', sec.kind);
       h += '</section>';
     });
+
+    // ---- 姊妹的 ----
+    // 只列有寫東西的人，平常收起來。唯讀，所以全部用 <span>，沒有按鈕。
+    const sis = ids.filter(id => id !== me)
+      .map(id => ({ id, items: sisMemo(curTripId, id).items }))
+      .filter(x => x.items.length);
+    if(sis.length){
+      h += '<h2 class="pre-h" style="margin-top:30px">姊妹的</h2>';
+      sis.forEach(x=>{
+        const ticks = x.items.filter(it => it.kind !== 'note');
+        const n = ticks.filter(it => it.done).length;
+        h += '<details class="sis-memo" data-sis="' + esc(x.id) + '"' + (sisOpen.has(x.id) ? ' open' : '') + '>' +
+          '<summary><span class="sum-txt">' + esc(personName(x.id)) + '</span>' +
+          (ticks.length ? '<span class="sum-n">' + n + '/' + ticks.length + '</span>' : '') +
+          ic('chevR') + '</summary><div class="sis-body">';
+        MEMO_SECTIONS.forEach(sec=>{
+          const rows = doneLast(x.items.filter(it => preKindOf(it) === sec.kind),
+                                it => it.kind !== 'note' && !!it.done);
+          if(!rows.length) return;
+          h += '<h3 class="pre-sub">' + sec.title + '</h3><div class="pre-list">';
+          rows.forEach(it=>{
+            h += '<div class="memo-item">' + (sec.kind === 'note'
+              ? '<span class="ro-text note">' + ic('note') + ' ' + esc(it.text) + '</span>'
+              : '<span class="ro-tick' + (it.done ? ' on' : '') + '">' + (it.done ? ic('check') : '') + '</span>' +
+                '<span class="ro-text' + (it.done ? ' done' : '') + '">' + esc(it.text) +
+                '<span class="sr-only">' + (it.done ? '，好了' : '，還沒') + '</span></span>') +
+              '</div>';
+          });
+          h += '</div>';
+        });
+        h += '</div></details>';
+      });
+    }
 
     return h;
   }
@@ -3264,6 +3340,9 @@
 
     app.querySelectorAll('[data-preadd]').forEach(b=>{
       b.onclick = ()=> openForm('preNew', null, '', b.dataset.preadd);
+    });
+    app.querySelectorAll('details[data-sis]').forEach(d=>{
+      d.ontoggle = ()=>{ if(d.open) sisOpen.add(d.dataset.sis); else sisOpen.delete(d.dataset.sis); };
     });
     app.querySelectorAll('[data-miadd]').forEach(b=>{
       b.onclick = ()=> openForm('memoNew', null, '', b.dataset.miadd);
