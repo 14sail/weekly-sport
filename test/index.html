@@ -403,7 +403,7 @@
      焦點指示要 3:1，改用跟 button:focus-visible 同一個 --accent-deep（6.63:1）。 */
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent-deep); outline-offset:1px; }
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳框。 */
-  button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+  button:focus-visible, a:focus-visible, summary:focus-visible, [tabindex]:focus-visible{
     outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:var(--radius-sm);
   }
   /* 去掉行動瀏覽器點擊後那 300ms 的等待（等雙擊縮放） */
@@ -587,6 +587,11 @@
   }
   .sis-ev:last-child{ border-bottom:0; padding-bottom:0; }
   .sis-sheet .sis-ev{ min-height:44px; padding-bottom:9px; }
+  /* 面板裡「這天已有」那幾列要按得到（SPEC 4：不能只是 div），把 button 的預設外觀拿掉 */
+  .sis-sheet button.sis-ev{
+    width:100%; background:none; border:0; border-bottom:var(--sis-bw-thin) dashed var(--sis-dash);
+    font:inherit; color:inherit; text-align:left;
+  }
   .sis-ev .dt{ font-size:12px; font-weight:700; min-width:42px; white-space:nowrap; }
   .sis-ev .sw{ width:13px; height:13px; border-radius:50%; flex:none; }
   .sis-ev .txt{ flex:1; min-width:0; }
@@ -2585,12 +2590,12 @@
         <div class="sis-lab">這天已有</div>
         ${existingOnDay.map(m=>{
           const g = sisGroupById(m.groupId);
-          return `<div class="sis-ev" data-meet="${m.id}">
+          return `<button type="button" class="sis-ev" data-meet="${m.id}">
             <span class="dt">${sisRangeLabel(m)}</span>
             <span class="sw" style="background:${g ? g.color : '#8A7A64'}"></span>
             <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span></span>
             <span class="nth">修改</span>
-          </div>`;
+          </button>`;
         }).join('')}
         <div class="sis-lab">另加一筆</div>` : '';
     const dayChips = [1,2,3,4,5,6,7].map(n=>
