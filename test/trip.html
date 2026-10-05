@@ -577,6 +577,10 @@
   .sis-memo .sum-n{ font-size:12px; font-weight:400; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
   .sis-memo summary svg{ flex:none; transition:transform .15s; }
   .sis-memo[open] summary svg{ transform:rotate(90deg); }
+  .sis-empty{
+    display:flex; align-items:center; gap:8px; min-height:44px; box-sizing:border-box;
+    padding:10px 14px; font-size:14px; font-weight:500;
+  }
   .sis-body{ padding:0 14px 14px; }
   .sis-body .pre-list{ background:var(--bg); margin-bottom:12px; }
   .sis-body .pre-list:last-child{ margin-bottom:0; }
@@ -3222,13 +3226,18 @@
     });
 
     // ---- 姊妹的 ----
-    // 只列有寫東西的人，平常收起來。唯讀，所以全部用 <span>，沒有按鈕。
+    // 旅程裡的每個姊妹都列，平常收起來。唯讀，所以全部用 <span>，沒有按鈕。
+    // 還沒寫的也要列（顯示「還沒寫」、打不開），不然整區消失會以為壞掉。
     const sis = ids.filter(id => id !== me)
-      .map(id => ({ id, items: sisMemo(curTripId, id).items }))
-      .filter(x => x.items.length);
+      .map(id => ({ id, items: sisMemo(curTripId, id).items }));
     if(sis.length){
       h += '<h2 class="pre-h" style="margin-top:30px">姊妹的</h2>';
       sis.forEach(x=>{
+        if(!x.items.length){
+          h += '<div class="sis-memo"><div class="sis-empty"><span class="sum-txt">' +
+               esc(personName(x.id)) + '</span><span class="sum-n">還沒寫</span></div></div>';
+          return;
+        }
         const ticks = x.items.filter(it => it.kind !== 'note');
         const n = ticks.filter(it => it.done).length;
         h += '<details class="sis-memo" data-sis="' + esc(x.id) + '"' + (sisOpen.has(x.id) ? ' open' : '') + '>' +
