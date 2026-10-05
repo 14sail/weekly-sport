@@ -314,6 +314,33 @@
   .best-card .v{ font-family:'Noto Serif TC', serif; font-size:19px; font-weight:700; }
   .best-card .m{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
 
+  /* 回覆時間：平常收成一行，點開看每個人上次更新 */
+  .resp-times{
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--bg-card); margin-bottom:14px;
+  }
+  .resp-times summary{
+    list-style:none; cursor:pointer; min-height:44px; box-sizing:border-box;
+    display:flex; align-items:center; gap:8px; padding:10px 14px;
+    font-size:12px; color:var(--ink-soft);
+  }
+  .resp-times summary::-webkit-details-marker{ display:none; }
+  .resp-times summary .sum-txt{ flex:1; min-width:0; }
+  .resp-times summary b{ color:var(--ink); }
+  .resp-times summary svg{ flex:none; transition:transform .15s; }
+  .resp-times[open] summary svg{ transform:rotate(180deg); }
+  .resp-times .rt-list{ padding:0 14px 10px; }
+  .resp-times .rt-row{
+    display:flex; align-items:center; gap:8px; padding:7px 0;
+    border-top:1px dashed var(--line); font-size:13px;
+  }
+  .resp-times .rt-name{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  .resp-times .rt-time{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .resp-times .rt-tag{
+    font-size:11px; font-weight:700; color:var(--amber-ink); background:var(--amber-soft);
+    border-radius:6px; padding:1px 6px; white-space:nowrap;
+  }
+
   /* 五天明細一律整塊展開，不收合 */
   .summary-day{
     border:1px solid var(--line);
@@ -1331,6 +1358,7 @@
 
   // ---------- 畫面：老師檢視 ----------
   let teacherSelectedWeekIdx = 0;
+  let respTimesOpen = false;   // 回覆時間卡展開與否，切週重繪時保留
   async function renderTeacher(readOnly){
     const myRenderToken = ++renderGen;
     const person = people.find(p=>p.id===currentPersonId);
@@ -1428,6 +1456,37 @@
             <div class="k">沒有建議日</div>
             <div class="m" style="margin-top:2px;">${why}</div>
           </div>`;
+      }
+
+      // 回覆時間：最新的排最上面，舊資料沒有時間的排中間，沒回覆的排最下面。
+      // 「公告後改過」比的是本週注意事項的更新時間——老師貼了這週的安排之後還有人改，老師要知道。
+      const noticeAt = (weekNotice && weekNotice.text && weekNotice.text.trim()) ? weekNotice.updatedAt : null;
+      const students = sportPeople().filter(p=>!p.isTeacher);
+      const rtRows = students.map(p=>{
+        const r = allResp[p.id];
+        return {p, replied: !!r, at: r && r.savedAt ? r.savedAt : null};
+      }).sort((a,b)=>{
+        const rank = x => x.at ? 0 : (x.replied ? 1 : 2);
+        if(rank(a) !== rank(b)) return rank(a) - rank(b);
+        return a.at && b.at ? b.at.localeCompare(a.at) : 0;
+      });
+      if(students.length){
+        const repliedN = rtRows.filter(x=>x.replied).length;
+        const latest = rtRows[0] && rtRows[0].at ? rtRows[0] : null;
+        const sumTxt = `已回覆 <b>${repliedN}/${students.length}</b>`
+          + (latest ? `・最近 ${escapeHtml(latest.p.name)} ${fmtDateTime(latest.at)}` : '');
+        const rowsHtml = rtRows.map(x=>{
+          const time = x.at ? fmtDateTime(x.at) : (x.replied ? '未記錄' : '尚未回覆');
+          const tag = (x.at && noticeAt && x.at > noticeAt) ? '<span class="rt-tag">公告後改過</span>' : '';
+          return `<div class="rt-row"><span class="rt-name">${escapeHtml(x.p.name)}</span><span class="rt-time">${time}</span>${tag}</div>`;
+        }).join('');
+        bodyHtml += `
+          <details class="resp-times" id="respTimes" ${respTimesOpen?'open':''}>
+            <summary><span class="sum-txt">${sumTxt}</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="rt-list">${rowsHtml}</div>
+          </details>`;
       }
 
       dayStats.forEach(ds=>{
@@ -1566,6 +1625,9 @@
     function confirmLeaveFill(){
       return !hasUnsavedFillChanges() || confirm('這週的勾選還沒儲存，離開會遺失變更，確定要離開嗎？');
     }
+
+    const respTimesEl = document.getElementById('respTimes');
+    if(respTimesEl) respTimesEl.addEventListener('toggle', ()=>{ respTimesOpen = respTimesEl.open; });
 
     app.querySelectorAll('.nav-tabs button[data-idx]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
