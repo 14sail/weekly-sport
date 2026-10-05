@@ -85,7 +85,7 @@
     min-height:100vh;
     padding-bottom:40px;
   }
-  .wrap{ max-width:520px; margin:0 auto; padding:0 18px; }
+  .wrap{ max-width:760px; margin:0 auto; padding:0 18px; }
 
   header.top{
     padding:28px 18px 20px;
@@ -199,7 +199,9 @@
     cursor:pointer;
   }
   .person-btn.teacher{ background:var(--green-soft); color:var(--green-ink); border-color:#D3DCC3; }
-  .person-btn:active{ transform:scale(0.97); }
+  .person-btn:active{ background:#E6D2B6; }
+  .person-btn.teacher:active{ background:#E2E7D8; }  /* 4.54 */
+  @media (min-width:640px){ .people-grid{ grid-template-columns:repeat(4, 1fr); } }
 
   /* ---- 週卡片 ---- */
   .week-card{ }
@@ -219,8 +221,9 @@
   .day-label{ font-size:14px; font-weight:500; min-width:74px; }
   .day-label .date{ color:var(--ink-soft); font-weight:400; font-size:12px; display:block; }
 
-  .status-options{ display:flex; gap:6px; }
+  .status-options{ display:flex; gap:8px; }
   .status-btn{
+    position:relative;
     border:1px solid var(--line);
     background:var(--bg-card);
     border-radius:20px;
@@ -234,6 +237,9 @@
   .status-btn[data-v="busy"].active{ background:var(--red-soft); color:var(--red-ink); border-color:#DDB2A4; font-weight:700;}
   .status-btn[data-v="maybe"].active{ background:var(--amber-soft); color:var(--amber-ink); border-color:#E7C989; font-weight:700;}
   .status-options.readonly .status-btn{ pointer-events:none; opacity:.65; }
+  /* 膠囊本身約 30px 高，上下各撐 7px、左右 4px，感應範圍才到 44px（SPEC 3） */
+  .status-btn::after{ content:''; position:absolute; inset:-7px -4px; }
+  .status-btn:active{ background:var(--accent-soft); color:var(--ink); }
 
   textarea.note{
     width:100%;
@@ -405,6 +411,14 @@
   /* 鍵盤操作要看得到焦點在哪。用 :focus-visible，滑鼠點按不會跳框。 */
   button:focus-visible, a:focus-visible, summary:focus-visible, [tabindex]:focus-visible{
     outline:2px solid var(--accent-deep); outline-offset:2px; border-radius:var(--radius-sm);
+  }
+  @media (hover:hover) and (pointer:fine){
+    .nav-tabs button:not(.active):hover,
+    .status-btn:not(.active):hover,
+    .sis-opt:not(.on):not(.locked):hover{ border-color:var(--accent); color:var(--ink); }
+    .person-btn:hover{ border-color:var(--accent); }
+    .sis-cell:not(.out):hover{ background:var(--accent-soft); }
+    .sis-ev:hover .lb, .resp-times summary:hover{ color:var(--accent-deep); }
   }
   /* 去掉行動瀏覽器點擊後那 300ms 的等待（等雙擊縮放） */
   button, a, label, summary{ touch-action:manipulation; }
@@ -779,6 +793,13 @@
   // iOS Safari 只有在 document 有 touch 監聽時才會套用 :active，
   // 沒有這個空監聽，底下所有「按下變色」在 iPhone 上都不會出現。
   document.addEventListener('touchstart', function(){}, { passive: true });
+  // 用 div 做的按鈕（role="button"）讓鍵盤也按得到：Enter 與空白鍵等於點一下。
+  // 空白鍵要 preventDefault，不然會順便捲動頁面。
+  document.addEventListener('keydown', function(e){
+    const t = e.target;
+    if(!t || t.tagName === 'BUTTON' || t.getAttribute('role') !== 'button') return;
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); t.click(); }
+  });
   const switchBtn = document.getElementById('switchUserBtn');
   const editProfileBtn = document.getElementById('editProfileBtn');
 
@@ -991,10 +1012,10 @@
         <div class="people-grid">
     `;
     if(teacher){
-      html += `<div class="person-btn teacher" data-id="${teacher.id}">${escapeHtml(teacher.name)}<br><span style="font-size:10px;">（我是老師）</span></div>`;
+      html += `<div class="person-btn teacher" role="button" tabindex="0" data-id="${teacher.id}">${escapeHtml(teacher.name)}<br><span style="font-size:10px;">（我是老師）</span></div>`;
     }
     students.forEach(s=>{
-      html += `<div class="person-btn" data-id="${s.id}">${escapeHtml(s.name)}</div>`;
+      html += `<div class="person-btn" role="button" tabindex="0" data-id="${s.id}">${escapeHtml(s.name)}</div>`;
     });
     html += `
         </div>
@@ -1027,6 +1048,14 @@
     app.querySelectorAll('.tabs-scroll-wrap').forEach(wrap=>{
       const inner = wrap.querySelector('.nav-tabs');
       wrap.classList.toggle('has-overflow', !!inner && inner.scrollWidth > inner.clientWidth + 2);
+      if(inner && !inner.dataset.wheel){
+        inner.dataset.wheel = '1';
+        inner.addEventListener('wheel', e=>{
+          if(inner.scrollWidth <= inner.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+          inner.scrollLeft += e.deltaY;
+          e.preventDefault();
+        }, {passive:false});
+      }
     });
   }
 
@@ -1247,7 +1276,7 @@
           <div class="day-row">
             <div class="day-label">星期${d.weekdayName}<span class="date">${fmtShort(d.date)}</span></div>
             <div class="status-options" data-day="${d.key}">
-              ${STATUS_OPTS.map(o=>`<div class="status-btn" data-v="${o.v}" data-day="${d.key}" style="${cur===o.v?'':''}">${o.label}</div>`).join('')}
+              ${STATUS_OPTS.map(o=>`<div class="status-btn" role="button" tabindex="0" aria-pressed="false" data-v="${o.v}" data-day="${d.key}">${o.label}</div>`).join('')}
             </div>
           </div>
         `;
@@ -1318,6 +1347,7 @@
         app.querySelectorAll('.status-btn').forEach(btn=>{
           const day = btn.dataset.day;
           btn.classList.toggle('active', state[day]===btn.dataset.v);
+          if(btn.hasAttribute('aria-pressed')) btn.setAttribute('aria-pressed', state[day]===btn.dataset.v ? 'true' : 'false');
         });
       }
       refreshActive();
@@ -1547,7 +1577,7 @@
           <div class="day-row">
             <div class="day-label">星期${d.weekdayName}<span class="date">${fmtShort(d.date)}</span></div>
             <div class="status-options ${readOnly?'readonly':''}" data-day="${d.key}">
-              ${STATUS_OPTS.map(o=>`<div class="status-btn ${readOnly&&cur===o.v?'active':''}" data-v="${o.v}" data-day="${d.key}">${o.label}</div>`).join('')}
+              ${STATUS_OPTS.map(o=>`<div class="status-btn ${readOnly&&cur===o.v?'active':''}" ${readOnly?'':'role="button" tabindex="0" aria-pressed="false"'} data-v="${o.v}" data-day="${d.key}">${o.label}</div>`).join('')}
             </div>
           </div>
         `;
@@ -2263,7 +2293,7 @@
         return `<div class="sis-chip${isStart ? '' : ' cont'}" style="background:${g ? g.color : '#8A7A64'}">${label}</div>`;
       }).join('');
       const cls = 'sis-cell' + (isThisMonth && c.n===today.getDate() ? ' today' : '');
-      cellsHtml += `<div class="${cls}" data-day="${c.n}"><span class="d">${c.n}</span>${chips}</div>`;
+      cellsHtml += `<div class="${cls}" role="button" tabindex="0" aria-label="${sisMonth+1} 月 ${c.n} 日${list.length ? '，' + list.length + ' 筆' : ''}" data-day="${c.n}"><span class="d">${c.n}</span>${chips}</div>`;
     });
 
     let listHtml = '';
@@ -2283,7 +2313,7 @@
         const carryTag = (sisMeetYear(m) !== sisYear)
           ? `<span class="sis-days">接續 ${sisMeetYear(m)} 年的行程</span>`
           : '';
-        return `<div class="sis-ev" data-meet="${m.id}">
+        return `<div class="sis-ev" role="button" tabindex="0" data-meet="${m.id}">
           <span class="dt">${sisRangeLabel(m)}</span>
           <span class="sw" style="background:${g ? g.color : '#8A7A64'}"></span>
           <span class="txt"><span class="lb">${escapeHtml(sisGroupLabel(g))}</span>
@@ -2338,7 +2368,7 @@
 
     const others = sportPeople().filter(p=>p.id !== currentPersonId);
     const pickHtml = others.map(p=>`
-      <div class="sis-opt ${sisNewSel.indexOf(p.id)>=0?'on':''}" data-pick="${p.id}">${sisNewSel.indexOf(p.id)>=0?'✓ ':''}${escapeHtml(p.name)}</div>
+      <div class="sis-opt ${sisNewSel.indexOf(p.id)>=0?'on':''}" role="button" tabindex="0" aria-pressed="${sisNewSel.indexOf(p.id)>=0}" data-pick="${p.id}">${sisNewSel.indexOf(p.id)>=0?'✓ ':''}${escapeHtml(p.name)}</div>
     `).join('');
 
     const autoLabel = sisAutoLabel([currentPersonId].concat(sisNewSel));
@@ -2575,7 +2605,7 @@
     const editing = sisSheet.meetId ? sisFindMeet(sisSheet.meetId) : null;
     const selected = sisSheet.groupId || (editing ? editing.groupId : (mine[0] ? mine[0].id : ''));
     const optsHtml = mine.map(g=>`
-      <div class="sis-opt ${selected===g.id?'on':''}" data-selgroup="${g.id}">
+      <div class="sis-opt ${selected===g.id?'on':''}" role="button" tabindex="0" aria-pressed="${selected===g.id}" data-selgroup="${g.id}">
         <span class="sw" style="background:${g.color}"></span>${escapeHtml(sisGroupLabel(g))}
       </div>
     `).join('');
@@ -2599,7 +2629,7 @@
         }).join('')}
         <div class="sis-lab">另加一筆</div>` : '';
     const dayChips = [1,2,3,4,5,6,7].map(n=>
-      `<div class="sis-opt ${days===n?'on':''}" data-days="${n}">${n} 天</div>`
+      `<div class="sis-opt ${days===n?'on':''}" role="button" tabindex="0" data-days="${n}">${n} 天</div>`
     ).join('');
 
     return `
