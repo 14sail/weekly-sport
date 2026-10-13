@@ -357,7 +357,7 @@
   function renderGate(err){
     app.innerHTML = '<header class="top"><div class="brand">半年的小驚喜</div></header><div class="wrap">' +
       (err ? '<div class="msg err" role="alert">密碼不對。</div>' : '') +
-      '<div class="card"><label class="fld"><span>密碼</span><input id="pw" type="password" autocomplete="off"></label>' +
+      '<div class="card"><label class="fld"><span>密碼</span><input id="pw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"></label>' +
       '<button class="btn wide" id="go">打開</button>' +
       '<div class="foot"><a class="back" href="index.html">回運動排程</a></div></div></div>';
     const pw = document.getElementById('pw');
@@ -368,7 +368,9 @@
       else renderGate(true);
     };
     document.getElementById('go').onclick = submit;
-    pw.onkeydown = (e)=>{ if(e.key === 'Enter') submit(); };
+    // 手機的密碼欄會鎖住中文輸入法，所以用一般文字欄。
+    // 注音選字時按的 Enter 是在確認選字，不是送出
+    pw.onkeydown = (e)=>{ if(e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) submit(); };
   }
 
   // ================= 回憶錄 =================
