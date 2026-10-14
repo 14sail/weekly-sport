@@ -167,14 +167,6 @@
     object-fit:contain; object-position:50% 50%;
   }
 
-  .scroll-hint{
-    position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:50%;
-    transform:translateX(-50%); color:var(--ink-soft); font-size:12px; letter-spacing:.2em;
-    display:flex; flex-direction:column; align-items:center; gap:2px;
-    opacity:0; animation:rise .8s var(--ease) 1.6s forwards;
-  }
-  .scroll-hint .ic{ width:20px; height:20px; animation:bob 1.6s ease-in-out infinite; }
-  @keyframes bob{ 50%{ transform:translateY(5px); } }
 
   /* ---------------- 疊牌 ----------------
      全部的牌放在同一個父層裡、同一個 top 黏住，後面的就會一張張蓋上來。
@@ -369,7 +361,6 @@
 
   // ================= 圖示（Feather） =================
   const ICONS = {
-    down:'<polyline points="6 9 12 15 18 9"></polyline>',
     left:'<polyline points="15 18 9 12 15 6"></polyline>',
     right:'<polyline points="9 18 15 12 9 6"></polyline>',
     close:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
@@ -463,7 +454,6 @@
       '<div class="fan" aria-hidden="true">' +
         cover.map((pi, k) => '<div class="fan-slot s' + k + '"><div class="fan-card"><img src="' + src(pi) + '" alt="" decoding="async"></div></div>').join('') +
       '</div>' +
-      '<div class="scroll-hint" aria-hidden="true">往下滑' + ic('down') + '</div>' +
     '</section>';
 
     h += '<section class="stack" id="stack">';
@@ -624,7 +614,7 @@
   // ================= 自動翻頁 =================
   // 像幻燈片：一張捲到剛好黏住的位置，停一下，再翻下一張。
   // 手指一碰、滾輪、按鍵就停，不跟人搶；右下角的鈕可以再接著播。
-  const HOLD_PHOTO = 1200, HOLD_CHAP = 700, MOVE = 800, OPENING = 1500;
+  const HOLD_PHOTO = 800, HOLD_CHAP = 500, MOVE = 500, OPENING = 1000;
   let auto = {on:false, timer:0, raf:0};
   function autoTargets(){
     const t = cards.map((c, k) => ({
