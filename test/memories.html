@@ -253,11 +253,32 @@
     font-family:'Noto Serif TC',serif; font-weight:700; font-size:19px;
     color:var(--accent-deep); margin-bottom:18px;
   }
-  .letter .from{
-    margin:22px 0 0; text-align:right; font-family:'Noto Serif TC',serif; font-weight:700;
-    color:var(--accent-deep);
+  /* 署名＋貼紙：貼紙的腳超出信紙下緣一點，像真的貼上去 */
+  .letter{ margin-bottom:64px; }
+  .sign{
+    display:flex; align-items:flex-end; justify-content:flex-end; gap:6px;
+    margin:6px -6px -62px 0; position:relative; z-index:1;
   }
-  .letter .from::before{ content:'— '; }
+  .sign .from{
+    font-family:'Noto Serif TC',serif; font-weight:700; color:var(--accent-deep);
+    margin-bottom:74px;
+  }
+  .sign .from::before{ content:'— '; }
+  .captain{
+    height:150px; width:auto; display:block;
+    filter:drop-shadow(0 6px 10px rgba(58,46,34,.28));
+    transform-origin:50% 100%;
+    opacity:0; transform:scale(.3) rotate(-25deg);
+  }
+  /* 彈出來，之後一直小小地扭（過動） */
+  .sign.in .captain{
+    animation:pop .7s cubic-bezier(.34,1.56,.64,1) .35s forwards, wiggle 1.6s ease-in-out 1.2s infinite;
+  }
+  @keyframes pop{ to{ opacity:1; transform:scale(1) rotate(4deg); } }
+  @keyframes wiggle{
+    0%,100%{ opacity:1; transform:rotate(4deg); }
+    50%{ opacity:1; transform:rotate(-4deg) translateY(-3px); }
+  }
   .reveal{ opacity:0; transform:translateY(18px); transition:opacity .9s var(--ease), transform .9s var(--ease); }
   .reveal.in{ opacity:1; transform:none; }
 
@@ -363,7 +384,8 @@
       '無論生活帶來多少低潮或脆弱，都要記得～健機小隊永遠是你們可以放心依靠的樹洞。一起運個動、聊聊天，沒有什麼過不去的，一切都會慢慢變好。',
       '最後，記得多來運動，保護好自己不要受傷了（我對自己說）！愛你們♡'
     ],
-    from: '過動隊長'
+    from: '過動隊長',
+    sticker: 'captain.png'   // 署名旁邊的去背貼紙照
   };
   // 測試站在 test/ 底下，照片共用根目錄那一份，兩邊才不用各放一套
   const PHOTO_DIR = /\/test\//.test(location.pathname) ? '../memories/' : 'memories/';
@@ -521,7 +543,10 @@
       '<article class="letter" id="letter">' +
         '<p class="hi reveal">' + esc(LETTER.hi) + '</p>' +
         LETTER.body.map(t => '<p class="reveal">' + esc(t) + '</p>').join('') +
-        '<p class="from reveal">' + esc(LETTER.from) + '</p>' +
+        '<div class="sign reveal" id="sign">' +
+          '<span class="from">' + esc(LETTER.from) + '</span>' +
+          '<img class="captain" src="' + PHOTO_DIR + LETTER.sticker + '" alt="' + esc(LETTER.from) + '" loading="lazy" decoding="async">' +
+        '</div>' +
       '</article>' +
       '<a class="btn reveal" href="index.html">' + ic('back') + '回運動排程</a>' +
     '</section>';
