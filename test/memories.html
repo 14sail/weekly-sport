@@ -624,7 +624,7 @@
   // ================= 自動翻頁 =================
   // 像幻燈片：一張捲到剛好黏住的位置，停一下，再翻下一張。
   // 手指一碰、滾輪、按鍵就停，不跟人搶；右下角的鈕可以再接著播。
-  const HOLD_PHOTO = 2600, HOLD_CHAP = 1400, MOVE = 1100;
+  const HOLD_PHOTO = 1200, HOLD_CHAP = 700, MOVE = 800, OPENING = 1500;
   let auto = {on:false, timer:0, raf:0};
   function autoTargets(){
     const t = cards.map((c, k) => ({
@@ -658,7 +658,7 @@
     const next = autoTargets().find(t => t.y > y0 + 4);
     if(!next){ stopAuto(); return; }
     const t0 = performance.now(), dist = next.y - y0;
-    const dur = Math.min(MOVE * 1.8, MOVE + dist / 4);   // 從開場到第一張比較遠，走久一點
+    const dur = MOVE;
     const step = (now)=>{
       if(!auto.on) return;
       const p = Math.min(1, (now - t0) / dur);
@@ -682,7 +682,7 @@
       }, {passive:true}));
     setAutoBtn();
     // 開場動畫跑完再開始翻；設定了減少動態效果的就不自動開始
-    if(!reduce) auto.timer = setTimeout(()=>{ if(window.scrollY < 10) startAuto(); }, 3000);
+    if(!reduce) auto.timer = setTimeout(()=>{ if(window.scrollY < 10) startAuto(); }, OPENING);
   }
 
   // ================= 看大圖 =================
