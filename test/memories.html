@@ -363,7 +363,7 @@
       '無論生活帶來多少低潮或脆弱，都要記得～健機小隊永遠是你們可以放心依靠的樹洞。一起運個動、聊聊天，沒有什麼過不去的，一切都會慢慢變好。',
       '最後，記得多來運動，保護好自己不要受傷了（我對自己說）！愛你們♡'
     ],
-    from: '小隊長'
+    from: '過動隊長'
   };
   // 測試站在 test/ 底下，照片共用根目錄那一份，兩邊才不用各放一套
   const PHOTO_DIR = /\/test\//.test(location.pathname) ? '../memories/' : 'memories/';
@@ -656,7 +656,7 @@
   // ================= 自動翻頁 =================
   // 像幻燈片：一張捲到剛好黏住的位置，停一下，再翻下一張。
   // 手指一碰、滾輪、按鍵就停，不跟人搶；右下角的鈕可以再接著播。
-  const HOLD_PHOTO = 800, HOLD_CHAP = 500, MOVE = 500, OPENING = 1000;
+  const HOLD_PHOTO = 1000, HOLD_CHAP = 800, MOVE = 800, OPENING = 1500;
   let auto = {on:false, timer:0, raf:0};
   function autoTargets(){
     const t = cards.map((c, k) => ({
