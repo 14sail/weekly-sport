@@ -237,6 +237,30 @@
   .bye .ch{ display:inline-block; opacity:0; filter:blur(8px); transform:translateY(16px); }
   .bye.in .ch{ animation:rise .9s var(--ease) forwards; }
 
+  /* 小隊長的話：像一張信紙，內框一圈細線 */
+  .letter{
+    position:relative; width:100%; max-width:520px; margin:0 0 36px; text-align:left;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:30px 24px 26px;
+    box-shadow:0 18px 40px -20px rgba(58,46,34,.35);
+  }
+  .letter::before{
+    content:''; position:absolute; inset:8px; border:1px solid var(--accent-soft);
+    border-radius:10px; pointer-events:none;
+  }
+  .letter p{ margin:0 0 16px; font-size:15.5px; line-height:1.95; color:var(--ink); }
+  .letter .hi{
+    font-family:'Noto Serif TC',serif; font-weight:700; font-size:19px;
+    color:var(--accent-deep); margin-bottom:18px;
+  }
+  .letter .from{
+    margin:22px 0 0; text-align:right; font-family:'Noto Serif TC',serif; font-weight:700;
+    color:var(--accent-deep);
+  }
+  .letter .from::before{ content:'— '; }
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .9s var(--ease), transform .9s var(--ease); }
+  .reveal.in{ opacity:1; transform:none; }
+
   /* ---------------- 看大圖 ---------------- */
   .lb{
     position:fixed; inset:0; z-index:var(--z-help); background:#140e09;
@@ -328,8 +352,19 @@
     {s:16, f:'16-1.jpg', t:'第三次網球有人變厲害', d:'2026-10-05'},
     {s:16, f:'16-2.jpg', t:'粉色網球', d:'2026-10-05'}
   ];
-  // 結尾「下半年見」上面那張
+  // 結尾「最後...」上面那張
   const FINALE = 'finale.jpg';
+  // 小隊長的話：第一行是開頭的招呼，中間一段一個字串，最後是署名
+  const LETTER = {
+    hi: '嗨一！我的小隊員們',
+    body: [
+      '從當初只是因為好玩而成立的健機小隊，到現在默默陪伴彼此走了半年。這一路上，真的很感謝每位小隊員的付出與支持，謝謝大家各司其職的一起讓這個小隊變得越來越好。',
+      '對我來說，健機小隊成立的目的從來都不只是運動。如果能在大家平凡的日子裡，添上一點點溫暖與色彩，那會是小隊長我最欣慰、最開心的事。',
+      '無論生活帶來多少低潮或脆弱，都要記得～健機小隊永遠是你們可以放心依靠的樹洞。一起運個動、聊聊天，沒有什麼過不去的，一切都會慢慢變好。',
+      '最後，記得多來運動，保護好自己不要受傷了（我對自己說）！愛你們♡'
+    ],
+    from: '小隊長'
+  };
   // 測試站在 test/ 底下，照片共用根目錄那一份，兩邊才不用各放一套
   const PHOTO_DIR = /\/test\//.test(location.pathname) ? '../memories/' : 'memories/';
   const TEAM = '健機小隊';
@@ -482,8 +517,13 @@
 
     h += '<section class="finale">' +
       '<div class="fin" id="fin"><img src="' + PHOTO_DIR + FINALE + '" alt="大家的手疊在一起" loading="lazy" decoding="async"></div>' +
-      '<div class="bye" id="bye">' + chars('下半年見', 0, .12) + '</div>' +
-      '<a class="btn" href="index.html">' + ic('back') + '回運動排程</a>' +
+      '<div class="bye" id="bye">' + chars('最後...', 0, .12) + '</div>' +
+      '<article class="letter" id="letter">' +
+        '<p class="hi reveal">' + esc(LETTER.hi) + '</p>' +
+        LETTER.body.map(t => '<p class="reveal">' + esc(t) + '</p>').join('') +
+        '<p class="from reveal">' + esc(LETTER.from) + '</p>' +
+      '</article>' +
+      '<a class="btn reveal" href="index.html">' + ic('back') + '回運動排程</a>' +
     '</section>';
 
     app.innerHTML = h;
@@ -507,6 +547,8 @@
     }, {threshold:.25});
     io.observe(document.getElementById('bye'));
     io.observe(document.getElementById('fin'));
+    // 信一段一段浮出來，讀到哪亮到哪
+    app.querySelectorAll('.reveal').forEach(el => io.observe(el));
   }
 
   // ---------- 跟著捲動走的效果 ----------
@@ -621,7 +663,8 @@
       y: Math.round(geo.stackTop + k * geo.step - geo.top),
       hold: c.photo >= 0 ? HOLD_PHOTO : HOLD_CHAP
     }));
-    t.push({y: document.documentElement.scrollHeight - window.innerHeight, hold:0});
+    const fin = document.querySelector('.finale');
+    t.push({y: Math.min(fin.offsetTop, document.documentElement.scrollHeight - window.innerHeight), hold:0});
     return t;
   }
   function setAutoBtn(){
