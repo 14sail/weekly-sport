@@ -656,7 +656,7 @@
   // ================= 自動翻頁 =================
   // 像幻燈片：一張捲到剛好黏住的位置，停一下，再翻下一張。
   // 手指一碰、滾輪、按鍵就停，不跟人搶；右下角的鈕可以再接著播。
-  const HOLD_PHOTO = 1000, HOLD_CHAP = 800, MOVE = 800, OPENING = 1500;
+  const HOLD_PHOTO = 1500, HOLD_CHAP = 800, MOVE = 800, OPENING = 2000;
   let auto = {on:false, timer:0, raf:0};
   function autoTargets(){
     const t = cards.map((c, k) => ({
