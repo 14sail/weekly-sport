@@ -495,6 +495,15 @@
 
   .footer-link{ text-align:center; margin-top:24px; }
   .footer-link a{ font-size:11px; color:var(--ink-soft); text-decoration:none; }
+  /* 回憶錄的入口：登入後才看得到，放在「回到選擇身份」上面 */
+  .footer-link a.surprise{
+    display:flex; width:fit-content; margin:0 auto 14px; align-items:center; gap:6px;
+    min-height:44px; padding:0 16px; border-radius:999px;
+    background:var(--accent-soft); border:1px solid var(--line);
+    color:var(--accent-deep); font-size:13px; font-weight:500;
+  }
+  .footer-link a.surprise svg{ width:17px; height:17px; flex:none; }
+  .footer-link a.surprise:active{ filter:brightness(.94); }
 
   .loading{ text-align:center; padding:60px 0; color:var(--ink-soft); font-size:13px; }
 
@@ -1311,7 +1320,7 @@
         ${mainTabsHtml}
         ${bodyHtml}
       </div>
-      <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+      <div class="footer-link"><a class="surprise" href="memories.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>半年的小驚喜</a><a href="#" id="backLink">回到選擇身份</a></div>
     `;
     markScrollableTabs();
 
@@ -1651,7 +1660,7 @@
         ${showWeekPicker ? noticeHtml : ''}
         ${bodyHtml}
       </div>
-      <div class="footer-link"><a href="#" id="backLink">${readOnly ? '返回我的畫面' : '回到選擇身份'}</a></div>
+      <div class="footer-link">${readOnly ? '' : '<a class="surprise" href="memories.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>半年的小驚喜</a>'}<a href="#" id="backLink">${readOnly ? '返回我的畫面' : '回到選擇身份'}</a></div>
     `;
     markScrollableTabs();
 
