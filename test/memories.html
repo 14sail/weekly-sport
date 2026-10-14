@@ -99,6 +99,16 @@
   }
   .counter.on{ opacity:1; transform:none; }
   .counter b{ color:var(--accent-deep); }
+  /* 自動翻頁的播放／暫停鈕 */
+  .auto-btn{
+    position:fixed; z-index:var(--z-corner);
+    right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom));
+    width:44px; height:44px; padding:0; border-radius:50%; display:grid; place-items:center;
+    background:var(--bg-card); color:var(--accent-deep); border:1px solid var(--line);
+    box-shadow:0 2px 10px rgba(58,46,34,.18);
+  }
+  .auto-btn .ic{ width:18px; height:18px; }
+  .auto-btn:active{ background:var(--accent-soft); }
 
   /* ---------------- 開場 ---------------- */
   .hero{
@@ -364,7 +374,9 @@
     right:'<polyline points="9 18 15 12 9 6"></polyline>',
     close:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
     zoom:'<polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>',
-    back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>'
+    back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
+    play:'<polygon points="6 3 20 12 6 21 6 3"></polygon>',
+    pause:'<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>'
   };
   function ic(name){
     return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -440,6 +452,7 @@
     const cover = [Math.min(1, PHOTOS.length-1), 0, Math.min(2, PHOTOS.length-1)];
 
     let h = '<div class="progress" id="prog"></div>' +
+      '<button class="auto-btn" id="autoBtn"></button>' +
       '<div class="counter" id="counter" aria-hidden="true"><b id="cNow">01</b> / ' + String(PHOTOS.length).padStart(2,'0') + '</div>';
 
     h += '<section class="hero" id="hero">' +
@@ -492,6 +505,7 @@
 
     setupScroll();
     setupReveals();
+    setupAuto();
   }
 
   // ---------- 數字跳動、結尾照片牆 ----------
@@ -607,9 +621,74 @@
     if(inStack) cNow.textContent = String(current + 1).padStart(2, '0');
   }
 
+  // ================= 自動翻頁 =================
+  // 像幻燈片：一張捲到剛好黏住的位置，停一下，再翻下一張。
+  // 手指一碰、滾輪、按鍵就停，不跟人搶；右下角的鈕可以再接著播。
+  const HOLD_PHOTO = 2600, HOLD_CHAP = 1400, MOVE = 1100;
+  let auto = {on:false, timer:0, raf:0};
+  function autoTargets(){
+    const t = cards.map((c, k) => ({
+      y: Math.round(geo.stackTop + k * geo.step - geo.top),
+      hold: c.photo >= 0 ? HOLD_PHOTO : HOLD_CHAP
+    }));
+    t.push({y: document.documentElement.scrollHeight - window.innerHeight, hold:0});
+    return t;
+  }
+  function setAutoBtn(){
+    const b = document.getElementById('autoBtn');
+    if(!b) return;
+    b.innerHTML = ic(auto.on ? 'pause' : 'play');
+    b.setAttribute('aria-label', auto.on ? '暫停自動翻頁' : '自動翻頁');
+  }
+  function stopAuto(){
+    clearTimeout(auto.timer);   // 開場還在等的那一次也要取消
+    if(!auto.on) return;
+    auto.on = false;
+    cancelAnimationFrame(auto.raf);
+    setAutoBtn();
+  }
+  function startAuto(){
+    auto.on = true;
+    setAutoBtn();
+    autoNext();
+  }
+  function autoNext(){
+    if(!auto.on) return;
+    const y0 = window.scrollY;
+    const next = autoTargets().find(t => t.y > y0 + 4);
+    if(!next){ stopAuto(); return; }
+    const t0 = performance.now(), dist = next.y - y0;
+    const dur = Math.min(MOVE * 1.8, MOVE + dist / 4);   // 從開場到第一張比較遠，走久一點
+    const step = (now)=>{
+      if(!auto.on) return;
+      const p = Math.min(1, (now - t0) / dur);
+      const e = p < .5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2;   // 慢起慢停
+      window.scrollTo(0, y0 + dist * e);
+      if(p < 1) auto.raf = requestAnimationFrame(step);
+      else auto.timer = setTimeout(autoNext, next.hold);
+    };
+    auto.raf = requestAnimationFrame(step);
+  }
+  function setupAuto(){
+    document.getElementById('autoBtn').onclick = (e)=>{
+      e.stopPropagation();
+      auto.on ? stopAuto() : startAuto();
+    };
+    // 只看人的動作，不看 scroll 事件——自己捲的也會觸發 scroll
+    ['wheel', 'touchstart', 'keydown'].forEach(ev =>
+      window.addEventListener(ev, (e)=>{
+        if(e.target && e.target.closest && e.target.closest('#autoBtn')) return;
+        stopAuto();
+      }, {passive:true}));
+    setAutoBtn();
+    // 開場動畫跑完再開始翻；設定了減少動態效果的就不自動開始
+    if(!reduce) auto.timer = setTimeout(()=>{ if(window.scrollY < 10) startAuto(); }, 3000);
+  }
+
   // ================= 看大圖 =================
   let lb = null, lbIdx = 0, lbFrom = null;
   function openLightbox(i, from){
+    stopAuto();
     lbFrom = from; lbIdx = i;
     lb = document.createElement('div');
     lb.className = 'lb';
