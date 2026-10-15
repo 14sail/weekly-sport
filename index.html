@@ -12,8 +12,8 @@
      ============================================================ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getDatabase, ref, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   // Your web app's Firebase configuration
   const firebaseConfig = {
@@ -34,15 +34,18 @@
   window.dbRef = ref;
   window.dbGet = get;
   window.dbSet = set;
+  window.dbTx = runTransaction;
+  window.dbUpdate = update;
 
-  // 匿名登入：讓 Realtime Database 規則可以要求 "auth != null"，
-  // 擋掉單純拿 apiKey 直接打 REST API 的存取，登入過程對使用者無感。
-  signInAnonymously(auth)
-    .catch((e)=>console.error('anonymous sign-in failed', e))
-    .finally(()=>{
-      window.firebaseReady = true;
-      document.dispatchEvent(new Event('firebase-ready'));
-    });
+  // 每位成員是一個 Firebase 帳號（見 SPEC.md 第 6 節「帳號與資料庫規則」）。
+  // 等 Firebase 從本機還原上次的登入狀態（離線也還原得到）之後才開始畫畫面。
+  window.fbAuth = auth;
+  window.fbA = { signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider };
+  const stopAuthWait = onAuthStateChanged(auth, ()=>{
+    stopAuthWait();
+    window.firebaseReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  });
 </script>
 
 <!-- 姊妹行事曆的折線圖用。鎖定版本、defer 載入，載不到也只是圖表區顯示提示，不影響其他畫面。 -->
@@ -782,7 +785,7 @@
   // 哪天要開回來把這裡改成 true 就好，不用重寫。
   const SHOW_ANNOUNCE_GENERATOR = false;
 
-  let people = [];       // [{id, name, isTeacher, password, canSport, canTrip, canSis}]
+  let people = [];       // [{id, name, isTeacher, canSport, canTrip, canSis}]，密碼不在這裡（見「帳號」）
 
   // 一份名單、分站開放。canSport 管運動排程站，canTrip 管旅程與記帳兩站。
   // 沒有這兩個欄位的是改版前就存在的成員，一律當作全開，不要讓誰突然消失。
@@ -873,12 +876,44 @@
   async function sSet(key, val, shared){
     try{
       await window.dbSet(window.dbRef(window.db, 'data/' + safeKey(key)), JSON.stringify(val));
-    }catch(e){ console.error('sSet error', e); }
+      return true;
+    }catch(e){ console.error('sSet error', e); return false; }
   }
   async function sDelete(key, shared){
     try{
       await window.dbSet(window.dbRef(window.db, 'data/' + safeKey(key)), null);
-    }catch(e){ console.error('sDelete error', e); }
+      return true;
+    }catch(e){ console.error('sDelete error', e); return false; }
+  }
+  // 整包存的清單（people-list、sports-list、sis-groups、sis-meet:<年>）一律走這裡改。
+  // 拿資料庫上「當下最新」的那份交給 fn 改完再寫回，中間有人先寫了就自動用新的重來，
+  // 不會把自己畫面上的舊快照蓋回去，也不會因為讀失敗拿空清單蓋掉整份。
+  //   fn(list) 回傳改好的清單；回傳 undefined 表示放棄這次修改。
+  //   allowCreate：資料庫上還沒有這個 key 時，是否當成空清單開始（名單不行，其他可以）。
+  // 成功回傳寫進去的清單，失敗或放棄回傳 null。
+  async function sMutate(key, fn, allowCreate){
+    const r = window.dbRef(window.db, 'data/' + safeKey(key));
+    async function attempt(nullIsEmpty){
+      const res = await window.dbTx(r, cur=>{
+        // 第一輪拿到的 null 可能只是本機還沒同步，不是真的沒有。這時一律原樣回傳 null
+        // （不能放棄：放棄會在本機直接結束，根本不會去問伺服器）。伺服器上其實有資料時
+        // 這次寫入會被退回，帶著真值重跑。
+        if(cur === null && !nullIsEmpty) return null;
+        const list = cur === null ? [] : JSON.parse(cur);
+        if(!Array.isArray(list)) return;
+        const next = fn(list);
+        return next === undefined ? undefined : JSON.stringify(next);
+      });
+      if(!res.committed) return {ok:false};
+      return {ok:true, val:res.snapshot.val()};
+    }
+    try{
+      let res = await attempt(false);
+      // 伺服器上確定沒有這個 key：允許的話當成空清單再來一次
+      if(res.ok && res.val === null && allowCreate) res = await attempt(true);
+      if(!res.ok || res.val === null) return null;
+      return JSON.parse(res.val);
+    }catch(e){ console.error('sMutate error', key, e); return null; }
   }
   async function sList(prefix, shared){
     try{
@@ -890,46 +925,121 @@
     }catch(e){ console.error('sList error', e); return []; }
   }
 
+  // ================= 帳號（三站共用，改一處就三處一起改） =================
+  // 每位成員是一個 Firebase 帳號，密碼只存在 Firebase，資料庫裡沒有。
+  // 帳號的 email 由成員 id 推出來，使用者看不到，畫面上一樣是「選名字、輸入密碼」。
+  // claims/<成員id> = 綁定的帳號 uid；有綁定才算設定過密碼，也才讀寫得到 data/。
+  // authver/<成員id> = 帳號版本（字串）。管理員「重設密碼」＝版本加一並解除綁定，
+  // 下次用新版本的 email 開新帳號；舊帳號的 email 對不上版本，規則不讓它再綁回來。
+  // 資料庫規則見 firebase-rules.json。
+  const AUTH_DOMAIN = '@weekly-sport.invalid';
+  let claims = {}, authVers = {};
+  function authEmail(p){ return p.id + '.' + (authVers[p.id] || '0') + AUTH_DOMAIN; }
+  async function loadClaims(){
+    const [c, v] = await Promise.all([
+      window.dbGet(window.dbRef(window.db, 'claims')),
+      window.dbGet(window.dbRef(window.db, 'authver'))
+    ]);
+    claims = (c.exists() && c.val()) || {};
+    authVers = (v.exists() && v.val()) || {};
+  }
+  function isClaimed(p){ return !!(p && claims[p.id]); }
+  // 這台裝置目前登入的是哪位成員；沒登入、或帳號已被解除綁定都回傳 null
+  function sessionPersonId(){
+    const u = window.fbAuth.currentUser;
+    if(!u) return null;
+    return Object.keys(claims).find(pid => claims[pid] === u.uid) || null;
+  }
+  function authErrText(e){
+    const c = (e && e.code) || '';
+    if(c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-login-credentials') return '密碼不對';
+    if(c === 'auth/too-many-requests') return '試太多次了，請稍後再試';
+    if(c === 'auth/network-request-failed') return '連不上，請檢查網路';
+    if(c === 'auth/weak-password') return '密碼至少 6 個字';
+    return '登入失敗，請再試一次';
+  }
+  // 成功回傳 null，失敗回傳要顯示的文字
+  async function signInAs(p, pw){
+    try{
+      await loadClaims();   // 版本號用最新的（頁面開著時管理員可能剛重設過）
+      await window.fbA.signInWithEmailAndPassword(window.fbAuth, authEmail(p), pw);
+    }catch(e){ console.error('signIn error', e); return authErrText(e); }
+    // 登進去的帳號必須真的綁在這個名字上
+    return sessionPersonId() === p.id ? null : '密碼不對';
+  }
+
+  // 第一次設定密碼：開帳號 → 綁定。claims 與 members 一次寫進去，
+  // 名字已經被別人綁走的話資料庫規則會擋下來。成功回傳 null，失敗回傳要顯示的文字。
+  async function claimPerson(p, pw){
+    const A = window.fbA, auth = window.fbAuth;
+    // 頁面可能開很久了：管理員剛重設過的話，版本號要用最新的
+    try{ await loadClaims(); }catch(e){ return '連不上，請檢查網路'; }
+    if(claims[p.id]) return '這個名字已設好密碼，請重新登入';
+    try{
+      await A.createUserWithEmailAndPassword(auth, authEmail(p), pw);
+    }catch(e){
+      if(e.code !== 'auth/email-already-in-use'){ console.error('createUser error', e); return authErrText(e); }
+      // 帳號開過但上次沒綁完（例如中途斷線）：同一組密碼登得進去就接著綁
+      if(await signInAs(p, pw)) return '這個名字已設好密碼，請重新登入';
+    }
+    const uid = auth.currentUser.uid;
+    try{ await loadClaims(); }catch(e){ return '連不上，請檢查網路'; }
+    if(claims[p.id] === uid) return null;
+    if(claims[p.id]) return '這個名字已設好密碼，請重新登入';
+    try{
+      await window.dbUpdate(window.dbRef(window.db), {['claims/' + p.id]: uid, ['members/' + uid]: p.id});
+    }catch(e){
+      console.error('claim error', e);
+      return '沒設定成功，請再試一次';
+    }
+    claims[p.id] = uid;
+    return null;
+  }
+
   // ---------- 資料模型 ----------
   // people (shared): key "people-list" -> [{id,name,isTeacher}]
   // responses (shared): key "resp:<weekKey>:<personId>" -> {statuses:{dayKey:'free'|'busy'|'maybe'}, note:''}
   // announcement (shared): key "announce:<weekKey>" -> {dayKey, sport, note, savedAt}
 
+  // 讀不到名單時絕對不能補種子：sGet 出錯也回 null（網路慢、登入還沒好），
+  // 以前就因此把整份真名單蓋成三個預設人。現在讀失敗就丟錯，由 init() 顯示「連不上」。
   async function loadPeople(){
-    const p = await sGet('people-list', true);
-    if(p && Array.isArray(p) && p.length){ people = p; }
-    else{
-      // 預設種子資料
-      people = [
-        {id:'p1', name:'老師', isTeacher:true, password:'', canSport:true, canTrip:false},
-        {id:'p2', name:'同學A', isTeacher:false, password:'', canSport:true, canTrip:false},
-        {id:'p3', name:'同學B', isTeacher:false, password:'', canSport:true, canTrip:false}
-      ];
-      await sSet('people-list', people, true);
-    }
+    const snap = await window.dbGet(window.dbRef(window.db, 'data/' + safeKey('people-list')));
+    const p = snap.exists() ? JSON.parse(snap.val()) : null;
+    if(!(p && Array.isArray(p) && p.length)) throw new Error('people-list missing');
+    people = p;
+    await loadClaims();
   }
 
-  async function savePeople(){
-    await sSet('people-list', people, true);
+  // 名單只改「這次要改的那幾筆」，其他人一律用資料庫上最新的，成功後換成最新名單。
+  // 不要再寫回整份記憶體裡的 people：那是開頁面當下的舊快照，會把別人剛設的密碼洗掉。
+  async function mutatePeople(fn){
+    // 舊版的明碼密碼欄位，任何一次存檔都順手清掉
+    const next = await sMutate('people-list', list=>{
+      const r = fn(list);
+      return r && r.map(x=>{ const c = Object.assign({}, x); delete c.password; return c; });
+    }, false);
+    if(next) people = next;
+    return !!next;
   }
 
+  let cleanupDone = false;   // 每次登入都會叫，同一頁只做一次
   async function cleanupOldWeeks(){
-    // 刪除比本週還早的回覆資料
-    const keys = await sList('resp:', true);
-    const validPrefixes = WEEKS.map(w => 'resp:'+w.weekKey+':');
-    for(const k of keys){
-      const isValid = validPrefixes.some(p => k.startsWith(p));
-      if(!isValid){ await sDelete(k, true); }
-    }
-    const akeys = await sList('announce:', true);
-    const validA = WEEKS.map(w => 'announce:'+w.weekKey);
-    for(const k of akeys){
-      if(!validA.includes(k)){ await sDelete(k, true); }
-    }
-    const nkeys = await sList('notice:', true);
-    const validN = WEEKS.map(w => 'notice:'+w.weekKey);
-    for(const k of nkeys){
-      if(!validN.includes(k)){ await sDelete(k, true); }
+    if(cleanupDone) return;
+    cleanupDone = true;
+    // 只刪「本週往前推 8 週以前」的回覆、公告、提醒。
+    // 「本週」是看這支手機的時鐘：以前是不在這 4 週內的全刪，只要有一支手機日期設錯，
+    // 就會把大家這週的回覆一起刪掉。留 8 週緩衝，未來的週次與看不懂的 key 一律不動。
+    const cutoff = toKey(addDays(startOfWeek(new Date()), -56));
+    const isOld = (k, prefix)=>{
+      const wk = k.slice(prefix.length, prefix.length + 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(wk) && wk < cutoff;
+    };
+    for(const prefix of ['resp:', 'announce:', 'notice:']){
+      const keys = await sList(prefix, true);
+      for(const k of keys){
+        if(isOld(k, prefix)){ await sDelete(k, true); }
+      }
     }
     // 注意：lobby-announce、sports-list 不分週、永久保留，不可被這裡清掉。
     // 姊妹行事曆的 sis-groups、sis-meet:<年份> 同樣永久保留——見面紀錄就是要拿來回顧的，
@@ -941,8 +1051,9 @@
     return new Promise((resolve)=>{
       if(window.firebaseReady){ resolve(); return; }
       document.addEventListener('firebase-ready', ()=>resolve(), {once:true});
-      // 保險：3秒後即使沒收到事件也嘗試繼續（避免卡死在載入畫面）
-      setTimeout(()=>resolve(), 3000);
+      // 保險：10 秒後即使沒收到事件也繼續，免得卡死在載入畫面。
+      // 以前是 3 秒，網路慢的手機登入還沒完成就去讀，讀不到；讀失敗的處理見 loadPeople()
+      setTimeout(()=>resolve(), 10000);
     });
   }
 
@@ -960,8 +1071,24 @@
       `;
       return;
     }
-    await loadPeople();
-    await cleanupOldWeeks();
+    try{
+      await loadPeople();
+    }catch(e){
+      console.error('loadPeople error', e);
+      app.innerHTML = `
+        <header class="top">
+          <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
+        </header>
+        <div class="card">
+          <h1>連不上</h1>
+          <p class="desc">網路不穩，請稍後再試。</p>
+          <button class="save-btn" id="retryBtn">重試</button>
+        </div>
+      `;
+      document.getElementById('retryBtn').onclick = ()=> location.reload();
+      return;
+    }
+    if(sessionPersonId()) cleanupOldWeeks();
     view = 'pickPerson';
     render();
   }
@@ -1038,7 +1165,8 @@
       btn.addEventListener('click', ()=>{
         pendingPersonId = btn.dataset.id;
         const person = people.find(p=>p.id===pendingPersonId);
-        view = person.password ? 'enterPassword' : 'setPassword';
+        if(sessionPersonId() === person.id){ enterAs(person); return; }
+        view = isClaimed(person) ? 'enterPassword' : 'setPassword';
         render();
       });
     });
@@ -1069,6 +1197,14 @@
     });
   }
 
+  function enterAs(person){
+    currentPersonId = person.id;
+    pendingPersonId = null;
+    view = person.isTeacher ? 'teacher' : 'member';
+    cleanupOldWeeks();
+    render();
+  }
+
   // ---------- 畫面：第一次使用，設定名字與密碼 ----------
   function renderSetPassword(){
     const person = people.find(p=>p.id===pendingPersonId);
@@ -1089,7 +1225,7 @@
         </div>
         <div class="field" style="text-align:left;">
           <label>設定密碼</label>
-          <input type="password" id="pw1" placeholder="至少4個字元">
+          <input type="password" id="pw1" placeholder="至少6個字元">
         </div>
         <div class="field" style="text-align:left;">
           <label>再輸入一次</label>
@@ -1107,17 +1243,23 @@
       const pw2 = document.getElementById('pw2').value;
       const flash = document.getElementById('setPwFlash');
       if(!name){ flash.textContent = '請輸入名字'; return; }
-      if(pw1.length < 4){ flash.textContent = '密碼至少需要4個字元'; return; }
+      if(pw1.length < 6){ flash.textContent = '密碼至少需要6個字元'; return; }
       if(pw1 !== pw2){ flash.textContent = '兩次密碼輸入不一致'; return; }
 
-      person.name = name;
-      person.password = pw1;
-      await savePeople();
-
-      currentPersonId = person.id;
-      pendingPersonId = null;
-      view = person.isTeacher ? 'teacher' : 'member';
-      render();
+      const btn = document.getElementById('setPwBtn');
+      btn.disabled = true;
+      const err = await claimPerson(person, pw1);
+      btn.disabled = false;
+      if(err){
+        flash.style.color = 'var(--red)';
+        flash.textContent = err;
+        return;
+      }
+      // 名字沒存到不影響登入，之後到「修改資料」再改就好
+      if(name !== person.name){
+        await mutatePeople(list=>list.map(p=> p.id===person.id ? {...p, name} : p));
+      }
+      enterAs(person);
     });
 
     document.getElementById('backLink').addEventListener('click', (e)=>{
@@ -1150,16 +1292,17 @@
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
     `;
 
-    function trySubmit(){
+    async function trySubmit(){
       const val = document.getElementById('pwInput').value;
-      if(val === person.password){
-        currentPersonId = person.id;
-        pendingPersonId = null;
-        view = person.isTeacher ? 'teacher' : 'member';
-        render();
-      } else {
-        document.getElementById('pwFlash').textContent = '密碼錯誤，請再試一次';
+      const flash = document.getElementById('pwFlash');
+      flash.textContent = '';
+      const err = await signInAs(person, val);
+      if(err){
+        flash.style.color = 'var(--red)';
+        flash.textContent = err;
+        return;
       }
+      enterAs(person);
     }
 
     document.getElementById('pwSubmit').addEventListener('click', trySubmit);
@@ -1196,7 +1339,7 @@
           <input type="text" id="newName" placeholder="${escapeHtml(person.name)}">
         </div>
         <div class="field">
-          <label>新密碼（選填，至少4個字元）</label>
+          <label>新密碼（選填，至少6個字元）</label>
           <input type="password" id="newPw1" placeholder="不改密碼請留空">
         </div>
         <div class="field">
@@ -1216,18 +1359,29 @@
       const newPw1 = document.getElementById('newPw1').value;
       const newPw2 = document.getElementById('newPw2').value;
 
-      if(oldPw !== person.password){
-        flash.textContent = '目前密碼不正確';
+      flash.style.color = 'var(--red)';
+      if(newPw1 || newPw2){
+        if(newPw1.length < 6){ flash.textContent = '新密碼至少需要6個字元'; return; }
+        if(newPw1 !== newPw2){ flash.textContent = '兩次新密碼輸入不一致'; return; }
+      }
+      // 目前密碼交給 Firebase 驗證（重新登入一次），通過才改
+      const user = window.fbAuth.currentUser;
+      if(!user || sessionPersonId() !== person.id){ flash.textContent = '請重新登入'; return; }
+      try{
+        const A = window.fbA;
+        await A.reauthenticateWithCredential(user, A.EmailAuthProvider.credential(authEmail(person), oldPw));
+        if(newPw1) await A.updatePassword(user, newPw1);
+      }catch(e){
+        console.error('editProfile auth error', e);
+        flash.textContent = authErrText(e) === '密碼不對' ? '目前密碼不正確' : authErrText(e);
         return;
       }
-      if(newPw1 || newPw2){
-        if(newPw1.length < 4){ flash.textContent = '新密碼至少需要4個字元'; return; }
-        if(newPw1 !== newPw2){ flash.textContent = '兩次新密碼輸入不一致'; return; }
-        person.password = newPw1;
+      if(newName && newName !== person.name){
+        if(!await mutatePeople(list=>list.map(p=> p.id===person.id ? {...p, name:newName} : p))){
+          flash.textContent = newPw1 ? '密碼已改，名字沒存到，請再試一次' : '沒存到，請再試一次';
+          return;
+        }
       }
-      if(newName){ person.name = newName; }
-
-      await savePeople();
       flash.style.color = 'var(--green)';
       flash.textContent = '已更新資料';
       setTimeout(()=>{
@@ -1381,10 +1535,13 @@
       document.getElementById('saveBtn').addEventListener('click', async ()=>{
         const note = document.getElementById('noteInput').value.trim();
         const savedAt = new Date().toISOString();
-        await sSet(respKey, {statuses: state, note: note, savedAt: savedAt}, true);
+        const flash = document.getElementById('saveFlash');
+        if(!await sSet(respKey, {statuses: state, note: note, savedAt: savedAt}, true)){
+          flash.style.color = 'var(--red)'; flash.textContent = '沒存到，請再試一次'; return;
+        }
+        flash.style.color = '';
         existing = {statuses: Object.assign({}, state), note: note, savedAt: savedAt};
         document.getElementById('saveTime').textContent = '上次儲存 '+fmtDateTime(savedAt);
-        const flash = document.getElementById('saveFlash');
         flash.textContent = '已儲存';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
       });
@@ -1696,16 +1853,18 @@
     if(tab==='announce' && !readOnly){
       document.getElementById('lobbySaveBtn').addEventListener('click', async ()=>{
         const text = document.getElementById('lobbyAnnounceInput').value.trim();
-        await sSet('lobby-announce', {text, updatedAt: new Date().toISOString()}, true);
+        const ok = await sSet('lobby-announce', {text, updatedAt: new Date().toISOString()}, true);
         const flash = document.getElementById('lobbySaveFlash');
-        flash.textContent = '已儲存';
+        flash.style.color = ok ? '' : 'var(--red)';
+        flash.textContent = ok ? '已儲存' : '沒存到，請再試一次';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
       });
       document.getElementById('noticeSaveBtn').addEventListener('click', async ()=>{
         const text = document.getElementById('noticeInput').value.trim();
-        await sSet('notice:'+week.weekKey, {text, updatedAt: new Date().toISOString()}, true);
+        const ok = await sSet('notice:'+week.weekKey, {text, updatedAt: new Date().toISOString()}, true);
         const flash = document.getElementById('noticeSaveFlash');
-        flash.textContent = '已儲存';
+        flash.style.color = ok ? '' : 'var(--red)';
+        flash.textContent = ok ? '已儲存' : '沒存到，請再試一次';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
       });
     }
@@ -1729,12 +1888,15 @@
       document.getElementById('teacherSaveBtn').addEventListener('click', async ()=>{
         const note = document.getElementById('teacherNoteInput').value.trim();
         const savedAt = new Date().toISOString();
-        await sSet('resp:'+week.weekKey+':'+viewingPerson.id, {statuses: fillState, note: note, savedAt: savedAt}, true);
+        const flash = document.getElementById('teacherSaveFlash');
+        if(!await sSet('resp:'+week.weekKey+':'+viewingPerson.id, {statuses: fillState, note: note, savedAt: savedAt}, true)){
+          flash.style.color = 'var(--red)'; flash.textContent = '沒存到，請再試一次'; return;
+        }
+        flash.style.color = '';
         teacherResp.statuses = Object.assign({}, fillState);
         teacherResp.note = note;
         teacherResp.savedAt = savedAt;
         document.getElementById('teacherSaveTime').textContent = '上次儲存 '+fmtDateTime(savedAt);
-        const flash = document.getElementById('teacherSaveFlash');
         flash.textContent = '已儲存';
         setTimeout(()=>{ if(flash) flash.textContent=''; }, 2000);
       });
@@ -1747,7 +1909,7 @@
         const sport = document.getElementById('announceSport').value.trim();
         const extra = document.getElementById('announceExtra').value.trim();
         const data = {dayKey, time, sport, extra, savedAt: new Date().toISOString()};
-        await sSet('announce:'+week.weekKey, data, true);
+        if(!await sSet('announce:'+week.weekKey, data, true)){ alert('沒存到，請再試一次'); return; }
         document.getElementById('announceBox').value = buildAnnounceText(data, dayStats);
       });
     }
@@ -1814,8 +1976,11 @@
   async function loadSportsList(){
     return (await sGet('sports-list', true)) || [];
   }
-  async function saveSportsList(list){
-    await sSet('sports-list', list, true);
+  // 投票、留言都在同一包裡，改的時候只動那一項，其他人剛投的票才不會被蓋掉
+  async function mutateSportsList(fn){
+    const ok = !!(await sMutate('sports-list', fn, true));
+    if(!ok) alert('沒存到，請再試一次');
+    return ok;
   }
   function sportVoteCount(item){
     return item.votes ? Object.keys(item.votes).length : 0;
@@ -1892,11 +2057,11 @@
       const input = document.getElementById('newSportName');
       const name = input.value.trim();
       if(!name) return;
-      list.push({
+      const item = {
         id:'sp'+Date.now(), name, createdBy:currentPersonId, createdAt:new Date().toISOString(),
         votes:{}, comments:[]
-      });
-      await saveSportsList(list);
+      };
+      if(!await mutateSportsList(l=>l.concat([item]))) return;
       rerenderFn();
     }
     document.getElementById('addSportBtn').addEventListener('click', addSport);
@@ -1913,29 +2078,36 @@
     });
     app.querySelectorAll('[data-vote]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        const item = list.find(x=>x.id===btn.dataset.vote);
-        if(!item) return;
-        item.votes = item.votes || {};
-        if(item.votes[currentPersonId]) delete item.votes[currentPersonId];
-        else item.votes[currentPersonId] = true;
-        await saveSportsList(list);
+        const id = btn.dataset.vote;
+        await mutateSportsList(l=>{
+          const item = l.find(x=>x.id===id);
+          if(!item) return;
+          item.votes = item.votes || {};
+          if(item.votes[currentPersonId]) delete item.votes[currentPersonId];
+          else item.votes[currentPersonId] = true;
+          return l;
+        });
         rerenderFn();
       });
     });
     app.querySelectorAll('[data-delete-sport]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         if(!confirm('確定要刪除這個運動項目嗎？')) return;
-        const idx = list.findIndex(x=>x.id===btn.dataset.deleteSport);
-        if(idx>=0){ list.splice(idx,1); await saveSportsList(list); rerenderFn(); }
+        const id = btn.dataset.deleteSport;
+        await mutateSportsList(l=>l.filter(x=>x.id!==id));
+        rerenderFn();
       });
     });
     app.querySelectorAll('[data-delete-comment]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         const [itemId, commentId] = btn.dataset.deleteComment.split(':');
-        const item = list.find(x=>x.id===itemId);
-        if(!item || !item.comments) return;
-        const idx = item.comments.findIndex(c=>c.id===commentId);
-        if(idx>=0){ item.comments.splice(idx,1); await saveSportsList(list); rerenderFn(); }
+        await mutateSportsList(l=>{
+          const item = l.find(x=>x.id===itemId);
+          if(!item || !item.comments) return;
+          item.comments = item.comments.filter(c=>c.id!==commentId);
+          return l;
+        });
+        rerenderFn();
       });
     });
     async function submitComment(itemId){
@@ -1944,9 +2116,14 @@
       const input = app.querySelector(`[data-comment-for="${itemId}"]`);
       const text = input.value.trim();
       if(!text) return;
-      item.comments = item.comments || [];
-      item.comments.push({id:'c'+Date.now(), personId:currentPersonId, text, createdAt:new Date().toISOString()});
-      await saveSportsList(list);
+      const c = {id:'c'+Date.now(), personId:currentPersonId, text, createdAt:new Date().toISOString()};
+      const ok = await mutateSportsList(l=>{
+        const it = l.find(x=>x.id===itemId);
+        if(!it) return;
+        it.comments = (it.comments || []).concat([c]);
+        return l;
+      });
+      if(!ok) return;
       rerenderFn();
     }
     app.querySelectorAll('[data-comment-submit]').forEach(btn=>{
@@ -2002,8 +2179,12 @@
     const g = await sGet('sis-groups', true);
     sisGroups = Array.isArray(g) ? g : [];
   }
-  async function sisSaveGroups(){
-    await sSet('sis-groups', sisGroups, true);
+  // 組合與見面紀錄都是整包存，一律用資料庫上最新的那份來改
+  async function sisMutateGroups(fn){
+    const next = await sMutate('sis-groups', fn, true);
+    if(next) sisGroups = next;
+    else alert('沒存到，請再試一次');
+    return !!next;
   }
   // force=true 會重新跟資料庫拿一次。正在看的那一年每次渲染都重讀，
   // 別人在別的裝置上新增的紀錄才看得到（跟這個站其他畫面的做法一致）。
@@ -2014,8 +2195,10 @@
     }
     return sisMeetCache[year];
   }
-  async function sisSaveMeets(year){
-    await sSet('sis-meet:'+year, sisMeetCache[year] || [], true);
+  async function sisMutateMeets(year, fn){
+    const next = await sMutate('sis-meet:'+year, fn, true);
+    if(next) sisMeetCache[year] = next;
+    return !!next;
   }
 
   function sisGroupById(id){ return sisGroups.find(g=>g.id===id) || null; }
@@ -2761,14 +2944,14 @@
           flash.textContent = '已經有一模一樣成員的組合了';
           return;
         }
-        sisGroups.push({
+        const g = {
           id: 'sg' + Date.now(),
           label: typed,
           labelAuto: !typed,
           memberIds: ids,
           color: sisNewColor
-        });
-        await sisSaveGroups();
+        };
+        if(!await sisMutateGroups(list=>list.concat([g]))) return;
         sisNewSel = [];
         sisNewColor = SIS_PALETTE[0].hex;
         sisNewLabel = '';
@@ -2851,36 +3034,36 @@
         const countMode = sisSheetCountMode();
         // 跨年行程一律存在出發那一年
         const targetYear = editing ? sisMeetYear(editing) : sisYear;
-        // sisSaveMeets 是整年一包覆寫，所以動它之前一定要拿最新的，
-        // 否則會把自己開頁面當下的舊快照寫回去，別人這段時間新增的紀錄就消失了。
-        const list = await sisLoadMeets(targetYear, true);
-        if(editing){
-          // 重讀之後快取換成一份新陣列，手上的 editing 是舊快照的物件，
-          // 改它不會進到要寫回去的 list——要在新的 list 裡找同一筆來改
+        // 整年一包存：sisMutateMeets 交給我們的是資料庫上最新的那份，
+        // 手上的 editing 是舊快照的物件，要在新的 list 裡找同一筆來改
+        const fresh = {
+          id: 'sm' + Date.now(),
+          date: sisSheet.date,
+          groupId,
+          note,
+          days,
+          countMode,
+          createdBy: currentPersonId,
+          savedAt: new Date().toISOString()
+        };
+        let gone = false;
+        const ok = await sisMutateMeets(targetYear, list=>{
+          if(!editing) return list.concat([fresh]);
           const target = list.find(m=>m.id===editing.id);
-          if(!target){
-            flash.style.color = 'var(--red)';
-            flash.textContent = '這筆已被刪除';
-            return;
-          }
+          gone = !target;
+          if(gone) return;
           target.groupId = groupId;
           target.note = note;
           target.days = days;
           target.countMode = countMode;
           target.savedAt = new Date().toISOString();
-        } else {
-          list.push({
-            id: 'sm' + Date.now(),
-            date: sisSheet.date,
-            groupId,
-            note,
-            days,
-            countMode,
-            createdBy: currentPersonId,
-            savedAt: new Date().toISOString()
-          });
+          return list;
+        });
+        if(!ok){
+          flash.style.color = 'var(--red)';
+          flash.textContent = gone ? '這筆已被刪除' : '沒存到，請再試一次';
+          return;
         }
-        await sisSaveMeets(targetYear);
         sisSheet = null;
         renderSisters();
       });
@@ -2898,10 +3081,8 @@
         if(!confirm('確定要刪除這筆見面紀錄嗎？')) return;
         const target = sisFindMeet(sisSheet.meetId);
         const y = target ? sisMeetYear(target) : sisYear;
-        // 整年一包覆寫，刪之前也要先拿最新的，免得蓋掉別人剛加的紀錄
-        const list = await sisLoadMeets(y, true);
-        sisMeetCache[y] = list.filter(m=>m.id!==sisSheet.meetId);
-        await sisSaveMeets(y);
+        const meetId = sisSheet.meetId;
+        if(!await sisMutateMeets(y, list=>list.filter(m=>m.id!==meetId))){ alert('沒存到，請再試一次'); return; }
         sisSheet = null;
         renderSisters();
       });
@@ -2913,9 +3094,13 @@
         const g = sisGroupById(sisSheet.groupId);
         if(!g) return;
         const typed = (document.getElementById('sisEditLabel').value || '').trim();
-        g.label = typed;
-        g.labelAuto = !typed;
-        await sisSaveGroups();
+        if(!await sisMutateGroups(list=>{
+          const t = list.find(x=>x.id===g.id);
+          if(!t) return;
+          t.label = typed;
+          t.labelAuto = !typed;
+          return list;
+        })) return;
         sisSheet = null;
         renderSisters();
       });
@@ -2927,8 +3112,13 @@
         // 換色會重繪面板，先把改到一半的名字留住
         const el = document.getElementById('sisEditLabel');
         if(el) sisSheet.labelDraft = el.value;
-        g.color = sw.dataset.editcolor;
-        await sisSaveGroups();
+        const color = sw.dataset.editcolor;
+        await sisMutateGroups(list=>{
+          const t = list.find(x=>x.id===g.id);
+          if(!t) return;
+          t.color = color;
+          return list;
+        });
         renderSisters();
       });
     });
@@ -2950,8 +3140,7 @@
           return;
         }
         if(!confirm('確定要刪除這個組合嗎？')) return;
-        sisGroups = sisGroups.filter(g=>g.id!==gid);
-        await sisSaveGroups();
+        if(!await sisMutateGroups(list=>list.filter(g=>g.id!==gid))) return;
         sisSheet = null;
         renderSisters();
       });
@@ -2967,6 +3156,24 @@
   let adminUnlocked = false;
 
   function renderAdminLock(){
+    if(!sessionPersonId()){
+      app.innerHTML = `
+        <header class="top">
+          <div class="brand"><span class="seed">●</span> 本週運動 <span class="seed">●</span></div>
+          <div class="sub">管理入口</div>
+        </header>
+        <div class="card admin-lock">
+          <h1>請先登入</h1>
+          <p class="desc">先點自己的名字登入，再回來這裡。</p>
+        </div>
+        <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
+      `;
+      document.getElementById('backLink').addEventListener('click', (e)=>{
+        e.preventDefault();
+        view='pickPerson'; render();
+      });
+      return;
+    }
     if(adminUnlocked) return renderAdminPanel();
     app.innerHTML = `
       <header class="top">
@@ -2999,6 +3206,22 @@
     });
   }
 
+  // 解除綁定：那個帳號從此讀寫不到資料，這個名字回到「尚未設定密碼」。
+  // bump＝重設密碼：帳號版本一起加一，三件事一次寫進去，不會只做一半。
+  async function unclaim(pid, bump){
+    const uid = claims[pid];
+    if(!uid) return true;
+    const upd = {['claims/' + pid]: null, ['members/' + uid]: null};
+    const nextVer = String((parseInt(authVers[pid] || '0', 10) || 0) + 1);
+    if(bump) upd['authver/' + pid] = nextVer;
+    try{
+      await window.dbUpdate(window.dbRef(window.db), upd);
+      delete claims[pid];
+      if(bump) authVers[pid] = nextVer;
+      return true;
+    }catch(e){ console.error('unclaim error', e); return false; }
+  }
+
   function renderAdminPanel(){
     const accBtn = (id, action, label, on) =>
       `<button class="acc-btn${on?' on':''}" data-action="${action}" data-id="${id}" aria-pressed="${on?'true':'false'}">${label}</button>`;
@@ -3007,7 +3230,7 @@
         <div class="admin-who">
           <span>${escapeHtml(p.name)}</span>
           ${p.isTeacher?'<span class="pill">老師</span>':''}
-          <span class="admin-pw">${p.password ? '已設定密碼' : '尚未設定密碼'}</span>
+          <span class="admin-pw">${isClaimed(p) ? '已設定密碼' : '尚未設定密碼'}</span>
         </div>
         <div class="admin-acc">
           ${accBtn(p.id, 'toggleSport', '運動', inSport(p))}
@@ -3016,7 +3239,7 @@
         </div>
         <div class="admin-ops">
           <button class="del-btn" data-action="setTeacher" data-id="${p.id}">${p.isTeacher?'取消老師':'設為老師'}</button>
-          ${p.password ? `<button class="del-btn" data-action="resetPw" data-id="${p.id}">重設密碼</button>` : ''}
+          ${isClaimed(p) ? `<button class="del-btn" data-action="resetPw" data-id="${p.id}">重設密碼</button>` : ''}
           <button class="del-btn" data-action="delete" data-id="${p.id}">刪除</button>
         </div>
       </div>
@@ -3042,16 +3265,18 @@
     app.querySelectorAll('[data-action="delete"]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         if(!confirm('確定要刪除這位成員嗎？')) return;
-        people = people.filter(p=>p.id!==btn.dataset.id);
-        await savePeople();
+        const id = btn.dataset.id;
+        if(id === sessionPersonId()){ alert('不能刪除自己'); return; }
+        // 先解除綁定，不然刪掉的人還讀得到資料
+        if(isClaimed({id}) && !await unclaim(id)){ alert('沒存到，請再試一次'); return; }
+        if(!await mutatePeople(list=>list.filter(p=>p.id!==id))) alert('沒存到，請再試一次');
         renderAdminPanel();
       });
     });
     app.querySelectorAll('[data-action="setTeacher"]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         const id = btn.dataset.id;
-        people = people.map(p=>({...p, isTeacher: p.id===id ? !p.isTeacher : false}));
-        await savePeople();
+        if(!await mutatePeople(list=>list.map(p=>({...p, isTeacher: p.id===id ? !p.isTeacher : false})))) alert('沒存到，請再試一次');
         renderAdminPanel();
       });
     });
@@ -3069,11 +3294,10 @@
           const p = people.find(x=>x.id===id);
           // 密碼只有運動排程站設得了。還沒設過密碼的人一旦被關掉運動，
           // 就進不去設定畫面，旅遊記帳也跟著登不進去——先攔一下。
-          if(action==='toggleSport' && p && inSport(p) && !p.password){
+          if(action==='toggleSport' && p && inSport(p) && !isClaimed(p)){
             if(!confirm(`${p.name} 還沒設定密碼。密碼只能在運動排程站設，關掉運動就設不了，旅遊記帳也會登不進去。確定要關嗎？`)) return;
           }
-          people = people.map(x=> x.id===id ? accToggles[action](x) : x);
-          await savePeople();
+          if(!await mutatePeople(list=>list.map(x=> x.id===id ? accToggles[action](x) : x))) alert('沒存到，請再試一次');
           renderAdminPanel();
         });
       });
@@ -3083,8 +3307,8 @@
         const id = btn.dataset.id;
         const p = people.find(x=>x.id===id);
         if(!confirm(`確定要重設 ${p.name} 的密碼嗎？對方下次登入時會需要重新設定新密碼。`)) return;
-        people = people.map(x=> x.id===id ? {...x, password:''} : x);
-        await savePeople();
+        if(id === sessionPersonId()){ alert('自己的密碼請到「修改資料」改'); return; }
+        if(!await unclaim(id, true)) alert('沒存到，請再試一次');
         renderAdminPanel();
       });
     });
@@ -3093,8 +3317,8 @@
       const name = input.value.trim();
       if(!name) return;
       const id = 'p' + Date.now();
-      people.push({id, name, isTeacher:false, password:'', canSport:true, canTrip:false});
-      await savePeople();
+      const fresh = {id, name, isTeacher:false, canSport:true, canTrip:false};
+      if(!await mutatePeople(list=>list.concat([fresh]))){ alert('沒存到，請再試一次'); return; }
       renderAdminPanel();
     });
     document.getElementById('backLink').addEventListener('click', (e)=>{

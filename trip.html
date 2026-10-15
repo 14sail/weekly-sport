@@ -9,7 +9,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCgUDmlcV3PpiGdB989ba9FgFR637_ZKnA",
@@ -28,12 +28,15 @@
   window.dbGet = get;
   window.dbSet = set;
 
-  signInAnonymously(auth)
-    .catch((e)=>console.error('anonymous sign-in failed', e))
-    .finally(()=>{
-      window.firebaseReady = true;
-      document.dispatchEvent(new Event('firebase-ready'));
-    });
+  // 每位成員是一個 Firebase 帳號（見 SPEC.md 第 6 節「帳號與資料庫規則」）。
+  // 等 Firebase 從本機還原上次的登入狀態（離線也還原得到）之後才開始畫畫面。
+  window.fbAuth = auth;
+  window.fbA = { signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider };
+  const stopAuthWait = onAuthStateChanged(auth, ()=>{
+    stopAuthWait();
+    window.firebaseReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  });
 </script>
 
 <style>
@@ -899,6 +902,49 @@
     try{ return JSON.parse(raw); }catch(e){ return null; }
   }
 
+  // ================= 帳號（三站共用，改一處就三處一起改） =================
+  // 每位成員是一個 Firebase 帳號，密碼只存在 Firebase，資料庫裡沒有。
+  // 帳號的 email 由成員 id 推出來，使用者看不到，畫面上一樣是「選名字、輸入密碼」。
+  // claims/<成員id> = 綁定的帳號 uid；有綁定才算設定過密碼，也才讀寫得到 data/。
+  // authver/<成員id> = 帳號版本（字串）。管理員「重設密碼」＝版本加一並解除綁定，
+  // 下次用新版本的 email 開新帳號；舊帳號的 email 對不上版本，規則不讓它再綁回來。
+  // 資料庫規則見 firebase-rules.json。
+  const AUTH_DOMAIN = '@weekly-sport.invalid';
+  let claims = {}, authVers = {};
+  function authEmail(p){ return p.id + '.' + (authVers[p.id] || '0') + AUTH_DOMAIN; }
+  async function loadClaims(){
+    const [c, v] = await Promise.all([
+      window.dbGet(window.dbRef(window.db, 'claims')),
+      window.dbGet(window.dbRef(window.db, 'authver'))
+    ]);
+    claims = (c.exists() && c.val()) || {};
+    authVers = (v.exists() && v.val()) || {};
+  }
+  function isClaimed(p){ return !!(p && claims[p.id]); }
+  // 這台裝置目前登入的是哪位成員；沒登入、或帳號已被解除綁定都回傳 null
+  function sessionPersonId(){
+    const u = window.fbAuth.currentUser;
+    if(!u) return null;
+    return Object.keys(claims).find(pid => claims[pid] === u.uid) || null;
+  }
+  function authErrText(e){
+    const c = (e && e.code) || '';
+    if(c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-login-credentials') return '密碼不對';
+    if(c === 'auth/too-many-requests') return '試太多次了，請稍後再試';
+    if(c === 'auth/network-request-failed') return '連不上，請檢查網路';
+    if(c === 'auth/weak-password') return '密碼至少 6 個字';
+    return '登入失敗，請再試一次';
+  }
+  // 成功回傳 null，失敗回傳要顯示的文字
+  async function signInAs(p, pw){
+    try{
+      await loadClaims();   // 版本號用最新的（頁面開著時管理員可能剛重設過）
+      await window.fbA.signInWithEmailAndPassword(window.fbAuth, authEmail(p), pw);
+    }catch(e){ console.error('signIn error', e); return authErrText(e); }
+    // 登進去的帳號必須真的綁在這個名字上
+    return sessionPersonId() === p.id ? null : '密碼不對';
+  }
+
   // ================= 離線快取 =================
   // 讀得到 Firebase 就順手存一份；讀不到就用快取撐著（唯讀）。
   const CACHE_KEY = 'trip-cache-v1';
@@ -1375,6 +1421,24 @@
   // ---------- 選人／登入 ----------
   let pendingPersonId = null;
 
+  // 登入前只讀得到名單、綁定表與帳號版本（資料庫規則只開放這些），其他資料登入後才讀
+  async function loadPublic(){
+    try{
+      const ps = await window.dbGet(window.dbRef(window.db, 'data/' + safeKey('people-list')));
+      people = (ps.exists() && parseVal(ps.val())) || [];
+      await loadClaims();
+      return true;
+    }catch(e){ console.error('loadPublic error', e); return false; }
+  }
+  // 登入成功，或這台裝置本來就登入著：這時才讀得到完整資料
+  async function loginDone(p){
+    me = p.id;
+    rememberMe(me);
+    await refresh();
+    view = 'list';
+    render();
+  }
+
   function renderPick(){
     const roster = tripPeople();
     if(!roster.length){
@@ -1395,7 +1459,8 @@
       b.onclick = ()=>{
         pendingPersonId = b.dataset.pick;
         const p = people.find(x=>x.id===pendingPersonId);
-        if(!p.password){
+        if(sessionPersonId() === p.id && !offline){ loginDone(p); return; }
+        if(offline || !isClaimed(p)){
           msg = offline
             ? {type:'err', text:'離線中無法驗證密碼（快取不保存密碼）。請連上網路後登入一次。'}
             : {type:'err', text:'「' + p.name + '」還沒在主站設定密碼，請先到主站設定後再回來。'};
@@ -1417,16 +1482,10 @@
       '<div class="foot"><button id="back" data-nav>回到選擇身份</button></div></div>';
     const pw = document.getElementById('pw');
     pw.focus();
-    const submit = ()=>{
-      if(pw.value === p.password){
-        me = p.id;
-        rememberMe(me);
-        view = 'list';
-        render();
-      }else{
-        msg = {type:'err', text:'密碼不對。'};
-        render();
-      }
+    const submit = async ()=>{
+      const err = await signInAs(p, pw.value);
+      if(err){ msg = {type:'err', text: err + '。'}; render(); return; }
+      loginDone(p);
     };
     document.getElementById('go').onclick = submit;
     pw.onkeydown = (e)=>{ if(e.key === 'Enter') submit(); };
@@ -3708,21 +3767,30 @@
     return new Promise((resolve)=>{
       if(window.firebaseReady){ resolve(); return; }
       document.addEventListener('firebase-ready', ()=>resolve(), {once:true});
-      setTimeout(()=>resolve(), 3000);
+      setTimeout(()=>resolve(), 10000);
     });
   }
 
   async function init(){
     await waitForFirebase();
-    await refresh();
-
-    const saved = recallMe();
-    if(saved && tripPeople().some(p=>p.id===saved)){
-      me = saved;
+    const online = await loadPublic();
+    const sid = online ? sessionPersonId() : null;
+    if(sid && tripPeople().some(p=>p.id===sid)){
+      me = sid;
+      rememberMe(me);
+      await refresh();
       view = 'list';
+    }else if(!online){
+      // 連不上：用快取撐唯讀，靠「上次是誰」進去（快取沒有密碼，也不需要）
+      await refresh();
+      const saved = recallMe();
+      if(saved && tripPeople().some(p=>p.id===saved)){ me = saved; view = 'list'; }
+      else{
+        view = 'pick';
+        msg = {type:'warn', text:'離線中而且這台裝置還沒登入過。請先連上網路登入一次，之後沒網路也進得來。'};
+      }
     }else{
       view = 'pick';
-      if(offline) msg = {type:'warn', text:'離線中而且這台裝置還沒登入過。請先連上網路登入一次，之後沒網路也進得來。'};
     }
     render();
   }
