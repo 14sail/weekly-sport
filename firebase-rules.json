@@ -1,0 +1,36 @@
+{
+  "rules": {
+    "data": {
+      ".read": "auth != null && root.child('members').child(auth.uid).exists()",
+      "people-list": {
+        ".read": true,
+        ".write": "auth != null && root.child('members').child(auth.uid).exists() && newData.exists()"
+      },
+      "lobby-announce": {
+        ".read": true,
+        ".write": "auth != null && root.child('members').child(auth.uid).exists()"
+      },
+      "$key": {
+        ".write": "auth != null && root.child('members').child(auth.uid).exists()"
+      }
+    },
+    "authver": {
+      ".read": true,
+      "$pid": {
+        ".write": "auth != null && root.child('members').child(auth.uid).exists() && newData.isString()"
+      }
+    },
+    "claims": {
+      ".read": true,
+      "$pid": {
+        ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid && auth.token.email === $pid + '.' + (root.child('authver').child($pid).exists() ? root.child('authver').child($pid).val() : '0') + '@weekly-sport.invalid' && root.child('data').child('people-list').val().contains('\"' + $pid + '\"')) || (!newData.exists() && root.child('members').child(auth.uid).exists()))"
+      }
+    },
+    "members": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && ((!data.exists() && $uid === auth.uid && newData.parent().parent().child('claims').child(newData.val()).val() === auth.uid) || (!newData.exists() && root.child('members').child(auth.uid).exists()))"
+      }
+    }
+  }
+}

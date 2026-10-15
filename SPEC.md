@@ -343,9 +343,25 @@ h1.list-title（不要包在只裝一顆按鈕的卡片裡）
 
 - **密碼只有運動排程站設得了**。還沒設過密碼的人被關掉 `canSport` 就再也設不了，
   旅遊記帳也跟著登不進去——管理面板關這個開關之前要攔一次。
-- 登入邏輯一致：選名字 → 輸入密碼 → 記住上次是誰（`localStorage`，只記 id 不記憑證）
+- 登入邏輯一致：選名字 → 輸入密碼（Firebase 帳號登入）。這台裝置已經登入的那位，點名字直接進去。
+  行程與記帳另外記住上次是誰（`localStorage`，只記 id），離線時靠它進唯讀模式
 - 離線一律唯讀：`applyReadOnly()` 停用所有沒有 `data-nav` 的控制項
 - 每個檔案的 `firebaseConfig` 各自獨立，搬檔案時不能覆蓋
+
+### 帳號與資料庫規則
+
+資料庫規則在 `firebase-rules.json`，改了要到兩個 Firebase 專案的後台各貼一次（Realtime Database → 規則）。
+
+- **每位成員一個 Firebase 帳號**（電子郵件/密碼登入），密碼只在 Firebase，資料庫裡沒有。
+  email 是 `<成員id>.<帳號版本>@weekly-sport.invalid`，使用者看不到。密碼至少 6 個字（Firebase 的規定）。
+- `claims/<成員id>` = 綁定的帳號 uid，`members/<uid>` = 成員 id。綁定過才算「設定過密碼」，
+  也才讀寫得到 `data/`。登入前只讀得到 `data/people-list`、`data/lobby-announce`、`claims`、`authver`。
+- `authver/<成員id>` = 帳號版本（字串）。管理員「重設密碼」＝版本加一＋解除綁定，一次寫進去；
+  舊帳號的 email 對不上新版本，規則不讓它綁回來。
+- 帳號相關的函式（`authEmail`、`loadClaims`、`sessionPersonId`、`signInAs`…）**三站一字不差**，
+  改一處就三處一起改。開帳號與綁定（`claimPerson`）、重設（`unclaim`）只在運動站。
+- 管理入口要先以成員身分登入：規則只讓成員改名單。
+- 規則擋得住外人，擋不住成員本人：任何成員都能改資料。還沒設密碼的名字誰先點到就是誰的。
 
 ### 寫入資料的硬規定（2026/10/15 名單被蓋掉之後定的）
 
