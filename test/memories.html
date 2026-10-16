@@ -35,6 +35,11 @@
     --z-mask: 40;
     --z-sheet: 41;
     --z-help: 50;
+    /* 疊牌的尺寸由 JS 依視窗算好寫進來 */
+    --cw: 340px;
+    --ch: 440px;
+    --top: 80px;
+    --gap: 280px;
     --ease: cubic-bezier(.22,1,.36,1);
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -78,45 +83,140 @@
   .msg{ font-size:13px; padding:9px 12px; border-radius:var(--radius-sm); margin-bottom:12px; line-height:1.6; }
   .msg.err{ background:var(--red-soft); color:var(--red-ink); }
 
-  /* ---------------- 開頭 ---------------- */
-  .hero{ text-align:center; padding:calc(44px + env(safe-area-inset-top)) 16px 4px; }
-  .hero .team{
-    margin:0 0 4px; font-family:'Noto Serif TC',serif; font-weight:700;
-    font-size:18px; letter-spacing:.35em; color:var(--accent-deep);
-    padding-left:.35em; /* letter-spacing 會在最後一個字後面多一格，補回來才置中 */
+  /* ---------------- 上緣進度條、張數 ---------------- */
+  .progress{
+    position:fixed; z-index:var(--z-stick); top:0; left:0; right:0; height:3px;
+    background:var(--accent); transform-origin:0 50%; transform:scaleX(0);
   }
+  .counter{
+    position:fixed; z-index:var(--z-corner);
+    top:calc(12px + env(safe-area-inset-top)); right:calc(12px + env(safe-area-inset-right));
+    background:var(--bg-card); color:var(--ink); border:1px solid var(--line);
+    border-radius:999px; padding:5px 12px; font-size:13px; font-weight:500;
+    font-variant-numeric:tabular-nums; box-shadow:0 2px 8px rgba(58,46,34,.12);
+    opacity:0; transform:translateY(-8px); transition:opacity .3s, transform .3s var(--ease);
+    pointer-events:none;
+  }
+  .counter.on{ opacity:1; transform:none; }
+  .counter b{ color:var(--accent-deep); }
+  /* 自動翻頁的播放／暫停鈕 */
+  .auto-btn{
+    position:fixed; z-index:var(--z-corner);
+    right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom));
+    width:44px; height:44px; padding:0; border-radius:50%; display:grid; place-items:center;
+    background:var(--bg-card); color:var(--accent-deep); border:1px solid var(--line);
+    box-shadow:0 2px 10px rgba(58,46,34,.18);
+  }
+  .auto-btn .ic{ width:18px; height:18px; }
+  .auto-btn:active{ background:var(--accent-soft); }
+
+  /* ---------------- 開場 ---------------- */
+  .hero{
+    min-height:100svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:28px; padding:56px 16px 40px; text-align:center; position:relative; overflow:hidden;
+  }
+  .hero-text{ will-change:transform, opacity; }
   .hero h1{
     font-family:'Noto Serif TC', serif; font-weight:700; margin:0;
-    font-size:clamp(44px, 14vw, 72px); letter-spacing:.06em; line-height:1.1;
+    font-size:clamp(52px, 17vw, 96px); letter-spacing:.06em; line-height:1.05;
+  }
+  .hero h1 .ch{
+    display:inline-block; opacity:0; filter:blur(10px); transform:translateY(18px);
+    animation:rise .9s var(--ease) forwards;
   }
   .hero h1 .hl{ color:var(--accent); }
-  .hero .sum{ margin:10px 0 0; font-size:13.5px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
-  .hero .ch{
+  .hero .team{
+    margin:0 0 6px; font-family:'Noto Serif TC',serif; font-weight:700;
+    font-size:clamp(20px, 6vw, 28px); letter-spacing:.35em; color:var(--accent-deep);
+    padding-left:.35em; /* letter-spacing 會在最後一個字後面多一格，補回來才置中 */
+  }
+  .hero .team .ch{
     display:inline-block; opacity:0; filter:blur(8px); transform:translateY(12px);
     animation:rise .8s var(--ease) forwards;
   }
   @keyframes rise{ to{ opacity:1; filter:blur(0); transform:none; } }
 
-  /* ---------------- 照片牆 ----------------
-     一格放 memories/thumb/ 的 360px 縮圖（一張約 20KB），點了才載原圖。
-     整面 38 張只要不到 1MB，原本疊牌版要一路載完 10MB 的原圖。 */
-  .wall{ padding-top:22px; padding-bottom:8px; }
-  .sess{ margin-bottom:22px; }
-  .sess-head{
-    display:flex; align-items:baseline; gap:8px; margin:0 2px 8px;
-    font-size:inherit; font-weight:inherit;
+  /* 三張扇形：外層吃捲動、內層吃進場動畫，兩個 transform 才不會互相蓋掉 */
+  .fan{ display:flex; align-items:center; justify-content:center; width:min(100%, 480px); }
+  .fan-slot{ will-change:transform; }
+  .fan-slot.s0{ width:38%; margin-right:-8%; z-index:1; }
+  .fan-slot.s1{ width:42%; z-index:2; }
+  .fan-slot.s2{ width:38%; margin-left:-8%; z-index:1; }
+  .fan-card{
+    aspect-ratio:4/5; border-radius:14px; overflow:hidden; background:var(--accent-soft);
+    box-shadow:0 18px 40px -12px rgba(58,46,34,.45), 0 0 0 1px rgba(58,46,34,.08);
+    opacity:0; filter:blur(6px);
+    transform:translate(var(--fx), var(--ty)) rotate(0deg);
+    animation:deal .8s var(--ease) forwards;
   }
-  .sess-head b{ font-family:'Noto Serif TC',serif; font-size:17px; font-weight:700; color:var(--accent-deep); }
-  .sess-head span{ font-size:12.5px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
-  .grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
-  @media (min-width:600px){ .grid{ grid-template-columns:repeat(4, 1fr); gap:8px; } }
-  .tile{
-    position:relative; display:block; width:100%; aspect-ratio:1; padding:0; border:0;
-    border-radius:var(--radius-sm); overflow:hidden; background:var(--accent-soft);
+  .fan-slot.s0 .fan-card{ --fx:60%;  --ty:24px; --r:-7deg; animation-delay:.9s; }
+  .fan-slot.s1 .fan-card{ --fx:0;    --ty:-8px; --r:0deg;  animation-delay:.8s; }
+  .fan-slot.s2 .fan-card{ --fx:-60%; --ty:24px; --r:7deg;  animation-delay:1s; }
+  @keyframes deal{
+    to{ opacity:1; filter:blur(0); transform:translate(0, var(--ty)) rotate(var(--r)); }
   }
-  .tile img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .tile::after{ content:''; position:absolute; inset:0; background:transparent; transition:background .15s; }
-  .tile:active::after{ background:rgba(58,46,34,.28); }
+  .fan-card img{ width:100%; height:100%; object-fit:cover; display:block; }
+  /* 橫的照片放進直的牌會被切掉頭，所以照片完整放中間（往上偏一點，讓出下面寫標題），
+     空出來的地方用同一張照片放大糊掉填滿 */
+  .st-card img{ position:absolute; display:block; }
+  .st-card img.bg{
+    inset:0; width:100%; height:100%; object-fit:cover;
+  }
+  .st-card img.ph{
+    left:0; top:0; width:100%; height:calc(100% - 70px);
+    object-fit:contain; object-position:50% 50%;
+  }
+
+
+  /* ---------------- 疊牌 ----------------
+     全部的牌放在同一個父層裡、同一個 top 黏住，後面的就會一張張蓋上來。
+     分開包的話每張只黏在自己的格子裡，前一張會被捲走，疊不起來。 */
+  .stack{ position:relative; padding:0 16px calc(var(--gap) * .6); }
+  .st-card{
+    position:sticky; top:var(--top);
+    display:block; width:var(--cw); height:var(--ch); margin:0 auto var(--gap);
+    border:0; padding:0; border-radius:20px; overflow:hidden; color:#fff; text-align:left;
+    background:var(--accent-soft);
+    box-shadow:0 24px 50px -18px rgba(58,46,34,.55), 0 0 0 1px rgba(58,46,34,.08);
+    transform-origin:50% 0; will-change:transform;
+  }
+  .st-card:last-child{ margin-bottom:0; }
+  .st-card .shade{
+    position:absolute; inset:0; background:#1d1610; opacity:0; pointer-events:none;
+  }
+  .st-card .cap{
+    position:absolute; left:0; right:0; bottom:0; padding:64px 20px 20px;
+    background:linear-gradient(to top, rgba(20,14,9,.82), rgba(20,14,9,.5) 55%, rgba(20,14,9,0));
+    will-change:transform, opacity;
+  }
+  .st-card .num{
+    font-family:'Noto Serif TC',serif; font-size:13px; letter-spacing:.2em; opacity:.92;
+  }
+  .st-card .ttl{
+    font-family:'Noto Serif TC',serif; font-weight:700; font-size:clamp(22px, 6.4vw, 30px);
+    line-height:1.3; margin:4px 0 2px; text-wrap:balance;
+  }
+  .st-card .date{ font-size:13px; opacity:.92; font-variant-numeric:tabular-nums; }
+  .st-card .zoom{
+    position:absolute; top:12px; right:12px; width:36px; height:36px; border-radius:50%;
+    display:grid; place-items:center; background:rgba(20,14,9,.45); color:#fff;
+  }
+  .st-card .zoom .ic{ width:17px; height:17px; }
+
+  /* 章節卡：每換一個月插一張 */
+  .st-card.chap{
+    background:var(--accent-deep); color:#fff; cursor:default;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  }
+  .chap .big{
+    font-family:'Noto Serif TC',serif; font-weight:700; line-height:1;
+    font-size:min(44vw, 210px); letter-spacing:-.02em;
+    color:transparent; -webkit-text-stroke:2px rgba(255,255,255,.9);
+    will-change:transform;
+  }
+  .chap .mon{ font-family:'Noto Serif TC',serif; font-size:24px; font-weight:700; margin-top:10px; letter-spacing:.2em; }
+  .chap .cnt{ font-size:13px; margin-top:6px; opacity:.9; letter-spacing:.1em; }
+
   /* ---------------- 結尾 ---------------- */
   .finale{
     min-height:80svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -311,8 +411,9 @@
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
   function src(i){ return PHOTOS[i].f ? PHOTO_DIR + encodeURIComponent(PHOTOS[i].f) : placeholder(i); }
-  // 照片牆用的正方形縮圖，由 tools/make-thumbs.py 產生在 memories/thumb/。新增照片後要再跑一次。
-  function thumbSrc(i){ return PHOTOS[i].f ? PHOTO_DIR + 'thumb/' + encodeURIComponent(PHOTOS[i].f) : placeholder(i); }
+  // 牌底下那層糊掉的底圖：事先縮小糊好放在 memories/bg/，每張幾 KB。
+  // 不要改回 CSS filter:blur——十幾張大圖疊在一起即時糊，手機捲起來會卡住。
+  function bgSrc(i){ return PHOTOS[i].f ? PHOTO_DIR + 'bg/' + encodeURIComponent(PHOTOS[i].f) : placeholder(i); }
   function fmtDate(d){ return d ? d.replace(/-/g, '.') : ''; }
 
   // ================= 圖示（Feather） =================
@@ -320,7 +421,10 @@
     left:'<polyline points="15 18 9 12 15 6"></polyline>',
     right:'<polyline points="9 18 15 12 9 6"></polyline>',
     close:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
-    back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>'
+    zoom:'<polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>',
+    back:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
+    play:'<polygon points="6 3 20 12 6 21 6 3"></polygon>',
+    pause:'<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>'
   };
   function ic(name){
     return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -370,36 +474,68 @@
 
   // ================= 回憶錄 =================
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let items = [];   // 疊牌的順序：分隔卡與照片混在一起 {type:'chap'|'photo', ...}
+
+  // 每一次運動前面插一張分隔卡
+  function buildItems(){
+    items = [];
+    let last = null;
+    PHOTOS.forEach((p, i)=>{
+      const all = PHOTOS.filter(x => x.s === p.s);
+      if(p.s !== last){
+        items.push({type:'chap', s:p.s, d:p.d, count:all.length});
+        last = p.s;
+      }
+      items.push({type:'photo', i, nth:all.indexOf(p) + 1, of:all.length});
+    });
+  }
+
   function chars(text, base, step){
     return Array.from(text).map((c, k) =>
       '<span class="ch" style="animation-delay:' + (base + k*step).toFixed(2) + 's">' + esc(c) + '</span>').join('');
   }
 
   function renderMemoir(){
-    // 同一次運動的照片排成一組
-    const sessions = [];
-    PHOTOS.forEach((p, i)=>{
-      let s = sessions[sessions.length - 1];
-      if(!s || s.s !== p.s){ s = {s:p.s, d:p.d, idx:[]}; sessions.push(s); }
-      s.idx.push(i);
-    });
+    buildItems();
+    const cover = [Math.min(1, PHOTOS.length-1), 0, Math.min(2, PHOTOS.length-1)];
 
-    let h = '<header class="hero">' +
-      '<p class="team">' + chars(TEAM, .05, .08) + '</p>' +
-      '<h1>' + chars('半年', .35, .12) + '<span class="hl">' + chars('了', .6, 0) + '</span></h1>' +
-      '<p class="sum">' + sessions.length + ' 次運動・' + PHOTOS.length + ' 張照片</p>' +
-    '</header>';
+    let h = '<div class="progress" id="prog"></div>' +
+      '<button class="auto-btn" id="autoBtn"></button>' +
+      '<div class="counter" id="counter" aria-hidden="true"><b id="cNow">01</b> / ' + String(PHOTOS.length).padStart(2,'0') + '</div>';
 
-    h += '<main class="wrap wall">';
-    sessions.forEach(s=>{
-      h += '<section class="sess">' +
-        '<h2 class="sess-head"><b>第' + zh(s.s) + '次</b><span>' + esc(fmtDate(s.d)) + '</span></h2>' +
-        '<div class="grid">' +
-        s.idx.map(i => '<button class="tile" data-open="' + i + '" aria-label="' + esc(PHOTOS[i].t) + '，看大圖">' +
-          '<img src="' + thumbSrc(i) + '" alt="" width="360" height="360" loading="lazy" decoding="async"></button>').join('') +
-        '</div></section>';
+    h += '<section class="hero" id="hero">' +
+      '<div class="hero-text" id="heroText">' +
+        '<p class="team">' + chars(TEAM, .05, .08) + '</p>' +
+        '<h1>' + chars('半年', .4, .14) + '<span class="hl">' + chars('了', .68, 0) + '</span></h1>' +
+      '</div>' +
+      '<div class="fan" aria-hidden="true">' +
+        cover.map((pi, k) => '<div class="fan-slot s' + k + '"><div class="fan-card"><img src="' + src(pi) + '" alt="" decoding="async"></div></div>').join('') +
+      '</div>' +
+    '</section>';
+
+    h += '<section class="stack" id="stack">';
+    let alt = 1;
+    items.forEach((it, k)=>{
+      if(it.type === 'chap'){
+        h += '<div class="st-card chap" data-k="' + k + '">' +
+          '<div class="big">' + String(it.s).padStart(2,'0') + '</div>' +
+          '<div class="mon">第' + zh(it.s) + '次</div>' +
+          '<div class="cnt">' + esc(fmtDate(it.d).slice(5)) + (it.count > 1 ? ' · ' + it.count + ' 張' : '') + '</div>' +
+          '<div class="shade"></div></div>';
+      }else{
+        const p = PHOTOS[it.i];
+        alt = -alt;
+        h += '<button class="st-card" data-k="' + k + '" data-open="' + it.i + '" data-alt="' + alt + '" aria-label="' + esc(p.t) + '，看大圖">' +
+          '<img class="bg" src="' + bgSrc(it.i) + '" alt="" loading="lazy" decoding="async">' +
+          '<img class="ph" src="' + src(it.i) + '" alt="' + esc(p.t) + '" loading="lazy" decoding="async">' +
+          '<span class="zoom" aria-hidden="true">' + ic('zoom') + '</span>' +
+          '<span class="cap"><span class="num">第' + zh(p.s) + '次' + (it.of > 1 ? ' · ' + it.nth + '/' + it.of : '') + '</span>' +
+          '<span class="ttl" style="display:block">' + esc(p.t) + '</span>' +
+          '<span class="date">' + esc(fmtDate(p.d)) + '</span></span>' +
+          '<span class="shade"></span></button>';
+      }
     });
-    h += '</main>';
+    h += '</section>';
 
     h += '<section class="finale">' +
       '<div class="fin" id="fin"><img src="' + PHOTO_DIR + FINALE + '" alt="大家的手疊在一起" loading="lazy" decoding="async"></div>' +
@@ -422,10 +558,12 @@
       b.onclick = ()=> openLightbox(+b.dataset.open, b);
     });
 
+    setupScroll();
     setupReveals();
+    setupAuto();
   }
 
-  // ---------- 結尾的照片與信，捲到才浮出來 ----------
+  // ---------- 數字跳動、結尾照片牆 ----------
   function setupReveals(){
     const io = new IntersectionObserver((ents)=>{
       ents.forEach(e=>{
@@ -437,9 +575,178 @@
     // 信一段一段浮出來，讀到哪亮到哪
     app.querySelectorAll('.reveal').forEach(el => io.observe(el));
   }
+
+  // ---------- 跟著捲動走的效果 ----------
+  let geo = null, cards = [], ticking = false, lastW = 0, lastH = 0;
+  let heroText, fanSlots, prog, counter, cNow, stackEl;
+
+  function measure(){
+    const vw = window.innerWidth, vh = window.innerHeight;
+    // 手機網址列伸縮會一直觸發 resize，高度只差一點點就不重算，免得牌跳來跳去
+    if(geo && vw === lastW && Math.abs(vh - lastH) < 120) return;
+    lastW = vw; lastH = vh;
+    const cw = Math.min(vw - 32, 440);
+    const ch = Math.min(Math.round(cw * 1.3), Math.round(vh * .72));
+    const top = Math.max(56, Math.round((vh - ch) / 2));
+    const gap = Math.round(vh * .38);
+    const root = document.documentElement.style;
+    root.setProperty('--cw', cw + 'px');
+    root.setProperty('--ch', ch + 'px');
+    root.setProperty('--top', top + 'px');
+    root.setProperty('--gap', gap + 'px');
+    // 牌的位置是固定間距排下來的，直接算，不去量黏住後的位置（黏住後量到的是假的）
+    const stackTop = stackEl.getBoundingClientRect().top + window.scrollY;
+    geo = {vh, top, step: ch + gap, stackTop};
+  }
+
+  function setupScroll(){
+    heroText = document.getElementById('heroText');
+    fanSlots = Array.from(app.querySelectorAll('.fan-slot'));
+    prog = document.getElementById('prog');
+    counter = document.getElementById('counter');
+    cNow = document.getElementById('cNow');
+    stackEl = document.getElementById('stack');
+    cards = Array.from(stackEl.children).map(el => ({
+      el, cap: el.querySelector('.cap'), big: el.querySelector('.big'),
+      shade: el.querySelector('.shade'), alt: +(el.dataset.alt || 1),
+      photo: el.dataset.open != null ? +el.dataset.open : -1, last: null
+    }));
+    geo = null;
+    measure();
+    window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onResize);
+    update();
+  }
+  function onResize(){ measure(); onScroll(); }
+  function onScroll(){
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(()=>{ ticking = false; update(); });
+  }
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function update(){
+    const y = window.scrollY, vh = geo.vh;
+    const docH = document.documentElement.scrollHeight - vh;
+    prog.style.transform = 'scaleX(' + (docH > 0 ? clamp(y / docH, 0, 1) : 0) + ')';
+
+    // 開場：往下捲時三張照片往兩邊飛開，標題縮小淡出
+    const hp = clamp(y / (vh * .8), 0, 1);
+    if(!reduce){
+      heroText.style.transform = 'translateY(' + (-hp * 60) + 'px) scale(' + (1 - hp * .15) + ')';
+      heroText.style.opacity = 1 - hp * 1.2;
+      const e = hp * hp;
+      fanSlots[0].style.transform = 'translate(' + (-e * 70) + 'vw,' + (e * 20) + 'vh) rotate(' + (-e * 28) + 'deg)';
+      fanSlots[1].style.transform = 'translateY(' + (-e * 25) + 'vh) scale(' + (1 + e * .35) + ')';
+      fanSlots[2].style.transform = 'translate(' + (e * 70) + 'vw,' + (e * 20) + 'vh) rotate(' + (e * 28) + 'deg)';
+      fanSlots[1].style.opacity = 1 - e;
+    }
+
+    // 疊牌：d < 0 還在下面飛上來，d = 0 剛好黏住，d > 0 已經被後面的蓋住幾張
+    let current = -1;
+    cards.forEach((c, k)=>{
+      const d = clamp((y - (geo.stackTop + k * geo.step - geo.top)) / geo.step, -1.5, 4);
+      if(c.photo >= 0 && d > -.5) current = c.photo;
+      if(reduce || c.last === d) return;
+      c.last = d;
+      if(d < 0){
+        // 斜斜地飛進來，越接近黏住的位置越正
+        const t = Math.min(1, -d);
+        c.el.style.transform = 'translateX(' + (c.alt * t * 14) + '%) rotate(' + (c.alt * t * 9) + 'deg) scale(' + (1 - t * .06) + ')';
+        c.el.style.opacity = 1;
+        c.shade.style.opacity = 0;
+        if(c.cap){
+          c.cap.style.opacity = clamp(1 - t * 2.2, 0, 1);
+          c.cap.style.transform = 'translateY(' + (t * 40) + 'px)';
+        }
+        if(c.big) c.big.style.transform = 'translateX(' + (t * 40) + '%)';
+      }else{
+        // 被蓋住的往後縮、往上露出一條邊、變暗；蓋到第四張就消失
+        const dd = Math.min(d, 3);
+        c.el.style.transform = 'translateY(' + (-dd * 14) + 'px) scale(' + (1 - dd * .06) + ')';
+        c.el.style.opacity = clamp(4 - d, 0, 1);
+        c.shade.style.opacity = Math.min(d, 1.5) * .3;
+        if(c.cap){ c.cap.style.opacity = 1; c.cap.style.transform = 'none'; }
+        if(c.big) c.big.style.transform = 'translateX(' + (-Math.min(d, 1) * 20) + '%)';
+      }
+    });
+
+    // 疊牌整段捲完就把張數收起來
+    const stackEnd = geo.stackTop + stackEl.offsetHeight - vh;
+    const inStack = current >= 0 && y < stackEnd;
+    counter.classList.toggle('on', inStack);
+    if(inStack) cNow.textContent = String(current + 1).padStart(2, '0');
+  }
+
+  // ================= 自動翻頁 =================
+  // 像幻燈片：一張捲到剛好黏住的位置，停一下，再翻下一張。
+  // 手指一碰、滾輪、按鍵就停，不跟人搶；右下角的鈕可以再接著播。
+  const HOLD_PHOTO = 1500, HOLD_CHAP = 800, MOVE = 800, OPENING = 2000;
+  let auto = {on:false, timer:0, raf:0};
+  function autoTargets(){
+    const t = cards.map((c, k) => ({
+      y: Math.round(geo.stackTop + k * geo.step - geo.top),
+      hold: c.photo >= 0 ? HOLD_PHOTO : HOLD_CHAP
+    }));
+    const fin = document.querySelector('.finale');
+    t.push({y: Math.min(fin.offsetTop, document.documentElement.scrollHeight - window.innerHeight), hold:0});
+    return t;
+  }
+  function setAutoBtn(){
+    const b = document.getElementById('autoBtn');
+    if(!b) return;
+    b.innerHTML = ic(auto.on ? 'pause' : 'play');
+    b.setAttribute('aria-label', auto.on ? '暫停自動翻頁' : '自動翻頁');
+  }
+  function stopAuto(){
+    clearTimeout(auto.timer);   // 開場還在等的那一次也要取消
+    if(!auto.on) return;
+    auto.on = false;
+    cancelAnimationFrame(auto.raf);
+    setAutoBtn();
+  }
+  function startAuto(){
+    auto.on = true;
+    setAutoBtn();
+    autoNext();
+  }
+  function autoNext(){
+    if(!auto.on) return;
+    const y0 = window.scrollY;
+    const next = autoTargets().find(t => t.y > y0 + 4);
+    if(!next){ stopAuto(); return; }
+    const t0 = performance.now(), dist = next.y - y0;
+    const dur = MOVE;
+    const step = (now)=>{
+      if(!auto.on) return;
+      const p = Math.min(1, (now - t0) / dur);
+      const e = p < .5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2;   // 慢起慢停
+      window.scrollTo(0, y0 + dist * e);
+      if(p < 1) auto.raf = requestAnimationFrame(step);
+      else auto.timer = setTimeout(autoNext, next.hold);
+    };
+    auto.raf = requestAnimationFrame(step);
+  }
+  function setupAuto(){
+    document.getElementById('autoBtn').onclick = (e)=>{
+      e.stopPropagation();
+      auto.on ? stopAuto() : startAuto();
+    };
+    // 只看人的動作，不看 scroll 事件——自己捲的也會觸發 scroll
+    ['wheel', 'touchstart', 'keydown'].forEach(ev =>
+      window.addEventListener(ev, (e)=>{
+        if(e.target && e.target.closest && e.target.closest('#autoBtn')) return;
+        stopAuto();
+      }, {passive:true}));
+    setAutoBtn();
+    // 開場動畫跑完再開始翻；設定了減少動態效果的就不自動開始
+    if(!reduce) auto.timer = setTimeout(()=>{ if(window.scrollY < 10) startAuto(); }, OPENING);
+  }
+
   // ================= 看大圖 =================
   let lb = null, lbIdx = 0, lbFrom = null;
   function openLightbox(i, from){
+    stopAuto();
     lbFrom = from; lbIdx = i;
     lb = document.createElement('div');
     lb.className = 'lb';
