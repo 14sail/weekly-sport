@@ -39,10 +39,15 @@ out="backups/$(basename "$db" .firebasedatabase.app)-$(date +%Y%m%d-%H%M%S).json
 for n in data claims members authver; do
   curl -sf "$db/$n.json?auth=$token" -o "$out.$n" || { rm -f "$out".*; echo "讀不到資料（帳號還沒綁定？），沒有備份"; exit 1; }
 done
+# 運動日曆的照片：規則還沒貼的專案讀不到，讀不到就跳過，不讓整份備份失敗
+for n in photo-day photo-full; do
+  curl -sf "$db/$n.json?auth=$token" -o "$out.$n" || { rm -f "$out.$n"; echo "（$n 讀不到，跳過）"; }
+done
 OUT="$out" python -I -c '
 import json, os
 o = os.environ["OUT"]
-json.dump({n: json.load(open(o + "." + n, encoding="utf-8")) for n in ["data", "claims", "members", "authver"]},
+names = ["data", "claims", "members", "authver"] + [n for n in ["photo-day", "photo-full"] if os.path.exists(o + "." + n)]
+json.dump({n: json.load(open(o + "." + n, encoding="utf-8")) for n in names},
           open(o, "w", encoding="utf-8"), ensure_ascii=False)
 '
 rm -f "$out".*
