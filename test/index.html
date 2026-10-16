@@ -3280,12 +3280,12 @@
     if(!res.ok) throw new Error('shallow ' + res.status);
     return Object.keys((await res.json()) || {}).sort();
   }
-  // 「今年第 3 次」；看的是別年就寫「2025 年第 3 次」
+  // 「本年第 3 次」；看的是別年就寫「2025 年第 3 次」
   function albNthText(days, key){
     if(!days) return '';
     const y = key.slice(0, 4);
     const n = days.filter(k => k.slice(0, 4) === y && k <= key).length;
-    return (y === String(new Date().getFullYear()) ? '今年' : y + ' 年') + '第 ' + n + ' 次';
+    return (y === String(new Date().getFullYear()) ? '本年' : y + ' 年') + '第 ' + n + ' 次';
   }
 
   async function albLoadMonth(y, m){
@@ -3341,8 +3341,10 @@
     }
     const count = Object.keys(month).length;
     const yearN = days ? days.filter(k => k.slice(0, 4) === String(albYear)).length : null;
-    const yearLbl = albYear === new Date().getFullYear() ? '今年' : albYear + ' 年';
-    const sum = failed ? '' : `這個月 ${count} 次${yearN != null ? `・${yearLbl} ${yearN} 次` : ''}${uploader ? '・點日期放照片' : ''}`;
+    const yearLbl = albYear === new Date().getFullYear() ? '本年' : albYear + ' 年';
+    // 統計一行；「點日期放照片」只給能放照片的人，另起一行
+    const sum = failed ? '' : `這個月 ${count} 次${yearN != null ? `・${yearLbl} ${yearN} 次` : ''}`
+      + (uploader ? '<br>點日期放照片' : '');
 
     app.innerHTML = `
       <header class="top">
