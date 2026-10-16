@@ -304,6 +304,23 @@
   .nav-tabs.scroll::-webkit-scrollbar{ display:none; }
   .nav-tabs.scroll button{ flex:0 0 auto; white-space:nowrap; padding:10px 14px; }
   .tabs-scroll-wrap{ position:relative; }
+  /* 新功能的 NEW 貼紙：斜貼在分頁右上角，一道光掃過去。
+     捲動的分頁列會把超出上緣的東西切掉，所以上、右各墊一點空間給貼紙，再用負邊距把版面拉回原位 */
+  .nav-tabs.scroll.with-new{ padding:11px 8px 0 0; margin-top:-11px; }
+  .nav-tabs button.has-new{ position:relative; }
+  .new-tag{
+    position:absolute; top:-9px; right:-8px; z-index:1; overflow:hidden; pointer-events:none;
+    padding:0 6px; border:1.5px solid #fff; border-radius:6px;
+    background:var(--red); color:#fff;   /* 白字在 --red 上 4.67:1 */
+    font-size:10px; font-weight:900; line-height:15px; letter-spacing:.06em;
+    transform:rotate(10deg); box-shadow:0 2px 4px rgba(58,46,34,.28);
+  }
+  .new-tag::after{
+    content:''; position:absolute; top:-2px; bottom:-2px; left:-60%; width:40%;
+    background:linear-gradient(100deg, transparent, rgba(255,255,255,.9), transparent);
+    animation:new-shine 2.4s ease-in-out infinite;
+  }
+  @keyframes new-shine{ 0%, 55%{ transform:translateX(0); } 100%{ transform:translateX(450%); } }
   .tabs-scroll-wrap.has-overflow::after{
     content:''; position:absolute; top:0; right:0; bottom:0; width:36px;
     background:linear-gradient(to right, transparent, var(--bg-card) 65%);
@@ -825,6 +842,7 @@
     }
     .sis-btn, .sis-nav button{ transition:none; }
     .person-btn:active, .corner-btn:active{ transform:none; }
+    .new-tag::after{ display:none; }
   }
 </style>
 </head>
@@ -1493,10 +1511,10 @@
 
     const mainTabsHtml = `
       <div class="tabs-scroll-wrap">
-        <div class="nav-tabs scroll">
+        <div class="nav-tabs scroll${albumIsNew() ? ' with-new' : ''}">
           <button data-mtab="schedule" class="${memberTab==='schedule'?'active':''}">本週回報</button>
           <button data-mtab="sports" class="${memberTab==='sports'?'active':''}">運動興趣列表</button>
-          <button data-mtab="album">運動日曆</button>
+          <button data-mtab="album" class="${albumIsNew() ? 'has-new' : ''}">運動日曆${newBadge()}</button>
           ${person.canSis ? `<button data-mtab="sis">姊妹行事曆</button>` : ''}
           <button data-mtab="peek">偷看老師視角</button>
         </div>
@@ -1716,12 +1734,12 @@
 
     const subTabsHtml = readOnly ? '' : `
       <div class="tabs-scroll-wrap">
-        <div class="nav-tabs scroll">
+        <div class="nav-tabs scroll${albumIsNew() ? ' with-new' : ''}">
           <button data-tab="summary" class="${tab==='summary'?'active':''}">統計總覽</button>
           <button data-tab="fill" class="${tab==='fill'?'active':''}">我的時間</button>
           <button data-tab="announce" class="${tab==='announce'?'active':''}">公告</button>
           <button data-tab="sports" class="${tab==='sports'?'active':''}">運動興趣列表</button>
-          <button data-tab="album">運動日曆</button>
+          <button data-tab="album" class="${albumIsNew() ? 'has-new' : ''}">運動日曆${newBadge()}</button>
           ${person.canSis ? `<button data-tab="sis">姊妹行事曆</button>` : ''}
         </div>
       </div>
@@ -3252,6 +3270,12 @@
   // 都是 data URL 字串，不用另外開 Firebase Storage（那要綁信用卡）。一天一張，換照片就是蓋掉。
   // 只有名單上 canPhoto 開著的人看得到放、換、刪（管理面板的「傳照片」）。
   // 規則擋得住外人，擋不住成員本人，這點跟 data/ 一樣（SPEC 第 6 節）。
+  // 分頁上的 NEW 貼紙掛到這天為止（含），過了就自動消失，不用再改程式
+  const ALBUM_NEW_UNTIL = '2026-11-30';
+  function albumIsNew(){ return toKey(new Date()) <= ALBUM_NEW_UNTIL; }
+  function newBadge(){
+    return albumIsNew() ? '<span class="new-tag" aria-hidden="true">NEW</span>' : '';
+  }
   const PH_FULL_EDGE = 1600, PH_THUMB = 240, PH_FULL_MAX = 1300000;
   const ICON_LEFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>';
   const ICON_RIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>';
