@@ -12,7 +12,7 @@
      ============================================================ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, get, set, update, runTransaction, query, orderByKey, startAt, endAt } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
   import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   // Your web app's Firebase configuration
@@ -36,6 +36,7 @@
   window.dbSet = set;
   window.dbTx = runTransaction;
   window.dbUpdate = update;
+  window.dbQ = { query, orderByKey, startAt, endAt };
 
   // 每位成員是一個 Firebase 帳號（見 SPEC.md 第 6 節「帳號與資料庫規則」）。
   // 等 Firebase 從本機還原上次的登入狀態（離線也還原得到）之後才開始畫畫面。
@@ -77,6 +78,11 @@
     --amber-ink: #8A6220;   /* 4.57 on --amber-soft */
     --radius: 16px;
     --radius-sm: 10px;
+    --z-stick: 20;
+    --z-corner: 30;
+    --z-mask: 40;
+    --z-sheet: 41;
+    --z-help: 50;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; padding:0; }
@@ -469,6 +475,85 @@
   .comment-time{ font-size:11px; color:var(--ink-soft); font-style:normal; white-space:nowrap; }
   .note-line-meta{ display:flex; align-items:baseline; gap:6px; flex-shrink:0; white-space:nowrap; }
 
+  /* ---- 運動日曆（每次運動一張照片） ---- */
+  .alb-card{ padding:14px 8px 12px; }
+  .alb-nav{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 4px 6px; }
+  .alb-nav .lbl{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:17px; }
+  .alb-nav button{
+    width:44px; height:44px; padding:0; border-radius:50%; display:grid; place-items:center;
+    border:1px solid var(--line); background:var(--bg-card); color:var(--accent-deep);
+  }
+  .alb-nav button:active{ background:var(--accent-soft); }
+  .alb-nav svg{ width:20px; height:20px; }
+  /* 格子之間不留 gap：360px 寬的手機一格才撐得到 44px，間隔改由格子自己的內縮做 */
+  .alb-wd, .alb-grid{ display:grid; grid-template-columns:repeat(7, 1fr); }
+  .alb-wd span{ text-align:center; font-size:12px; color:var(--ink-soft); padding:4px 0; }
+  .alb-cell{
+    position:relative; display:block; aspect-ratio:1; min-height:44px; padding:0; margin:0;
+    border:0; background:none; font:inherit; color:var(--ink); text-align:left;
+  }
+  .alb-cell .in{ position:absolute; inset:2px; border-radius:8px; overflow:hidden; background:var(--bg); }
+  .alb-cell.out .in{ display:none; }
+  .alb-cell.add .in{ background:var(--bg-card); border:1px dashed var(--line); }
+  .alb-cell.add:active .in{ background:var(--accent-soft); }
+  .alb-cell img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .alb-cell.has:active img{ filter:brightness(.8); }
+  .alb-cell .n{
+    position:absolute; top:3px; left:3px; z-index:1; min-width:18px; height:18px; padding:0 4px;
+    border-radius:9px; font-size:11.5px; line-height:18px; text-align:center;
+    color:var(--ink); font-variant-numeric:tabular-nums;
+  }
+  .alb-cell.has .n{ background:rgba(255,253,248,.92); }
+  .alb-cell .n.today{ background:var(--accent-deep); color:#fff; font-weight:700; }
+  .alb-sum{ text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:10px; min-height:18px; }
+  .alb-err{
+    background:var(--red-soft); color:var(--red-ink); font-size:13px;
+    padding:8px 12px; border-radius:var(--radius-sm); margin:0 4px 8px;
+  }
+
+  /* 看照片／放照片：整頁蓋掉的黑底 */
+  body.pv-open{ overflow:hidden; }
+  .pv{
+    position:fixed; inset:0; z-index:var(--z-help); background:#140e09; color:#fff;
+    display:flex; flex-direction:column;
+  }
+  .pv-top{
+    display:flex; align-items:center; gap:8px;
+    padding:calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left));
+  }
+  .pv-top .d{ flex:1; font-size:14px; color:#e6dccf; }
+  .pv-x{
+    width:44px; height:44px; padding:0; border:0; border-radius:50%; display:grid; place-items:center;
+    background:rgba(255,255,255,.12); color:#fff;
+  }
+  .pv-x:active{ background:rgba(255,255,255,.24); }
+  .pv-x svg{ width:22px; height:22px; }
+  .pv-stage{ flex:1; min-height:0; position:relative; }
+  .pv-stage img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transition:filter .3s; }
+  .pv-stage img.lo{ filter:blur(6px); }
+  .pv-foot{
+    width:100%; max-width:560px; margin:0 auto;
+    padding:12px calc(16px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  }
+  .pv-t{ text-align:center; font-family:'Noto Serif TC', serif; font-size:18px; font-weight:700; }
+  .pv-lab{ display:block; }
+  .pv-lab span{ display:block; font-size:12.5px; color:#e6dccf; margin-bottom:4px; }
+  .pv-lab input{
+    width:100%; font-family:inherit; font-size:16px; color:var(--ink); background:#fff;
+    border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 11px;
+  }
+  .pv-ops{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
+  .pv-btn{
+    flex:1; max-width:200px; min-height:44px; padding:0 16px; border:0; border-radius:var(--radius-sm);
+    font-family:inherit; font-size:15px; font-weight:700; color:#fff; background:rgba(255,255,255,.14);
+  }
+  .pv-btn:active{ background:rgba(255,255,255,.26); }
+  .pv-btn.primary{ background:var(--accent-deep); }
+  .pv-btn.danger{ background:var(--red); }
+  .pv-btn.primary:active, .pv-btn.danger:active{ filter:brightness(.88); }
+  .pv-btn:disabled{ opacity:.5; }
+  .pv-msg{ text-align:center; font-size:13px; color:#f2c9bd; margin-top:8px; min-height:18px; }
+
   /* ---- admin ---- */
   .admin-lock{ text-align:center; padding-top:12px; padding-bottom:12px; }
   .admin-row{
@@ -796,7 +881,7 @@
   // 畫給運動排程站看的地方一律走 sportPeople()。
   function sportPeople(){ return people.filter(inSport); }
   let currentPersonId = null;
-  let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | teacherPeek | sisters | admin
+  let view = 'loading';  // loading | pickPerson | setPassword | enterPassword | member | teacher | teacherPeek | sisters | album | admin
   let teacherTab = 'summary'; // summary | fill | announce | sports (老師視角內部切換用)
   let pendingPersonId = null; // 選了名字但還沒通過密碼驗證時暫存
   let renderGen = 0; // 每次渲染都會遞增；用來偵測「這次非同步渲染是不是已經被更新的操作取代了」，避免舊的畫面在新的畫面之後才蓋回去
@@ -1095,7 +1180,7 @@
 
   function render(){
     renderGen++; // 切換到任何畫面都算新的一輪，讓還在等待中的舊 renderMember()/renderTeacher() 知道自己已經過時
-    const loggedIn = (view==='member' || view==='teacher' || view==='teacherPeek' || view==='sisters');
+    const loggedIn = (view==='member' || view==='teacher' || view==='teacherPeek' || view==='sisters' || view==='album');
     switchBtn.style.display = loggedIn ? 'block' : 'none';
     editProfileBtn.style.display = loggedIn ? 'block' : 'none';
     document.body.classList.toggle('has-corner-buttons', loggedIn);
@@ -1108,6 +1193,7 @@
     if(view==='teacher') return renderTeacher(false);
     if(view==='teacherPeek') return renderTeacher(true);
     if(view==='sisters') return renderSisters();
+    if(view==='album') return renderAlbum();
     if(view==='admin') return renderAdminLock();
   }
 
@@ -1410,6 +1496,7 @@
         <div class="nav-tabs scroll">
           <button data-mtab="schedule" class="${memberTab==='schedule'?'active':''}">本週回報</button>
           <button data-mtab="sports" class="${memberTab==='sports'?'active':''}">運動興趣列表</button>
+          <button data-mtab="album">運動日曆</button>
           ${person.canSis ? `<button data-mtab="sis">姊妹行事曆</button>` : ''}
           <button data-mtab="peek">偷看老師視角</button>
         </div>
@@ -1496,6 +1583,9 @@
           render();
         } else if(btn.dataset.mtab === 'sis'){
           view = 'sisters';
+          render();
+        } else if(btn.dataset.mtab === 'album'){
+          view = 'album';
           render();
         } else {
           memberTab = btn.dataset.mtab;
@@ -1631,6 +1721,7 @@
           <button data-tab="fill" class="${tab==='fill'?'active':''}">我的時間</button>
           <button data-tab="announce" class="${tab==='announce'?'active':''}">公告</button>
           <button data-tab="sports" class="${tab==='sports'?'active':''}">運動興趣列表</button>
+          <button data-tab="album">運動日曆</button>
           ${person.canSis ? `<button data-tab="sis">姊妹行事曆</button>` : ''}
         </div>
       </div>
@@ -1845,6 +1936,7 @@
       btn.addEventListener('click', ()=>{
         if(!confirmLeaveFill()) return;
         if(btn.dataset.tab === 'sis'){ view = 'sisters'; return render(); }
+        if(btn.dataset.tab === 'album'){ view = 'album'; return render(); }
         teacherTab = btn.dataset.tab;
         renderTeacher(readOnly);
       });
@@ -3153,6 +3245,362 @@
     return keys.map(k=>k.slice('sis-meet:'.length)).filter(y=>/^\d{4}$/.test(y));
   }
 
+  // ================= 運動日曆（每次運動一張照片） =================
+  // 照片不放在 data/ 底下：sList() 會把 data/ 整包讀回來，照片放進去每次讀排程都會一起下載。
+  //   photo-day/<日期>  = {t:標題, by:上傳的人, at:時間, thumb:240px 正方形縮圖}，月曆一次讀一個月
+  //   photo-full/<日期> = 長邊 1600px 的 JPEG，點進去才讀
+  // 都是 data URL 字串，不用另外開 Firebase Storage（那要綁信用卡）。一天一張，換照片就是蓋掉。
+  // 只有名單上 canPhoto 開著的人看得到放、換、刪（管理面板的「傳照片」）。
+  // 規則擋得住外人，擋不住成員本人，這點跟 data/ 一樣（SPEC 第 6 節）。
+  const PH_FULL_EDGE = 1600, PH_THUMB = 240, PH_FULL_MAX = 1300000;
+  const ICON_LEFT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+  const ICON_RIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+  const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  let albYear = null, albMonth = null, albLastPerson = null;
+  let albPending = null;   // 選照片之前先記住是哪一天：{key, caption, from}
+  let albFocusKey = null;  // 重畫月曆後要把焦點放回哪一格
+  function canPhoto(p){ return !!(p && p.canPhoto); }
+  // 資料庫裡的圖只接受 JPEG data URL，其他一律當作沒有，不讓奇怪的字串進到 src 裡
+  function albImg(s){ return (typeof s === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s)) ? s : ''; }
+  function albFmtDay(key){
+    const [y, m, d] = key.split('-').map(Number);
+    return m + '/' + d + '（' + WEEKDAY_NAMES[new Date(y, m-1, d).getDay()] + '）';
+  }
+
+  // 讀失敗會丟錯，由呼叫的人顯示「連不上」——不能當成這個月沒照片
+  async function albLoadMonth(y, m){
+    const k = y + '-' + pad(m+1);
+    const Q = window.dbQ;
+    const q = Q.query(window.dbRef(window.db, 'photo-day'), Q.orderByKey(), Q.startAt(k + '-01'), Q.endAt(k + '-31'));
+    const snap = await window.dbGet(q);
+    return (snap.exists() && snap.val()) || {};
+  }
+
+  async function renderAlbum(){
+    const myRenderToken = ++renderGen;
+    const person = people.find(p=>p.id===currentPersonId);
+    if(!person){ view='pickPerson'; return render(); }
+    if(albLastPerson !== currentPersonId){
+      albLastPerson = currentPersonId;
+      const now = new Date();
+      albYear = now.getFullYear();
+      albMonth = now.getMonth();
+    }
+    let month = {}, failed = false, failMsg = '';
+    try{ month = await albLoadMonth(albYear, albMonth); }
+    catch(e){
+      console.error('album load error', e);
+      failed = true;
+      // 被規則擋下來跟網路斷掉要分開講，不然改規則的人不知道是哪一個
+      failMsg = /permission/i.test(String(e && (e.code || e.message))) ? '沒有權限：資料庫規則還沒更新' : '連不上，請稍後再試';
+    }
+    if(myRenderToken !== renderGen) return;
+
+    const uploader = canPhoto(person) && !failed;
+    const todayKey = toKey(new Date());
+    const lead = new Date(albYear, albMonth, 1).getDay();
+    const nDays = new Date(albYear, albMonth+1, 0).getDate();
+    let cells = '';
+    for(let i=0; i<lead; i++) cells += '<div class="alb-cell out"><span class="in"></span></div>';
+    for(let d=1; d<=nDays; d++){
+      const key = albYear + '-' + pad(albMonth+1) + '-' + pad(d);
+      const ph = month[key];
+      const src = ph ? albImg(ph.thumb) : '';
+      const num = `<span class="n${key===todayKey ? ' today' : ''}">${d}</span>`;
+      const day = `${albMonth+1} 月 ${d} 日`;
+      if(ph){
+        const label = day + (ph.t ? '，' + ph.t : '') + '，看照片';
+        cells += `<button class="alb-cell has" data-day="${key}" aria-label="${escapeHtml(label)}"><span class="in">${num}${src ? `<img src="${src}" alt="">` : ''}</span></button>`;
+      } else if(uploader){
+        cells += `<button class="alb-cell add" data-day="${key}" aria-label="${day}，放照片"><span class="in">${num}</span></button>`;
+      } else {
+        cells += `<div class="alb-cell"><span class="in">${num}</span></div>`;
+      }
+    }
+    const count = Object.keys(month).length;
+    const sum = failed ? '' : `這個月 ${count} 次${uploader ? '・點日期放照片' : ''}`;
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><span class="seed">●</span> 運動日曆 <span class="seed">●</span></div>
+        <div class="sub">${escapeHtml(person.name)}</div>
+      </header>
+      <div class="card alb-card">
+        <div class="alb-nav">
+          <button data-mnav="-1" aria-label="上個月" title="上個月">${ICON_LEFT}</button>
+          <div class="lbl">${albYear} 年 ${albMonth+1} 月</div>
+          <button data-mnav="1" aria-label="下個月" title="下個月">${ICON_RIGHT}</button>
+        </div>
+        ${failed ? `<div class="alb-err" role="alert">${failMsg}</div>` : ''}
+        <div class="alb-wd" aria-hidden="true">${WEEKDAY_NAMES.map(w=>`<span>${w}</span>`).join('')}</div>
+        <div class="alb-grid">${cells}</div>
+        <div class="alb-sum">${sum}</div>
+      </div>
+      <input type="file" accept="image/*" id="albFile" hidden>
+      <div class="footer-link"><a href="#" id="backLink">返回我的畫面</a></div>
+    `;
+
+    app.querySelectorAll('[data-mnav]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const d = new Date(albYear, albMonth + parseInt(btn.dataset.mnav, 10), 1);
+        albYear = d.getFullYear();
+        albMonth = d.getMonth();
+        albFocusKey = null;
+        renderAlbum();
+      });
+    });
+    app.querySelectorAll('.alb-cell.has').forEach(btn=>{
+      btn.addEventListener('click', ()=> albOpenView(btn.dataset.day, month[btn.dataset.day], canPhoto(person), btn));
+    });
+    app.querySelectorAll('.alb-cell.add').forEach(btn=>{
+      btn.addEventListener('click', ()=> albPickFile(btn.dataset.day, '', btn));
+    });
+    document.getElementById('albFile').addEventListener('change', (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if(file && albPending) albPreview(file);
+    });
+    document.getElementById('backLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      albCloseView();
+      view = person.isTeacher ? 'teacher' : 'member';
+      render();
+    });
+
+    if(albFocusKey){
+      const el = app.querySelector(`.alb-cell[data-day="${albFocusKey}"]`);
+      albFocusKey = null;
+      if(el) el.focus({preventScroll:true});
+    }
+  }
+
+  // ---------- 整頁黑底：看照片、放照片共用 ----------
+  let pv = null, pvFrom = null;
+  function albKey(e){ if(e.key === 'Escape') albCloseView(); }
+  function albCloseView(){
+    if(!pv) return;
+    document.removeEventListener('keydown', albKey);
+    pv.remove();
+    pv = null;
+    document.body.classList.remove('pv-open');
+    // 面板關掉之後焦點送回原本那一格（SPEC 第 4 節）
+    if(pvFrom && document.contains(pvFrom)) pvFrom.focus({preventScroll:true});
+  }
+  function albShell(key, from){
+    albCloseView();
+    pvFrom = from;
+    pv = document.createElement('div');
+    pv.className = 'pv';
+    pv.setAttribute('role', 'dialog');
+    pv.setAttribute('aria-modal', 'true');
+    pv.setAttribute('aria-label', albFmtDay(key) + ' 的照片');
+    pv.innerHTML = `
+      <div class="pv-top"><span class="d">${albFmtDay(key)}</span>
+        <button class="pv-x" id="pvX" aria-label="關閉" title="關閉">${ICON_X}</button></div>
+      <div class="pv-stage"><img id="pvImg" alt=""></div>
+      <div class="pv-foot" id="pvFoot"></div>`;
+    document.body.appendChild(pv);
+    document.body.classList.add('pv-open');
+    document.addEventListener('keydown', albKey);
+    pv.querySelector('#pvX').addEventListener('click', albCloseView);
+    pv.querySelector('#pvX').focus();
+    return pv;
+  }
+
+  // 看照片：先放縮圖（糊的），原圖到了再換上去
+  function albOpenView(key, meta, uploader, from){
+    const box = albShell(key, from);
+    const img = box.querySelector('#pvImg');
+    img.src = albImg(meta.thumb);
+    img.alt = meta.t || '運動照片';
+    img.classList.add('lo');
+    box.querySelector('#pvFoot').innerHTML = `
+      ${meta.t ? `<div class="pv-t">${escapeHtml(meta.t)}</div>` : ''}
+      ${uploader ? `<div class="pv-ops">
+        <button class="pv-btn" id="pvRe">換照片</button>
+        <button class="pv-btn danger" id="pvDel">刪除</button>
+      </div>` : ''}
+      <div class="pv-msg" role="alert" id="pvMsg"></div>`;
+    window.dbGet(window.dbRef(window.db, 'photo-full/' + key)).then(snap=>{
+      if(pv !== box) return;
+      const full = snap.exists() ? albImg(snap.val()) : '';
+      if(full){ img.src = full; img.classList.remove('lo'); }
+    }).catch(e=>{
+      console.error('photo-full load error', e);
+      if(pv === box) box.querySelector('#pvMsg').textContent = '原圖載不到';
+    });
+    if(!uploader) return;
+    box.querySelector('#pvRe').addEventListener('click', ()=> albPickFile(key, meta.t || '', from));
+    box.querySelector('#pvDel').addEventListener('click', async ()=>{
+      if(!confirm('確定刪除這天的照片？')) return;
+      try{
+        await window.dbUpdate(window.dbRef(window.db), {['photo-day/' + key]: null, ['photo-full/' + key]: null});
+      }catch(e){
+        console.error('photo delete error', e);
+        box.querySelector('#pvMsg').textContent = '沒刪掉，請再試一次';
+        return;
+      }
+      pvFrom = null;
+      albCloseView();
+      albFocusKey = key;
+      renderAlbum();
+    });
+  }
+
+  function albPickFile(key, caption, from){
+    albPending = {key, caption, from};
+    const input = document.getElementById('albFile');
+    if(!input) return;
+    input.value = '';   // 同一張再選一次也要觸發 change
+    input.click();
+  }
+
+  function albDecode(file){
+    return new Promise((resolve, reject)=>{
+      const url = URL.createObjectURL(file);
+      const im = new Image();
+      im.onload = ()=>{ URL.revokeObjectURL(url); resolve(im); };
+      im.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+      im.src = url;
+    });
+  }
+  // 在手機上先縮好再傳：原圖動輒 3–5MB，縮完一張約 300KB，縮圖約 15KB。
+  // 直拍照片的方向瀏覽器畫進 canvas 時就會轉正，不用自己讀 EXIF。
+  function albEncode(im, edge, quality, square){
+    const w = im.naturalWidth, h = im.naturalHeight;
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    if(square){
+      const s = Math.min(w, h);
+      c.width = c.height = edge;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, edge, edge);
+      ctx.drawImage(im, (w - s) / 2, (h - s) * 0.4, s, s, 0, 0, edge, edge);   // 偏上一點，少切到頭
+    }else{
+      const k = Math.min(1, edge / Math.max(w, h));
+      c.width = Math.round(w * k);
+      c.height = Math.round(h * k);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(im, 0, 0, c.width, c.height);
+    }
+    let out = c.toDataURL('image/jpeg', quality);
+    // 資料庫規則有大小上限，太大就降畫質再試
+    while(out.length > PH_FULL_MAX && quality > .4){
+      quality -= .12;
+      out = c.toDataURL('image/jpeg', quality);
+    }
+    return out;
+  }
+
+  // 放照片：選好之後先給看一眼、填標題，按上傳才寫進去
+  async function albPreview(file){
+    const {key, caption, from} = albPending;
+    albPending = null;
+    const box = albShell(key, from);
+    const img = box.querySelector('#pvImg');
+    box.querySelector('#pvFoot').innerHTML = `
+      <label class="pv-lab"><span>標題</span>
+        <input id="pvCap" type="text" maxlength="20" placeholder="選填" value="${escapeHtml(caption || '')}"></label>
+      <div class="pv-ops">
+        <button class="pv-btn" id="pvCancel">取消</button>
+        <button class="pv-btn primary" id="pvUp" disabled>上傳</button>
+      </div>
+      <div class="pv-msg" role="alert" id="pvMsg"></div>`;
+    const msg = box.querySelector('#pvMsg');
+    const upBtn = box.querySelector('#pvUp');
+    box.querySelector('#pvCancel').addEventListener('click', albCloseView);
+
+    let full, thumb;
+    try{
+      const im = await albDecode(file);
+      full = albEncode(im, PH_FULL_EDGE, .82, false);
+      thumb = albEncode(im, PH_THUMB, .72, true);
+    }catch(e){
+      console.error('photo encode error', e);
+      if(pv === box) msg.textContent = '這張打不開，換一張試試';
+      return;
+    }
+    if(pv !== box) return;
+    img.src = full;
+    img.alt = '預覽';
+    upBtn.disabled = false;
+
+    upBtn.addEventListener('click', async ()=>{
+      upBtn.disabled = true;
+      upBtn.textContent = '上傳中…';
+      msg.textContent = '';
+      const t = box.querySelector('#pvCap').value.trim().slice(0, 20);
+      const meta = {t, by: currentPersonId, at: new Date().toISOString(), thumb};
+      try{
+        await window.dbUpdate(window.dbRef(window.db), {['photo-day/' + key]: meta, ['photo-full/' + key]: full});
+      }catch(e){
+        console.error('photo upload error', e);
+        if(pv !== box) return;
+        msg.textContent = '沒傳上去，請再試一次';
+        upBtn.disabled = false;
+        upBtn.textContent = '上傳';
+        return;
+      }
+      pvFrom = null;
+      albCloseView();
+      albFocusKey = key;
+      if(view === 'album') renderAlbum();
+    });
+  }
+
+
+  // ---------- 一次性：把半年回憶錄的照片放進運動日曆 ----------
+  // 每次運動取第一張（memories/ 底下的「第幾次-1.jpg」），標題沿用回憶錄的。
+  // 那天已經有照片就跳過，按幾次都不會蓋掉後來放的。都匯完之後這段可以整段刪掉。
+  const OLD_PHOTOS = [
+    ['2026-04-22', '01-1.jpg', '逢甲跑跑步'],
+    ['2026-05-07', '02-1.jpg', '第一次網球'],
+    ['2026-05-11', '03-1.jpg', '蜘蛛人抱石'],
+    ['2026-05-19', '04-1.jpg', '公園跑跑'],
+    ['2026-05-27', '05-1.jpg', '第一次匹克幫'],
+    ['2026-06-04', '06-1.jpg', '第一次羽球'],
+    ['2026-06-15', '07-1.jpg', '保齡球忘記拍照'],
+    ['2026-06-24', '08-1.jpg', '撞球喔'],
+    ['2026-07-01', '09-1.jpg', '芒果籃球'],
+    ['2026-07-29', '10-1.jpg', '第二次匹克幫'],
+    ['2026-08-03', '11-1.jpg', '第二次網球後面在霸凌'],
+    ['2026-08-28', '12-1.jpg', '第二次羽球'],
+    ['2026-09-07', '13-1.jpg', '鼻要欺負我們女生！'],
+    ['2026-09-15', '14-1.jpg', '第三次羽球'],
+    ['2026-09-30', '15-1.jpg', '蜘蛛人第二次抱石'],
+    ['2026-10-05', '16-1.jpg', '第三次網球有人變厲害']
+  ];
+  // 回傳最後要顯示的那句話；progress(t) 用來顯示進度
+  async function albImportOld(progress){
+    // 測試站在 test/ 底下，照片放在根目錄那一份（跟回憶錄同一套）
+    const dir = /\/test\//.test(location.pathname) ? '../memories/' : 'memories/';
+    let added = 0, skipped = 0;
+    for(let i=0; i<OLD_PHOTOS.length; i++){
+      const [key, file, t] = OLD_PHOTOS[i];
+      progress(`匯入中 ${i+1}/${OLD_PHOTOS.length}`);
+      try{
+        const has = await window.dbGet(window.dbRef(window.db, 'photo-day/' + key));
+        if(has.exists()){ skipped++; continue; }
+        const res = await fetch(dir + file);
+        if(!res.ok) throw new Error('fetch ' + res.status);
+        const im = await albDecode(await res.blob());
+        const full = albEncode(im, PH_FULL_EDGE, .82, false);
+        const thumb = albEncode(im, PH_THUMB, .72, true);
+        await window.dbUpdate(window.dbRef(window.db), {
+          ['photo-day/' + key]: {t, by: currentPersonId, at: new Date().toISOString(), thumb},
+          ['photo-full/' + key]: full
+        });
+        added++;
+      }catch(e){
+        console.error('import old photo error', key, e);
+        const why = /permission/i.test(String(e && (e.code || e.message))) ? '沒有權限：資料庫規則還沒更新' : '連不上，請再試一次';
+        return `停在 ${key}（${why}）。已匯入 ${added} 張`;
+      }
+    }
+    return `完成：匯入 ${added} 張${skipped ? `，跳過 ${skipped} 張` : ''}`;
+  }
+
+
   let adminUnlocked = false;
 
   function renderAdminLock(){
@@ -3236,6 +3684,7 @@
           ${accBtn(p.id, 'toggleSport', '運動', inSport(p))}
           ${accBtn(p.id, 'toggleTrip', '旅遊記帳', inTrip(p))}
           ${accBtn(p.id, 'toggleSis', '行事曆', !!p.canSis)}
+          ${accBtn(p.id, 'togglePhoto', '傳照片', !!p.canPhoto)}
         </div>
         <div class="admin-ops">
           <button class="del-btn" data-action="setTeacher" data-id="${p.id}">${p.isTeacher?'取消老師':'設為老師'}</button>
@@ -3252,15 +3701,29 @@
       </header>
       <div class="card">
         <h1>人員管理</h1>
-        <p class="desc">按著的分站＝看得到。運動、旅遊記帳是兩份獨立的名單，行事曆是運動站裡的分頁。<br>新成員預設只開運動。老師的空閒時間會作為排定運動的依據。</p>
+        <p class="desc">按著的分站＝看得到。運動、旅遊記帳是兩份獨立的名單，行事曆是運動站裡的分頁。傳照片＝能在運動日曆放照片。<br>新成員預設只開運動。老師的空閒時間會作為排定運動的依據。</p>
         ${rowsHtml || '<div class="empty">尚無人員</div>'}
         <div class="add-row">
           <input type="text" id="newName" placeholder="輸入新成員姓名">
           <button id="addBtn">新增</button>
         </div>
       </div>
+      <div class="card">
+        <h2>匯入半年照片</h2>
+        <p class="desc">回憶錄每次運動的第一張放進運動日曆。那天已經有照片的會跳過。</p>
+        <button class="save-btn" id="importOldBtn">開始匯入</button>
+        <div class="save-time" role="alert" id="importOldMsg"></div>
+      </div>
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
     `;
+
+    document.getElementById('importOldBtn').addEventListener('click', async (e)=>{
+      const btn = e.currentTarget, msg = document.getElementById('importOldMsg');
+      btn.disabled = true;
+      const r = await albImportOld(t=>{ msg.textContent = t; });
+      msg.textContent = r;
+      btn.disabled = false;
+    });
 
     app.querySelectorAll('[data-action="delete"]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
@@ -3285,7 +3748,8 @@
     const accToggles = {
       toggleSport: p => ({...p, canSport: !inSport(p)}),
       toggleTrip:  p => ({...p, canTrip:  !inTrip(p)}),
-      toggleSis:   p => ({...p, canSis:   !p.canSis})
+      toggleSis:   p => ({...p, canSis:   !p.canSis}),
+      togglePhoto: p => ({...p, canPhoto: !p.canPhoto})
     };
     Object.keys(accToggles).forEach(action=>{
       app.querySelectorAll(`[data-action="${action}"]`).forEach(btn=>{
