@@ -3269,6 +3269,25 @@
   }
 
   // 讀失敗會丟錯，由呼叫的人顯示「連不上」——不能當成這個月沒照片
+  // 今年第幾次：只需要「哪幾天有照片」，不要為了數數把一整年的縮圖都載回來。
+  // SDK 沒有只拿 key 的讀法，改走 REST 的 shallow=true，帶自己的登入憑證，規則一樣適用。
+  // 回傳排好序的日期清單；失敗會丟錯，呼叫的人不顯示統計就好，不影響月曆。
+  async function albLoadDays(){
+    const u = window.fbAuth.currentUser;
+    if(!u) throw new Error('not signed in');
+    const token = await u.getIdToken();
+    const res = await fetch(window.db.app.options.databaseURL + '/photo-day.json?shallow=true&auth=' + encodeURIComponent(token));
+    if(!res.ok) throw new Error('shallow ' + res.status);
+    return Object.keys((await res.json()) || {}).sort();
+  }
+  // 「今年第 3 次」；看的是別年就寫「2025 年第 3 次」
+  function albNthText(days, key){
+    if(!days) return '';
+    const y = key.slice(0, 4);
+    const n = days.filter(k => k.slice(0, 4) === y && k <= key).length;
+    return (y === String(new Date().getFullYear()) ? '今年' : y + ' 年') + '第 ' + n + ' 次';
+  }
+
   async function albLoadMonth(y, m){
     const k = y + '-' + pad(m+1);
     const Q = window.dbQ;
@@ -3288,6 +3307,7 @@
       albMonth = now.getMonth();
     }
     let month = {}, failed = false, failMsg = '';
+    const daysP = albLoadDays().catch(e=>{ console.error('album days error', e); return null; });
     try{ month = await albLoadMonth(albYear, albMonth); }
     catch(e){
       console.error('album load error', e);
@@ -3295,6 +3315,7 @@
       // 被規則擋下來跟網路斷掉要分開講，不然改規則的人不知道是哪一個
       failMsg = /permission/i.test(String(e && (e.code || e.message))) ? '沒有權限：資料庫規則還沒更新' : '連不上，請稍後再試';
     }
+    const days = failed ? null : await daysP;
     if(myRenderToken !== renderGen) return;
 
     const uploader = canPhoto(person) && !failed;
@@ -3319,7 +3340,9 @@
       }
     }
     const count = Object.keys(month).length;
-    const sum = failed ? '' : `這個月 ${count} 次${uploader ? '・點日期放照片' : ''}`;
+    const yearN = days ? days.filter(k => k.slice(0, 4) === String(albYear)).length : null;
+    const yearLbl = albYear === new Date().getFullYear() ? '今年' : albYear + ' 年';
+    const sum = failed ? '' : `這個月 ${count} 次${yearN != null ? `・${yearLbl} ${yearN} 次` : ''}${uploader ? '・點日期放照片' : ''}`;
 
     app.innerHTML = `
       <header class="top">
@@ -3351,7 +3374,7 @@
       });
     });
     app.querySelectorAll('.alb-cell.has').forEach(btn=>{
-      btn.addEventListener('click', ()=> albOpenView(btn.dataset.day, month[btn.dataset.day], canPhoto(person), btn));
+      btn.addEventListener('click', ()=> albOpenView(btn.dataset.day, month[btn.dataset.day], canPhoto(person), btn, albNthText(days, btn.dataset.day)));
     });
     app.querySelectorAll('.alb-cell.add').forEach(btn=>{
       btn.addEventListener('click', ()=> albPickFile(btn.dataset.day, '', btn));
@@ -3386,7 +3409,7 @@
     // 面板關掉之後焦點送回原本那一格（SPEC 第 4 節）
     if(pvFrom && document.contains(pvFrom)) pvFrom.focus({preventScroll:true});
   }
-  function albShell(key, from){
+  function albShell(key, from, extra){
     albCloseView();
     pvFrom = from;
     pv = document.createElement('div');
@@ -3395,7 +3418,7 @@
     pv.setAttribute('aria-modal', 'true');
     pv.setAttribute('aria-label', albFmtDay(key) + ' 的照片');
     pv.innerHTML = `
-      <div class="pv-top"><span class="d">${albFmtDay(key)}</span>
+      <div class="pv-top"><span class="d">${albFmtDay(key)}${extra ? '・' + extra : ''}</span>
         <button class="pv-x" id="pvX" aria-label="關閉" title="關閉">${ICON_X}</button></div>
       <div class="pv-stage"><img id="pvImg" alt=""></div>
       <div class="pv-foot" id="pvFoot"></div>`;
@@ -3408,8 +3431,8 @@
   }
 
   // 看照片：先放縮圖（糊的），原圖到了再換上去
-  function albOpenView(key, meta, uploader, from){
-    const box = albShell(key, from);
+  function albOpenView(key, meta, uploader, from, nth){
+    const box = albShell(key, from, nth);
     const img = box.querySelector('#pvImg');
     img.src = albImg(meta.thumb);
     img.alt = meta.t || '運動照片';
