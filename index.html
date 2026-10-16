@@ -3598,58 +3598,6 @@
   }
 
 
-  // ---------- 一次性：把半年回憶錄的照片放進運動日曆 ----------
-  // 每次運動取第一張（memories/ 底下的「第幾次-1.jpg」），標題沿用回憶錄的。
-  // 那天已經有照片就跳過，按幾次都不會蓋掉後來放的。都匯完之後這段可以整段刪掉。
-  const OLD_PHOTOS = [
-    ['2026-04-22', '01-1.jpg', '逢甲跑跑步'],
-    ['2026-05-07', '02-1.jpg', '第一次網球'],
-    ['2026-05-11', '03-1.jpg', '蜘蛛人抱石'],
-    ['2026-05-19', '04-1.jpg', '公園跑跑'],
-    ['2026-05-27', '05-1.jpg', '第一次匹克幫'],
-    ['2026-06-04', '06-1.jpg', '第一次羽球'],
-    ['2026-06-15', '07-1.jpg', '保齡球忘記拍照'],
-    ['2026-06-24', '08-1.jpg', '撞球喔'],
-    ['2026-07-01', '09-1.jpg', '芒果籃球'],
-    ['2026-07-29', '10-1.jpg', '第二次匹克幫'],
-    ['2026-08-03', '11-1.jpg', '第二次網球後面在霸凌'],
-    ['2026-08-28', '12-1.jpg', '第二次羽球'],
-    ['2026-09-07', '13-1.jpg', '鼻要欺負我們女生！'],
-    ['2026-09-15', '14-1.jpg', '第三次羽球'],
-    ['2026-09-30', '15-1.jpg', '蜘蛛人第二次抱石'],
-    ['2026-10-05', '16-1.jpg', '第三次網球有人變厲害']
-  ];
-  // 回傳最後要顯示的那句話；progress(t) 用來顯示進度
-  async function albImportOld(progress){
-    // 測試站在 test/ 底下，照片放在根目錄那一份（跟回憶錄同一套）
-    const dir = /\/test\//.test(location.pathname) ? '../memories/' : 'memories/';
-    let added = 0, skipped = 0;
-    for(let i=0; i<OLD_PHOTOS.length; i++){
-      const [key, file, t] = OLD_PHOTOS[i];
-      progress(`匯入中 ${i+1}/${OLD_PHOTOS.length}`);
-      try{
-        const has = await window.dbGet(window.dbRef(window.db, 'photo-day/' + key));
-        if(has.exists()){ skipped++; continue; }
-        const res = await fetch(dir + file);
-        if(!res.ok) throw new Error('fetch ' + res.status);
-        const im = await albDecode(await res.blob());
-        const full = albEncode(im, PH_FULL_EDGE, .82, false);
-        const thumb = albEncode(im, PH_THUMB, .72, true);
-        await window.dbUpdate(window.dbRef(window.db), {
-          ['photo-day/' + key]: {t, by: currentPersonId, at: new Date().toISOString(), thumb},
-          ['photo-full/' + key]: full
-        });
-        added++;
-      }catch(e){
-        console.error('import old photo error', key, e);
-        const why = /permission/i.test(String(e && (e.code || e.message))) ? '沒有權限：資料庫規則還沒更新' : '連不上，請再試一次';
-        return `停在 ${key}（${why}）。已匯入 ${added} 張`;
-      }
-    }
-    return `完成：匯入 ${added} 張${skipped ? `，跳過 ${skipped} 張` : ''}`;
-  }
-
-
   let adminUnlocked = false;
 
   function renderAdminLock(){
@@ -3757,22 +3705,8 @@
           <button id="addBtn">新增</button>
         </div>
       </div>
-      <div class="card">
-        <h2>匯入半年照片</h2>
-        <p class="desc">回憶錄每次運動的第一張放進運動日曆。那天已經有照片的會跳過。</p>
-        <button class="save-btn" id="importOldBtn">開始匯入</button>
-        <div class="save-time" role="alert" id="importOldMsg"></div>
-      </div>
       <div class="footer-link"><a href="#" id="backLink">回到選擇身份</a></div>
     `;
-
-    document.getElementById('importOldBtn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget, msg = document.getElementById('importOldMsg');
-      btn.disabled = true;
-      const r = await albImportOld(t=>{ msg.textContent = t; });
-      msg.textContent = r;
-      btn.disabled = false;
-    });
 
     app.querySelectorAll('[data-action="delete"]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
