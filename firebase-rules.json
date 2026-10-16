@@ -31,6 +31,20 @@
       "$uid": {
         ".write": "auth != null && ((!data.exists() && $uid === auth.uid && newData.parent().parent().child('claims').child(newData.val()).val() === auth.uid) || (!newData.exists() && root.child('members').child(auth.uid).exists()))"
       }
+    },
+    "photo-day": {
+      ".read": "auth != null && root.child('members').child(auth.uid).exists()",
+      "$date": {
+        ".write": "auth != null && root.child('members').child(auth.uid).exists()",
+        ".validate": "$date.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && newData.child('thumb').isString() && newData.child('thumb').val().length < 80000 && newData.child('t').isString() && newData.child('t').val().length <= 20"
+      }
+    },
+    "photo-full": {
+      ".read": "auth != null && root.child('members').child(auth.uid).exists()",
+      "$date": {
+        ".write": "auth != null && root.child('members').child(auth.uid).exists()",
+        ".validate": "$date.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && newData.isString() && newData.val().length < 1400000"
+      }
     }
   }
 }
